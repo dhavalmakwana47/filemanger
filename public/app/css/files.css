@@ -1,0 +1,130 @@
+.tree {
+    position: relative;
+    background: #ffffff;
+    border: 1px solid #e0e0e0;
+    border-radius: 8px;
+    margin-top: 20px;
+    padding: 20px;
+    font-family: 'Roboto', sans-serif;
+    font-size: 1rem;
+    /* line-height: 1.6; */
+    color: #343a40;
+    box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+    overflow-x: auto;
+
+    span {
+        font-size: 0.85rem;
+        font-style: italic;
+        color: #6c757d;
+    }
+
+    .fa-folder-open,
+    .fa-folder {
+        color: #007bff;
+    }
+
+    ul {
+        padding-left: 15px;
+        list-style: none;
+
+        li {
+            position: relative;
+            padding: 10px 0;
+            padding-left: 25px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+
+            details {
+                summary {
+                    cursor: pointer;
+                    display: flex;
+                    align-items: center;
+                    gap: 8px;
+                    font-weight: 500;
+                    color: #495057;
+                    transition: all 0.2s ease-in-out;
+
+                    &:hover {
+                        background-color: rgba(0, 123, 255, 0.1);
+                        border-radius: 5px;
+                        padding: 5px 10px;
+                    }
+                }
+
+                summary::-webkit-details-marker {
+                    display: none;
+                }
+
+                &[open] > summary i.fa-folder:before {
+                    content: "\f07c"; /* Folder Open Icon */
+                }
+
+                &[disabled] > summary {
+                    cursor: not-allowed;
+                    color: #adb5bd;
+
+                    i:before {
+                        content: "\f65d"; /* Lock Icon */
+                        color: #adb5bd;
+                    }
+                }
+            }
+
+            &:last-child:after {
+                height: 18px;
+            }
+        }
+
+        a {
+            color: #007bff;
+            text-decoration: none;
+            font-size: 0.95rem;
+
+            &:hover {
+                text-decoration: underline;
+                color: #0056b3;
+            }
+        }
+    }
+}
+
+.tree summary button {
+    margin-left: auto;
+    font-size: 0.85rem;
+    color: #ffffff;
+    background: #007bff;
+    border: none;
+    border-radius: 4px;
+    padding: 5px 10px;
+    cursor: pointer;
+    transition: background 0.3s ease;
+
+    &:hover {
+        background-color: #0056b3;
+    }
+}
+
+.modal-header,
+.modal-footer {
+    background-color: #f8f9fa;
+    border-top: 1px solid #e9ecef;
+}
+
+/* .dropdown-menu {
+    background-color: #ffffff;
+    border: 1px solid #e0e0e0;
+    border-radius: 4px;
+    box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+}
+
+.dropdown-item {
+    font-size: 0.95rem;
+    color: #212529;
+    padding: 10px 15px;
+
+    &:hover {
+        background-color: #f8f9fa;
+        color: #007bff;
+    }
+} */
