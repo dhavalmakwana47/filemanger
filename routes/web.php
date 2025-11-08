@@ -57,7 +57,9 @@ Route::middleware('auth')->group(function () {
     Route::post('/change_company', [UserController::class, 'change_company'])->name('change_company');
     Route::post('users-upload', [UserController::class, 'upload'])->name('users.upload');
     Route::get('users-resendpassword/{id}', [UserController::class, 'resendPassword'])->name('users.resend_password');
-   Route::post('chnage-status', [UserController::class, 'changeStatus'])->name('users.change_status');
+    Route::post('chnage-status', [UserController::class, 'changeStatus'])->name('users.change_status');
+    Route::post('users-bulk-status', [UserController::class, 'bulkStatusUpdate'])->name('users.bulk_status');
+    Route::post('users-bulk-delete', [UserController::class, 'bulkDelete'])->name('users.bulk_delete');
 
     //company
     Route::resource('company', CompanyController::class);

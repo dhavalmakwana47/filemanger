@@ -20,9 +20,34 @@
         <ul id="sheet-tabs" class="nav nav-tabs"></ul>
     </div>
 
-    <div id="xlsx-table" class="sheet-body mt-3 rounded shadow-sm bg-white p-3 overflow-auto"></div>
+    <div id="xlsx-table" class="sheet-body mt-3 rounded shadow-sm bg-white p-3 overflow-auto" style="position: relative; min-height: 300px;">
+        <div id="xlsx-loader" class="d-flex justify-content-center align-items-center" style="position: absolute; top: 0; left: 0; right: 0; bottom: 0; background: rgba(255, 255, 255, 0.8);">
+            <div class="text-center">
+                <div class="spinner-border text-primary" style="width: 3rem; height: 3rem;" role="status">
+                    <span class="visually-hidden">Loading...</span>
+                </div>
+                <p class="mt-2 text-muted">Loading Excel file, please wait...</p>
+            </div>
+        </div>
+    </div>
 </div>
 <div id="protected"></div>
+
+<style>
+    .spinner-border {
+        display: inline-block;
+        width: 2rem;
+        height: 2rem;
+        vertical-align: text-bottom;
+        border: 0.25em solid currentColor;
+        border-right-color: transparent;
+        border-radius: 50%;
+        animation: spinner-border .75s linear infinite;
+    }
+    @keyframes spinner-border {
+        to { transform: rotate(360deg); }
+    }
+</style>
 
 <!-- XLSX JS -->
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
@@ -31,10 +56,20 @@
 
     async function loadXLSX() {
         try {
+            // Show loader
+            document.getElementById('xlsx-loader').style.display = 'flex';
+            
             const response = await fetch(xlsxUrl);
             if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
-            const data = await response.arrayBuffer();
+            const data = new Uint8Array(await response.arrayBuffer());
+            
+            // Small delay to ensure loader is visible
+            await new Promise(resolve => setTimeout(resolve, 100));
+            
             const workbook = XLSX.read(data, { type: 'array', cellStyles: true });
+
+            // Hide loader when done
+            document.getElementById('xlsx-loader').style.display = 'none';
 
             // Get all sheet names
             const sheetNames = workbook.SheetNames;
@@ -64,8 +99,12 @@
             }
         } catch (error) {
             console.error('Error loading XLSX:', error);
-            document.getElementById('xlsx-table').innerHTML =
-                `<div class="alert alert-danger">Error loading XLSX: ${error.message}</div>`;
+            document.getElementById('xlsx-loader').style.display = 'none';
+            document.getElementById('xlsx-table').innerHTML = `
+                <div class="alert alert-danger">
+                    <h5>Error loading Excel file</h5>
+                    <p class="mb-0">${error.message || 'An error occurred while loading the file.'}</p>
+                </div>`;
         }
     }
 

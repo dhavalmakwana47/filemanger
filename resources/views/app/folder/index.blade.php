@@ -18,6 +18,9 @@
         .modal-content {
             border-radius: 8px;
             box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
+            display: flex;
+            flex-direction: column;
+            max-height: 90vh;
         }
 
         .modal-header {
@@ -25,6 +28,7 @@
             color: #fff;
             border-top-left-radius: 8px;
             border-top-right-radius: 8px;
+            flex-shrink: 0;
         }
 
         .modal-title {
@@ -33,6 +37,20 @@
 
         .modal-body {
             padding: 20px;
+            overflow-y: auto;
+            flex: 1;
+            max-height: 70vh;
+        }
+        
+        .modal-footer {
+            flex-shrink: 0;
+            position: sticky;
+            bottom: 0;
+            background: white;
+            z-index: 1000;
+            border-bottom-left-radius: 8px;
+            border-bottom-right-radius: 8px;
+            box-shadow: 0 -2px 10px rgba(0, 0, 0, 0.1);
         }
 
         .properties-card {

@@ -443,6 +443,7 @@ class FileController extends Controller
     {
         // Allowed MIME types
         $allowedMimeTypes = [
+            // Original MIME types
             'image/png',
             'image/jpeg',
             'image/gif',
@@ -456,6 +457,34 @@ class FileController extends Controller
             'text/plain',
             'application/x-rar-compressed',
             'application/vnd.rar',
+            
+            // Additional MIME types
+            'image/tiff',
+            'image/tif',
+            'application/rtf',
+            'application/vnd.ms-excel',
+            'application/vnd.ms-powerpoint',
+            'application/vnd.openxmlformats-officedocument.presentationml.presentation',
+            'video/mp4',
+            'video/quicktime',
+            'video/x-ms-wmv',
+            'video/x-matroska',
+            'video/mpeg',
+            'audio/mpeg',
+            'audio/wav',
+            'audio/aac',
+            'audio/mp4',
+            'audio/x-m4a',
+            'application/acad',
+            'application/x-acad',
+            'application/autocad_dwg',
+            'application/dwg',
+            'application/x-dwg',
+            'application/x-autocad',
+            'drawing/dwg',
+            'image/vnd.dwg',
+            'image/x-dwg',
+            'application/x-7z-compressed'
         ];
 
         // Get parent folder ID for the file

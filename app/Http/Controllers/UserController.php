@@ -59,6 +59,9 @@ class UserController extends Controller implements HasMiddleware
 
 
             return DataTables::of($users)
+                ->addColumn('select', function ($user) {
+                    return '<input type="checkbox" class="user-checkbox" value="' . $user->id . '">';
+                })
                 ->addColumn('action', function ($user) use ($currentUser) {
                     $actionButtons = '';
                     $resendPasswordUrl = route('users.resend_password', $user->id);
@@ -89,7 +92,7 @@ class UserController extends Controller implements HasMiddleware
                 ->addColumn('status', function ($user) use ($currentUser) {
                     return view('app.users.status', ['user' => $user, 'currentUser' => $currentUser])->render();
                 })
-                ->rawColumns(['status', 'action'])
+                ->rawColumns(['select', 'status', 'action'])
                 ->make(true);
         }
         $data['roleArr'] = CompanyRole::whereNot('role_name', 'Super Admin')->where('company_id', get_active_company())->get();
@@ -422,5 +425,88 @@ class UserController extends Controller implements HasMiddleware
             ->update(['is_active' => $request->is_active]);
 
         return response()->json(['status' => 'success', 'message' => 'User status updated successfully.']);
+    }
+
+    public function bulkStatusUpdate(Request $request)
+    {
+        $request->validate([
+            'user_ids' => 'required|array',
+            'user_ids.*' => 'exists:users,id',
+            'is_active' => 'required|boolean'
+        ]);
+
+        $userIds = $request->user_ids;
+        $isActive = $request->is_active;
+        $activeCompanyId = get_active_company();
+
+        // Check if any of the users are admin
+        foreach ($userIds as $userId) {
+            $user = User::find($userId);
+            if ($this->admin_check($user)) {
+                return response()->json([
+                    'status' => 'error', 
+                    'message' => 'Cannot update status for admin users.'
+                ], 403);
+            }
+        }
+
+        // Update status for all selected users
+        CompanyUser::whereIn('user_id', $userIds)
+            ->where('company_id', $activeCompanyId)
+            ->update(['is_active' => $isActive]);
+
+        $statusText = $isActive ? 'enabled' : 'disabled';
+        $count = count($userIds);
+
+        addUserAction([
+            'user_id' => Auth::id(),
+            'action' => "Bulk status update: {$count} user(s) {$statusText}"
+        ]);
+
+        return response()->json([
+            'status' => 'success', 
+            'message' => "{$count} user(s) status updated successfully."
+        ]);
+    }
+
+    public function bulkDelete(Request $request)
+    {
+        $request->validate([
+            'user_ids' => 'required|array',
+            'user_ids.*' => 'exists:users,id',
+        ]);
+
+        $activeCompanyId = get_active_company();
+        $userIds = $request->user_ids;
+
+        // Prevent deleting admin users
+        foreach ($userIds as $userId) {
+            $user = User::find($userId);
+            if ($this->admin_check($user)) {
+                return response()->json([
+                    'status' => 'error',
+                    'message' => 'Cannot delete admin users.'
+                ], 403);
+            }
+        }
+
+        // Delete relations in active company only (match destroy behavior)
+        CompanyUser::whereIn('user_id', $userIds)
+            ->where('company_id', $activeCompanyId)
+            ->delete();
+
+        CompanyUserRole::whereIn('user_id', $userIds)
+            ->where('company_id', $activeCompanyId)
+            ->delete();
+
+        addUserAction([
+            'user_id' => Auth::id(),
+            'action' => 'Bulk delete: ' . count($userIds) . ' user(s) detached from company'
+        ]);
+
+        return response()->json([
+            'status' => 'success',
+            'message' => count($userIds) . ' user(s) deleted from this company successfully.'
+        ]);
     }
 }

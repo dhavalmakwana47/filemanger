@@ -22,9 +22,24 @@ class FolderRequest extends FormRequest
     public function rules(): array
     {
         return [
-            'name' => ['required','max:50'],
+            'name' => ['required','max:150'],
             'parent_id' => 'nullable|exists:folders,id',
             'permissions' => ['nullable','array'],
+            'item_index' => ['nullable','numeric','digits_between:1,10'],
+        ];
+    }
+
+    /**
+     * Get custom attributes for validator errors.
+     *
+     * @return array<string, string>
+     */
+    public function attributes(): array
+    {
+        return [
+            'name' => 'Folder Name',
+            'parent_id' => 'Parent Folder',
+            'item_index' => 'Item Index',
         ];
     }
 }

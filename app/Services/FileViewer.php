@@ -8,6 +8,9 @@ class FileViewer
 {
     public static function viewFile($value)
     {
+        // Add 4-second delay
+        // sleep(4);
+        
         $storageType = config('filesystems.default') == 's3' ? 's3' : 'public';
         if (Storage::disk($storageType)->exists($value)) {
             $fileContent = Storage::disk($storageType)->get($value);

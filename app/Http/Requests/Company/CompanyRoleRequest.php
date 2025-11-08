@@ -29,7 +29,7 @@ class CompanyRoleRequest extends FormRequest
                 'required',
                 Rule::unique('company_roles')->where('company_id', $companyId)->ignore($id) ,
                 'string',
-                'max:2555'
+                'max:50'
             ]
         ];
     }

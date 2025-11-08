@@ -1113,6 +1113,7 @@ $(function () {
                labelIdle:
             'Select Folder <span class="filepond--label-action">Browse</span>',
             acceptedFileTypes: [
+                // Original MIME types
                 "image/png",
                 "image/jpeg",
                 "image/gif",
@@ -1124,8 +1125,36 @@ $(function () {
                 "text/csv",
                 "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
                 "text/plain",
-                "application/x-rar-compressed", // RAR support
-                "application/vnd.rar", // RAR support
+                "application/x-rar-compressed",
+                "application/vnd.rar",
+                
+                // Additional MIME types
+                "image/tiff",
+                "image/tif",
+                "application/rtf",
+                "application/vnd.ms-excel",
+                "application/vnd.ms-powerpoint",
+                "application/vnd.openxmlformats-officedocument.presentationml.presentation",
+                "video/mp4",
+                "video/quicktime",
+                "video/x-ms-wmv",
+                "video/x-matroska",
+                "video/mpeg",
+                "audio/mpeg",
+                "audio/wav",
+                "audio/aac",
+                "audio/mp4",
+                "audio/x-m4a",
+                "application/acad",
+                "application/x-acad",
+                "application/autocad_dwg",
+                "application/dwg",
+                "application/x-dwg",
+                "application/x-autocad",
+                "drawing/dwg",
+                "image/vnd.dwg",
+                "image/x-dwg",
+                "application/x-7z-compressed"
             ],
             server: {
                 process: null,
@@ -1241,29 +1270,41 @@ $(function () {
             'Drag & Drop your files or <span class="filepond--label-action">Browse</span>',
         onaddfilestart: (fileItem) => {
             const allowedExtensions = [
-                ".png",
-                ".jpg",
-                ".jpeg",
-                ".gif",
-                ".pdf",
-                ".doc",
-                ".docx",
-                ".zip",
-                ".rar",
-                ".csv",
-                ".xlsx",
-                ".txt",
+                // Images
+                ".png", ".jpg", ".jpeg", ".gif", ".tiff", ".tif",
+                // Documents
+                ".pdf", ".doc", ".docx", ".rtf", 
+                ".xls", ".xlsx", ".csv",
+                ".ppt", ".pptx", ".txt",
+                // Video
+                ".mp4", ".mov", ".wmv", ".mkv", ".mpeg", ".mpg",
+                // Audio
+                ".mp3", ".wav", ".aac", ".m4a",
+                // CAD
+                ".dwg",
+                // Archives
+                ".zip", ".rar", ".7z"
             ];
+            
             const fileName = fileItem.file.name.toLowerCase();
-            const isValidExtension = allowedExtensions.some((ext) =>
-                fileName.endsWith(ext)
-            );
+            const fileExtension = fileName.substring(fileName.lastIndexOf('.'));
+            const isValidExtension = allowedExtensions.includes(fileExtension);
 
             if (!isValidExtension) {
+                const allowedTypesList = [
+                    'Images: PNG, JPG, JPEG, GIF, TIFF, TIF',
+                    'Documents: PDF, DOC, DOCX, RTF, XLS, XLSX, CSV, PPT, PPTX, TXT',
+                    'Video: MP4, MOV, WMV, MKV, MPEG, MPG',
+                    'Audio: MP3, WAV, AAC, M4A',
+                    'CAD: DWG',
+                    'Archives: ZIP, RAR, 7Z'
+                ].join('\n');
+                
                 Swal.fire({
                     icon: "error",
                     title: "Invalid File Type",
-                    text: "Only PNG, JPEG, GIF, PDF, DOC, DOCX, ZIP, RAR, CSV, XLSX, and TXT files are allowed.",
+                    html: `The file type <strong>${fileExtension}</strong> is not allowed.<br><br>Allowed file types are:<br>${allowedTypesList.replace(/\n/g, '<br>')}`,
+                    confirmButtonText: 'OK'
                 });
                 fileItem.remove(); // remove invalid file
             }
@@ -1314,18 +1355,20 @@ $(function () {
 
             // Validate files before appending to formData
             const allowedExtensions = [
-                ".png",
-                ".jpg",
-                ".jpeg",
-                ".gif",
-                ".pdf",
-                ".doc",
-                ".docx",
-                ".zip",
-                ".csv",
-                ".xlsx",
-                ".txt",
-                ".rar", // added rar
+                // Images
+                ".png", ".jpg", ".jpeg", ".gif", ".tiff", ".tif",
+                // Documents
+                ".pdf", ".doc", ".docx", ".rtf", 
+                ".xls", ".xlsx", ".csv",
+                ".ppt", ".pptx", ".txt",
+                // Video
+                ".mp4", ".mov", ".wmv", ".mkv", ".mpeg", ".mpg",
+                // Audio
+                ".mp3", ".wav", ".aac", ".m4a",
+                // CAD
+                ".dwg",
+                // Archives
+                ".zip", ".rar", ".7z"
             ];
             const invalidFiles = files.filter((fileItem) => {
                 const fileName = fileItem.file.name.toLowerCase();
@@ -1452,11 +1495,30 @@ $(function () {
                 Swal.close();
                 console.error("Error:", error);
 
-                Swal.fire({
-                    icon: "error",
-                    title: "Unexpected Error",
-                    text: "An unexpected error occurred. Please try again.",
-                });
+                // Handle Laravel validation errors (422)
+                if (xhr.status === 422) {
+                    const errors = xhr.responseJSON.errors;
+                    let errorMessage = "";
+
+                    // Concatenate all validation error messages
+                    for (const field in errors) {
+                        if (errors.hasOwnProperty(field)) {
+                            errorMessage += errors[field].join("<br>") + "<br>";
+                        }
+                    }
+
+                    Swal.fire({
+                        icon: "error",
+                        title: "Validation Error",
+                        html: errorMessage,
+                    });
+                } else {
+                    Swal.fire({
+                        icon: "error",
+                        title: "Unexpected Error",
+                        text: xhr.responseJSON?.message || "An unexpected error occurred. Please try again.",
+                    });
+                }
             },
         });
     });

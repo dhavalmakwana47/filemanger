@@ -109,8 +109,23 @@
                 </div>
             @endif
 
+            <!-- Bulk Action Buttons -->
+            <div id="bulkActionButtons" class="d-none mb-3">
+                <button type="button" class="btn btn-success" id="enableSelectedBtn">
+                    <i class="fas fa-check-circle me-2"></i>  Active
+                </button>
+                <button type="button" class="btn btn-warning" id="disableSelectedBtn">
+                    <i class="fas fa-times-circle me-2"></i> Inactive
+                </button>
+                <button type="button" class="btn btn-danger" id="deleteSelectedBtn">
+                    <i class="fas fa-trash me-2"></i> Delete Selected
+                </button>
+                <span class="ms-2" id="selectedCount">0 users selected</span>
+            </div>
+
             @php
                 $columns = [
+                ['data' => 'select', 'title' => 'select', 'orderable' => false, 'searchable' => false],
                     ['data' => 'id', 'title' => 'ID'],
                     ['data' => 'name', 'title' => 'Name'],
                     ['data' => 'email', 'title' => 'Email'],
@@ -143,6 +158,13 @@
         $(function() {
             // Define the columns for the users table
             const columns = [{
+                    data: 'select',
+                    name: 'select',
+                    orderable: false,
+                    searchable: false,
+                    width: '5%'
+                },
+                {
                     data: 'id',
                     name: 'id'
                 },
@@ -179,6 +201,64 @@
                 searchPlaceholder: "Search...",
                 dom: '<"row"<"col-md-6"l><"col-md-6"f>>rt<"row"<"col-md-6"i><"col-md-6"p>>'
             });
+
+        // Handle delete selected button
+        $('#deleteSelectedBtn').on('click', function() {
+            var selectedIds = [];
+            $('.user-checkbox:checked').each(function() {
+                selectedIds.push($(this).val());
+            });
+
+            if (selectedIds.length === 0) {
+                Swal.fire({
+                    icon: 'warning',
+                    title: 'No Selection',
+                    text: 'Please select at least one user.',
+                });
+                return;
+            }
+
+            Swal.fire({
+                title: 'Delete Users?',
+                text: 'This will remove the selected users from this company. Continue?',
+                icon: 'warning',
+                showCancelButton: true,
+                confirmButtonColor: '#dc3545',
+                cancelButtonColor: '#6c757d',
+                confirmButtonText: 'Yes, delete'
+            }).then((result) => {
+                if (result.isConfirmed) {
+                    $.ajax({
+                        url: "{{ route('users.bulk_delete') }}",
+                        type: 'POST',
+                        data: {
+                            _token: '{{ csrf_token() }}',
+                            user_ids: selectedIds
+                        },
+                        success: function(response) {
+                            Swal.fire({
+                                icon: 'success',
+                                title: 'Deleted',
+                                text: response.message,
+                                timer: 2000,
+                                showConfirmButton: false
+                            });
+                            // Reset checkboxes and reload table
+                            $('#select-all').prop('checked', false);
+                            $('#bulkActionButtons').addClass('d-none');
+                            $('#users-table').DataTable().ajax.reload(null, false);
+                        },
+                        error: function(xhr) {
+                            Swal.fire({
+                                icon: 'error',
+                                title: 'Error',
+                                text: xhr.responseJSON?.message || 'An error occurred while deleting users.',
+                            });
+                        }
+                    });
+                }
+            });
+        });
         });
 
         $('.select2').select2({
@@ -220,5 +300,128 @@
                 }
             });
         });
+
+        // Handle select all checkbox
+        $(document).on('change', '#select-all', function() {
+            $('.user-checkbox').prop('checked', $(this).is(':checked'));
+            updateBulkActionButtons();
+        });
+
+        // Handle individual checkbox change
+        $(document).on('change', '.user-checkbox', function() {
+            updateBulkActionButtons();
+            
+            // Update select all checkbox state
+            var totalCheckboxes = $('.user-checkbox').length;
+            var checkedCheckboxes = $('.user-checkbox:checked').length;
+            $('#select-all').prop('checked', totalCheckboxes === checkedCheckboxes);
+        });
+
+        // Update bulk action buttons visibility
+        function updateBulkActionButtons() {
+            var checkedCount = $('.user-checkbox:checked').length;
+            if (checkedCount > 0) {
+                $('#bulkActionButtons').removeClass('d-none');
+                $('#selectedCount').text(checkedCount + ' user(s) selected');
+            } else {
+                $('#bulkActionButtons').addClass('d-none');
+            }
+        }
+
+        // Handle enable selected button
+        $('#enableSelectedBtn').on('click', function() {
+            var selectedIds = [];
+            $('.user-checkbox:checked').each(function() {
+                selectedIds.push($(this).val());
+            });
+
+            if (selectedIds.length === 0) {
+                Swal.fire({
+                    icon: 'warning',
+                    title: 'No Selection',
+                    text: 'Please select at least one user.',
+                });
+                return;
+            }
+
+            Swal.fire({
+                title: 'Enable Users?',
+                text: 'Are you sure you want to change status of ' + selectedIds.length + ' user(s)?',
+                icon: 'question',
+                showCancelButton: true,
+                confirmButtonColor: '#28a745',
+                cancelButtonColor: '#6c757d',
+                confirmButtonText: 'Yes, active them!'
+            }).then((result) => {
+                if (result.isConfirmed) {
+                    bulkUpdateStatus(selectedIds, 1);
+                }
+            });
+        });
+
+        // Handle disable selected button
+        $('#disableSelectedBtn').on('click', function() {
+            var selectedIds = [];
+            $('.user-checkbox:checked').each(function() {
+                selectedIds.push($(this).val());
+            });
+
+            if (selectedIds.length === 0) {
+                Swal.fire({
+                    icon: 'warning',
+                    title: 'No Selection',
+                    text: 'Please select at least one user.',
+                });
+                return;
+            }
+
+            Swal.fire({
+                title: 'Disable Users?',
+                text: 'Are you sure you want to change status of ' + selectedIds.length + ' user(s)?',
+                icon: 'warning',
+                showCancelButton: true,
+                confirmButtonColor: '#dc3545',
+                cancelButtonColor: '#6c757d',
+                confirmButtonText: 'Yes, inactive them!'
+            }).then((result) => {
+                if (result.isConfirmed) {
+                    bulkUpdateStatus(selectedIds, 0);
+                }
+            });
+        });
+
+        // Bulk update status function
+        function bulkUpdateStatus(userIds, isActive) {
+            $.ajax({
+                url: "{{ route('users.bulk_status') }}",
+                type: 'POST',
+                data: {
+                    _token: '{{ csrf_token() }}',
+                    user_ids: userIds,
+                    is_active: isActive
+                },
+                success: function(response) {
+                    Swal.fire({
+                        icon: 'success',
+                        title: 'Success',
+                        text: response.message,
+                        timer: 2000,
+                        showConfirmButton: false
+                    });
+                    
+                    // Reset checkboxes and reload table
+                    $('#select-all').prop('checked', false);
+                    $('#bulkActionButtons').addClass('d-none');
+                    $('#users-table').DataTable().ajax.reload(null, false);
+                },
+                error: function(xhr) {
+                    Swal.fire({
+                        icon: 'error',
+                        title: 'Error',
+                        text: xhr.responseJSON?.message || 'An error occurred while updating status.',
+                    });
+                }
+            });
+        }
     </script>
 @endpush

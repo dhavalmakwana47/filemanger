@@ -26,7 +26,7 @@ class UserRequest extends FormRequest
         $activeCompany = get_active_company();
         
         $rules = [
-            'user_name' => 'required|string|max:255',
+            'user_name' => 'required|string|max:100',
             'user_email' => [
                 'required',
                 'email',
