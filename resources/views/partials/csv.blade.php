@@ -11,83 +11,155 @@
         </div>
     </div>
 
-    <div id="csv-table" class="sheet-body mt-3 rounded shadow-sm bg-white p-3 overflow-auto"></div>
+    <div class="sheet-container">
+        <!-- Loading Overlay -->
+        <div id="csv-loader" class="loader-overlay">
+            <div class="loader-spinner"></div>
+            <div class="loader-text">Loading CSV file...</div>
+        </div>
+        
+        <!-- Error Message Container -->
+        <div id="csv-error" class="alert alert-danger d-none" role="alert">
+            <i class="bi bi-exclamation-triangle-fill me-2"></i>
+            <span id="error-message"></span>
+        </div>
+        
+        <!-- CSV Table Container -->
+        <div id="csv-table" class="table-responsive"></div>
+    </div>
 </div>
+
+<!-- Bootstrap Icons -->
+<link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.10.5/font/bootstrap-icons.css" rel="stylesheet">
 
 <!-- PapaParse CDN -->
 <script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.3.2/papaparse.min.js"></script>
 
 <script>
-    const csvUrl = "{{ route($routeName, ['id' => $id]) }}";
-    fetch(csvUrl)
-        .then(response => response.text())
-        .then(data => {
-            const result = Papa.parse(data, { header: true, skipEmptyLines: true });
-            const table = document.createElement('table');
-            table.classList.add('table', 'table-bordered', 'table-striped');
+    document.addEventListener('DOMContentLoaded', function() {
+        const csvUrl = "{{ route($routeName, ['id' => $id]) }}";
+        const csvTable = document.getElementById('csv-table');
+        const csvLoader = document.getElementById('csv-loader');
+        const csvError = document.getElementById('csv-error');
+        const errorMessage = document.getElementById('error-message');
 
-            const thead = document.createElement('thead');
-            const tbody = document.createElement('tbody');
-
-            if (!result.meta.fields || result.meta.fields.length === 0) {
-                document.getElementById('csv-table').innerHTML = '<div class="alert alert-warning">No headers found in CSV file.</div>';
-                return;
+        // Show loader
+        function showLoader() {
+            if (csvLoader) {
+                csvLoader.style.display = 'flex';
+                csvLoader.style.opacity = '1';
             }
+        }
 
-            const headerRow = document.createElement('tr');
-            result.meta.fields.forEach(field => {
-                const th = document.createElement('th');
-                th.textContent = field;
-                headerRow.appendChild(th);
-            });
-            thead.appendChild(headerRow);
+        // Hide loader
+        function hideLoader() {
+            if (csvLoader) {
+                csvLoader.style.opacity = '0';
+                setTimeout(() => {
+                    csvLoader.style.display = 'none';
+                }, 300);
+            }
+        }
 
-            result.data.forEach(row => {
-                const tr = document.createElement('tr');
-                result.meta.fields.forEach(field => {
-                    const td = document.createElement('td');
-                    td.textContent = row[field] || '';
-                    tr.appendChild(td);
+        // Show error
+        function showError(message) {
+            console.error('CSV Viewer Error:', message);
+            if (errorMessage) errorMessage.textContent = message;
+            if (csvError) csvError.classList.remove('d-none');
+        }
+
+        // Load and display CSV
+        async function loadCSV() {
+            showLoader();
+            
+            try {
+                // Fetch CSV file
+                const response = await fetch(csvUrl);
+                if (!response.ok) {
+                    throw new Error(`Failed to load CSV (HTTP ${response.status})`);
+                }
+                
+                const csvText = await response.text();
+                
+                // Parse CSV
+                Papa.parse(csvText, {
+                    header: true,
+                    skipEmptyLines: true,
+                    complete: function(results) {
+                        if (!results.meta.fields || results.meta.fields.length === 0) {
+                            throw new Error('No headers found in CSV file.');
+                        }
+                        
+                        // Create table
+                        const table = document.createElement('table');
+                        table.className = 'table table-bordered table-striped table-hover';
+                        
+                        // Create header
+                        const thead = document.createElement('thead');
+                        const headerRow = document.createElement('tr');
+                        results.meta.fields.forEach(field => {
+                            const th = document.createElement('th');
+                            th.textContent = field;
+                            headerRow.appendChild(th);
+                        });
+                        thead.appendChild(headerRow);
+                        table.appendChild(thead);
+                        
+                        // Create body
+                        const tbody = document.createElement('tbody');
+                        results.data.forEach(row => {
+                            const tr = document.createElement('tr');
+                            results.meta.fields.forEach(field => {
+                                const td = document.createElement('td');
+                                td.textContent = row[field] || '';
+                                tr.appendChild(td);
+                            });
+                            tbody.appendChild(tr);
+                        });
+                        table.appendChild(tbody);
+                        
+                        // Update table in DOM
+                        if (csvTable) {
+                            csvTable.innerHTML = '';
+                            csvTable.appendChild(table);
+                        }
+                    },
+                    error: function(error) {
+                        throw new Error(`CSV Parse Error: ${error.message}`);
+                    }
                 });
-                tbody.appendChild(tr);
-            });
-
-            table.appendChild(thead);
-            table.appendChild(tbody);
-            document.getElementById('csv-table').appendChild(table);
-        })
-        .catch(error => {
-            console.error('Error loading CSV:', error);
-            document.getElementById('csv-table').innerHTML =
-                `<div class="alert alert-danger">Error loading CSV: ${error.message}</div>`;
-        });
-
-    // Disable right-click on table
-    document.addEventListener('contextmenu', function(e) {
-        if (e.target.closest('#csv-table')) {
-            e.preventDefault();
+                
+            } catch (error) {
+                console.error('Error:', error);
+                showError(error.message || 'Failed to load CSV file. Please try again.');
+            } finally {
+                hideLoader();
+            }
         }
+
+        // Initialize
+        loadCSV();
+        
+        // Fullscreen toggle
+        window.toggleCSVFullScreen = function() {
+            const wrapper = document.querySelector('.csv-viewer-wrapper');
+            if (!document.fullscreenElement) {
+                wrapper.requestFullscreen().catch(err => {
+                    showError(`Error enabling fullscreen: ${err.message}`);
+                });
+            } else {
+                document.exitFullscreen();
+            }
+        };
     });
-
-    // Fullscreen toggle
-    function toggleCSVFullScreen() {
-        const elem = document.querySelector('.csv-viewer-wrapper');
-        if (!document.fullscreenElement) {
-            elem.requestFullscreen().catch(err => {
-                alert(`Error attempting fullscreen: ${err.message}`);
-            });
-        } else {
-            document.exitFullscreen();
-        }
-    }
 </script>
 
 <style>
+    /* Base Styles */
     .csv-viewer-wrapper {
         background-color: #f8f9fa;
         padding: 20px;
         border-radius: 12px;
-        min-height: 100vh;
         height: 100%;
         display: flex;
         flex-direction: column;
@@ -98,35 +170,92 @@
         padding: 15px 20px;
         border-radius: 8px;
         box-shadow: 0 2px 6px rgba(0, 0, 0, 0.05);
+        margin-bottom: 15px;
     }
 
-    .sheet-body {
-        flex-grow: 1;
+    .sheet-container {
+        flex: 1;
+        position: relative;
+        min-height: 300px;
+        background: white;
+        border-radius: 8px;
+        box-shadow: 0 2px 4px rgba(0,0,0,0.05);
+        overflow: hidden;
+    }
+
+    /* Loader Styles */
+    .loader-overlay {
+        position: absolute;
+        top: 0;
+        left: 0;
+        right: 0;
+        bottom: 0;
+        background: rgba(255, 255, 255, 0.9);
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        z-index: 10;
+        opacity: 0;
+        transition: opacity 0.3s ease;
+        pointer-events: none;
+    }
+
+    .loader-spinner {
+        width: 50px;
+        height: 50px;
+        border: 5px solid #f3f3f3;
+        border-top: 5px solid #3498db;
+        border-radius: 50%;
+        animation: spin 1s linear infinite;
+        margin-bottom: 15px;
+    }
+
+    .loader-text {
+        color: #555;
+        font-weight: 500;
+    }
+
+    /* Table Styles */
+    #csv-table {
+        height: 100%;
         overflow: auto;
-        max-height: calc(100vh - 160px);
+        padding: 15px;
     }
 
     table {
         width: 100%;
         border-collapse: collapse;
-        font-size: 14px;
     }
 
     th, td {
+        padding: 12px 15px;
+        text-align: left;
         border: 1px solid #dee2e6;
-        padding: 10px;
-        vertical-align: top;
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
     }
 
     th {
-        background-color: #f1f3f5;
+        background-color: #f8f9fa;
         font-weight: 600;
+        position: sticky;
+        top: 0;
+        z-index: 5;
     }
 
     tr:nth-child(even) {
-        background-color: #f9f9f9;
+        background-color: #f8f9fa;
     }
 
+    /* Animations */
+    @keyframes spin {
+        0% { transform: rotate(0deg); }
+        100% { transform: rotate(360deg); }
+    }
+
+    /* Responsive */
     @media (max-width: 768px) {
         .viewer-header {
             flex-direction: column;
@@ -134,8 +263,9 @@
             text-align: center;
         }
 
-        table {
-            font-size: 12px;
+        th, td {
+            padding: 8px 10px;
+            font-size: 13px;
         }
     }
 </style>

@@ -63,9 +63,9 @@
                     }
                 },
                 { data: 'id', name: 'id' },
-                { data: 'name', name: 'name' },
+                { data: 'name', name: 'name', width: '20%' },
                 { data: 'type', name: 'type' },
-                { data: 'created_at', name: 'created_at' },
+                { data: 'created_at', name: 'created_at', width: '10%' },
                 { data: 'action', name: 'action', orderable: false, searchable: false, className: 'text-center' }
             ];
 

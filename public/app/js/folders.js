@@ -412,7 +412,7 @@ $(function () {
                                 clearTimeout(searchTimeout);
                                 searchTimeout = setTimeout(() => {
                                     searchFileManagerData(currentSearchValue);
-                                }, 300);
+                                }, 1000);
                             },
                         },
                         visible: true,
@@ -486,9 +486,9 @@ $(function () {
 
                             if (folders.length > 0) {
                                 // Allow downloading exactly one folder as ZIP using existing POST route
-                                if (folders.length === 1 && files.length === 0 && getId(folders[0])) {
-                                    const fid = getId(folders[0]);
-                                    const dataItem = folders[0].dataItem || {};
+                                folders.forEach((folder) => {
+                                    const fid = getId(folder);
+                                    const dataItem = folder.dataItem || {};
                                     $("<form>", {
                                         method: "POST",
                                         action: `folder-zip`,
@@ -517,10 +517,7 @@ $(function () {
                                         )
                                         .appendTo("body")
                                         .submit();
-                                } else {
-                                    DevExpress.ui.notify("Select only one folder to download as ZIP", "warning", 3000);
-                                }
-                                return;
+                                });
                             }
 
                             // Only files selected: trigger downloads for each file using existing endpoint
@@ -721,8 +718,7 @@ $(function () {
                     selectedItems.every(
                         (item) =>
                             item.dataItem.permissions &&
-                            item.dataItem.permissions.update &&
-                            updateFolderPermission
+                            item.dataItem.permissions.download 
                     );
 
                 let canExtract =
@@ -1054,11 +1050,11 @@ $(function () {
             });
             const data = await response.json();
             fileManager.option("fileSystemProvider", data);
-            // Ensure search input retains the current value
-            fileManager.option(
-                "toolbar.items[4].options.value",
-                currentSearchValue
-            );
+
+            // Keep the search term in the input but don't clear it
+            if (query) {
+                fileManager.option("toolbar.items[5].options.value", query);
+            }
         } catch (error) {
             console.error("Error searching data:", error);
             DevExpress.ui.notify(
@@ -1103,83 +1099,81 @@ $(function () {
         $("#folderForm")[0].reset();
         $("#folderUploadModalModal").modal("show");
     }
-    FilePond.registerPlugin(FilePondPluginFileValidateType);
-    const folderPond = FilePond.create(
-        document.querySelector("#folder-upload"),
-        {
-            allowMultiple: true,
-            allowDirectoryDrop: true,
-            allowDrop: false, // Disable drag-and-drop
-               labelIdle:
-            'Select Folder <span class="filepond--label-action">Browse</span>',
-            acceptedFileTypes: [
-                // Original MIME types
-                "image/png",
-                "image/jpeg",
-                "image/gif",
-                "application/pdf",
-                "application/msword",
-                "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
-                "application/zip",
-                "application/x-zip-compressed",
-                "text/csv",
-                "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-                "text/plain",
-                "application/x-rar-compressed",
-                "application/vnd.rar",
-                
-                // Additional MIME types
-                "image/tiff",
-                "image/tif",
-                "application/rtf",
-                "application/vnd.ms-excel",
-                "application/vnd.ms-powerpoint",
-                "application/vnd.openxmlformats-officedocument.presentationml.presentation",
-                "video/mp4",
-                "video/quicktime",
-                "video/x-ms-wmv",
-                "video/x-matroska",
-                "video/mpeg",
-                "audio/mpeg",
-                "audio/wav",
-                "audio/aac",
-                "audio/mp4",
-                "audio/x-m4a",
-                "application/acad",
-                "application/x-acad",
-                "application/autocad_dwg",
-                "application/dwg",
-                "application/x-dwg",
-                "application/x-autocad",
-                "drawing/dwg",
-                "image/vnd.dwg",
-                "image/x-dwg",
-                "application/x-7z-compressed"
-            ],
-            server: {
-                process: null,
-            },
-            onaddfile: (error, file) => {
-                if (error) {
-                    console.warn(
-                        "Skipped file:",
-                        file.filename,
-                        "Reason:",
-                        error.message
-                    );
-                    Swal.fire({
-                        icon: "warning",
-                        title: "Invalid File Type",
-                        text: `Skipped ${file.filename}: Only PNG, JPEG, GIF, PDF, Word, ZIP, CSV, and Excel files are allowed.`,
-                        confirmButtonText: "OK",
-                        confirmButtonColor: "#3085d6",
-                    });
-                    return;
-                }
-            },
-        }
-    );
 
+    FilePond.registerPlugin(FilePondPluginFileValidateType);
+ const folderPond = FilePond.create(
+    document.querySelector("#folder-upload"),
+    {
+        allowMultiple: true,
+        allowDirectoryDrop: true,
+        allowDrop: false, // Disable drag-and-drop
+        labelIdle: 'Select Folder <span class="filepond--label-action">Browse</span>',
+        fileValidateTypeDetectType: (source, type) => new Promise((resolve, reject) => {
+            if (source.size === 0) {
+                reject(new Error('File is empty (0 KB)'));
+                return;
+            }
+            resolve(type);
+        }),
+        acceptedFileTypes: [
+            "image/png",
+            "image/jpeg",
+            "image/gif",
+            "application/pdf",
+            "application/msword",
+            "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+            "application/zip",
+            "application/x-zip-compressed",
+            "text/csv",
+            "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+            "text/plain",
+            "application/x-rar-compressed",
+            "application/vnd.rar",
+            "image/tiff",
+            "image/tif",
+            "application/rtf",
+            "application/vnd.ms-excel",
+            "application/vnd.ms-powerpoint",
+            "application/vnd.openxmlformats-officedocument.presentationml.presentation",
+            "video/mp4",
+            "video/quicktime",
+            "video/x-ms-wmv",
+            "video/x-matroska",
+            "video/mpeg",
+            "audio/mpeg",
+            "audio/wav",
+            "audio/aac",
+            "audio/mp4",
+            "audio/x-m4a",
+            "application/acad",
+            "application/x-acad",
+            "application/autocad_dwg",
+            "application/dwg",
+            "application/x-dwg",
+            "application/x-autocad",
+            "drawing/dwg",
+            "image/vnd.dwg",
+            "image/x-dwg",
+            "application/x-7z-compressed"
+        ],
+        server: {
+            process: null,
+        },
+        onaddfile: (error, file) => {
+            if (error) {
+                console.warn("Skipped file:", file.filename, "Reason:", error.message);
+                Swal.fire({
+                    icon: "warning",
+                    title: "Upload Error",
+                    text: `Skipped ${file.filename}: ${error.message || 'File type not allowed or empty file'}`,
+                    confirmButtonText: "OK",
+                    confirmButtonColor: "#3085d6",
+                });
+                return;
+            }
+        },
+    }
+);
     // Handle form submission
     $("#folderuploadForm").on("submit", function (e) {
         e.preventDefault();
@@ -1273,7 +1267,7 @@ $(function () {
                 // Images
                 ".png", ".jpg", ".jpeg", ".gif", ".tiff", ".tif",
                 // Documents
-                ".pdf", ".doc", ".docx", ".rtf", 
+                ".pdf", ".doc", ".docx", ".rtf",
                 ".xls", ".xlsx", ".csv",
                 ".ppt", ".pptx", ".txt",
                 // Video
@@ -1285,7 +1279,7 @@ $(function () {
                 // Archives
                 ".zip", ".rar", ".7z"
             ];
-            
+
             const fileName = fileItem.file.name.toLowerCase();
             const fileExtension = fileName.substring(fileName.lastIndexOf('.'));
             const isValidExtension = allowedExtensions.includes(fileExtension);
@@ -1299,7 +1293,7 @@ $(function () {
                     'CAD: DWG',
                     'Archives: ZIP, RAR, 7Z'
                 ].join('\n');
-                
+
                 Swal.fire({
                     icon: "error",
                     title: "Invalid File Type",
@@ -1358,7 +1352,7 @@ $(function () {
                 // Images
                 ".png", ".jpg", ".jpeg", ".gif", ".tiff", ".tif",
                 // Documents
-                ".pdf", ".doc", ".docx", ".rtf", 
+                ".pdf", ".doc", ".docx", ".rtf",
                 ".xls", ".xlsx", ".csv",
                 ".ppt", ".pptx", ".txt",
                 // Video

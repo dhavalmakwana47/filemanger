@@ -20,15 +20,32 @@ class UserLogController extends Controller
     {
         $data = [];
         $user = auth()->user();
-
+        
+        // Get users for the filter dropdown
+        // $users = User::where('company_id', get_active_company())->get();
 
         if ($request->ajax()) {
             if ($user->is_master_admin() || $user->is_super_admin()) {
-                $data = UserLog::with('user')->where('company_id', get_active_company());
+                $query = UserLog::with('user')->where('company_id', get_active_company());
             } else {
-                $data = UserLog::with('user')->where('company_id', get_active_company())->where('user_id',auth()->user()->id);
+                $query = UserLog::with('user')->where('company_id', get_active_company())->where('user_id', $user->id);
             }
-            return Datatables::of($data)
+            
+            // Apply date range filter
+            if ($request->has('from_date') && $request->from_date != '') {
+                $query->whereDate('created_at', '>=', $request->from_date);
+            }
+            
+            if ($request->has('to_date') && $request->to_date != '') {
+                $query->whereDate('created_at', '<=', $request->to_date);
+            }
+            
+            // Apply user filter for admins
+            if (($user->is_master_admin() || $user->is_super_admin()) && $request->has('user_id') && $request->user_id != '') {
+                $query->where('user_id', $request->user_id);
+            }
+            
+            return Datatables::of($query)
                 ->addIndexColumn()
                 ->editColumn('created_at', function ($row) {
                     return Carbon::createFromFormat('Y-m-d H:i:s', $row->created_at)
@@ -36,23 +53,20 @@ class UserLogController extends Controller
                         ->format('d-M-Y h:i A');
                 })
                 ->addColumn('user_name', function ($row) {
-                    return isset($row->user) ? $row->user->name : 'N/A';
+                    return $row->user ? $row->user->name : 'N/A';
                 })
-
                 ->filter(function ($query) use ($request) {
-                    if ($request->has('user_id') && $request->user_id != "") {
-                        $query->where('user_id', $request->user_id);
-                    }
+                    // Additional filtering can be added here if needed
                 })
 
                 ->rawColumns(['user'])
                 ->escapeColumns([])
                 ->make(true);
         }
-        $data['users'] = User::whereHas('companies', function ($q) {
+        $users= User::whereHas('companies', function ($q) {
             $q->where('company_id', get_active_company());
         })->get();
-        return view('app.userlog.list', $data);
+        return view('app.userlog.list', compact( 'users'));
     }
 
     public function getusers(Request $request)
@@ -77,10 +91,30 @@ class UserLogController extends Controller
     public function userlog_downlaod(Request $request)
     {
         $user = auth()->user();
+        $format = $request->get('export_type', 'xlsx');
+        $fileName = 'user_logs_' . now()->format('Y-m-d_H-i-s') . '.' . $format;
+
+        // Add user action log
         addUserAction([
             'user_id' => $user->id,
-            'action' => "User '{$user->name}' Exported Successfully."
+            'action' => "User '{$user->name}' exported logs in " . strtoupper($format) . " format"
         ]);
-        return Excel::download(new UsersLogExport($request), 'userslogs.xlsx');
+
+        // Set the appropriate writer type
+        $writerType = $format === 'pdf' ? \Maatwebsite\Excel\Excel::DOMPDF : \Maatwebsite\Excel\Excel::XLSX;
+        
+        // Set headers for download
+        $headers = [
+            'Content-Type' => $format === 'pdf' ? 'application/pdf' : 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+            'Content-Disposition' => 'attachment; filename="' . $fileName . '"',
+        ];
+
+        // Generate and return the export
+        return Excel::download(
+            new UsersLogExport($request),
+            $fileName,
+            $writerType,
+            $headers
+        );
     }
 }

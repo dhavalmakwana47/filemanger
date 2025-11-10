@@ -8,7 +8,16 @@
         <span class="text-muted small">.docx Preview</span>
     </div>
 
-    <div id="doc-content" class="doc-body mt-3 rounded shadow-sm"></div>
+    <div class="doc-body mt-3 rounded shadow-sm position-relative" style="min-height: 300px;">
+        <!-- Loading Overlay -->
+        <div id="doc-loader" class="position-absolute top-0 start-0 w-100 h-100 d-flex align-items-center justify-content-center bg-white" style="z-index: 1;">
+            <div class="spinner-border text-primary" role="status">
+                <span class="visually-hidden">Loading...</span>
+            </div>
+        </div>
+        <!-- Content -->
+        <div id="doc-content" class="position-relative" style="z-index: 2; min-height: 300px;"></div>
+    </div>
 </div>
 
 <!-- Mammoth.js for DOCX rendering -->
@@ -16,31 +25,95 @@
 <script>
     const docUrl = "{{ route($routeName, ['id' => $id]) }}";
 
-    fetch(docUrl)
-        .then(response => {
-            if (!response.ok) {
-                throw new Error(`HTTP error! status: ${response.status}`);
+    // Wait for the DOM to be fully loaded
+    document.addEventListener('DOMContentLoaded', function() {
+        // Get references to DOM elements
+        const docLoader = document.getElementById('doc-loader');
+        const docContent = document.getElementById('doc-content');
+        
+        // Show loader immediately
+        if (docLoader) {
+            docLoader.style.display = 'flex';
+            docLoader.style.opacity = '1';
+        }
+        if (docContent) {
+            docContent.style.display = 'none';
+        }
+
+        // Function to handle errors
+        function showError(message) {
+            console.error('DOCX Viewer Error:', message);
+            const errorMessage = `
+                <div class="alert alert-danger m-3">
+                    <i class="bi bi-exclamation-triangle-fill me-2"></i>
+                    ${message || 'Error loading document. Please try again or contact support.'}
+                </div>`;
+            
+            if (docContent) {
+                docContent.innerHTML = errorMessage;
+                docContent.style.display = 'block';
             }
-            return response.arrayBuffer();
-        })
-        .then(data => {
-            mammoth.convertToHtml({
-                    arrayBuffer: data
-                })
-                .then(result => {
-                    document.getElementById('doc-content').innerHTML = result.value;
-                })
-                .catch(error => {
-                    console.error('Error converting DOCX:', error);
-                    document.getElementById('doc-content').innerHTML =
-                        `<div class="alert alert-danger">Error rendering DOCX file: ${error.message}</div>`;
-                });
-        })
-        .catch(error => {
-            console.error('Error fetching DOCX file:', error);
-            document.getElementById('doc-content').innerHTML =
-                `<div class="alert alert-danger">Error loading file: ${error.message}</div>`;
-        });
+        }
+
+        // Function to hide loader with transition
+        function hideLoader() {
+            return new Promise((resolve) => {
+                if (docLoader) {
+                    // Add fade out effect
+                    docLoader.style.transition = 'opacity 0.3s ease';
+                    docLoader.style.opacity = '0';
+                    
+                    // Remove from layout after fade out
+                    setTimeout(() => {
+                        docLoader.style.display = 'none';
+                        resolve();
+                    }, 300);
+                } else {
+                    resolve();
+                }
+            });
+        }
+
+        // Main document loading logic
+        (async function() {
+            try {
+                console.log('Starting document load...');
+                
+                // 1. Fetch the document
+                console.log('Fetching document from:', docUrl);
+                const response = await fetch(docUrl);
+                if (!response.ok) {
+                    throw new Error(`Failed to load document (HTTP ${response.status})`);
+                }
+
+                // 2. Convert to ArrayBuffer
+                console.log('Converting response to ArrayBuffer...');
+                const arrayBuffer = await response.arrayBuffer();
+                
+                // 3. Convert DOCX to HTML
+                console.log('Converting DOCX to HTML...');
+                const result = await mammoth.convertToHtml({ arrayBuffer });
+                
+                // 4. Display the content
+                if (docContent) {
+                    console.log('Rendering content...');
+                    docContent.innerHTML = result.value;
+                    // Wait for the next frame to ensure content is rendered
+                    await new Promise(resolve => requestAnimationFrame(resolve));
+                }
+            } catch (error) {
+                console.error('Error in document loading:', error);
+                showError(error.message);
+            } finally {
+                console.log('Hiding loader...');
+                await hideLoader();
+                if (docContent) {
+                    docContent.style.display = 'block';
+                }
+                console.log('Done.');
+            }
+        })();
+    });
 
 
     document.addEventListener('contextmenu', function(e) {
@@ -52,6 +125,18 @@
 
 <!-- Custom Styling -->
 <style>
+    @keyframes spin {
+        0% { transform: rotate(0deg); }
+        100% { transform: rotate(360deg); }
+    }
+    
+    .spinner-border {
+        width: 3rem;
+        height: 3rem;
+        border-width: 0.25em;
+        animation: spin 0.75s linear infinite;
+    }
+
     .word-viewer-wrapper {
         background-color: #f8f9fa;
         padding: 20px;

@@ -45,7 +45,13 @@
                         <input type="hidden" name="role_id" value="{{ $role->id }}">
 
                         <div class="form-group">
-                            <label for="users">Select Users</label>
+                            <div class="d-flex justify-content-between align-items-center mb-2">
+                                <label for="users">Select Users</label>
+                                <div class="form-check">
+                                    <input type="checkbox" class="form-check-input" id="selectAllUsers">
+                                    <label class="form-check-label" for="selectAllUsers">Select All</label>
+                                </div>
+                            </div>
                             <select name="users[]" id="users" class="form-control" multiple>
                                 @foreach ($users as $user)
                                     <option value="{{ $user->id }}"
@@ -72,9 +78,29 @@
 
     <script>
         $(document).ready(function() {
-            $('#users').select2({
-                placeholder: "Select users",
-                allowClear: true
+            // Initialize Select2
+            const $usersSelect = $('#users');
+            $usersSelect.select2({
+                placeholder: "Search and select users...",
+                allowClear: true,
+                width: '100%',
+                closeOnSelect: false
+            });
+
+            // Handle Select All functionality
+            $('#selectAllUsers').on('change', function() {
+                if ($(this).is(':checked')) {
+                    $usersSelect.find('option').prop('selected', true);
+                } else {
+                    $usersSelect.val(null);
+                }
+                $usersSelect.trigger('change');
+            });
+
+            // Update Select All checkbox when selection changes
+            $usersSelect.on('change', function() {
+                const allSelected = $usersSelect.find('option').length === $usersSelect.find('option:selected').length;
+                $('#selectAllUsers').prop('checked', allSelected);
             });
         });
     </script>

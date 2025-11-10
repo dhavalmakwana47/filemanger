@@ -18,6 +18,9 @@ use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Storage;
 use Yajra\DataTables\DataTables;
 use ZipArchive;
+use Dompdf\Dompdf;
+use Dompdf\Options;
+use Illuminate\Support\HtmlString;
 
 class FolderController extends Controller implements HasMiddleware
 {
@@ -73,6 +76,7 @@ class FolderController extends Controller implements HasMiddleware
             if ($request->has('file_name') && !empty($request->input('file_name'))) {
                 $file = File::create([
                     'name' => $request->input('file_name'),
+                    'file_name' => $request->input('file_name'),
                     'parent_id' => $request['parent_id'] ?? null,
                     'company_id' => $company_id,
                     'item_index' => $request->item_index ?? 0,
@@ -325,49 +329,152 @@ class FolderController extends Controller implements HasMiddleware
     {
         $defaultAccess = current_user()->is_master_admin() || current_user()->is_super_admin();
         $query = $request->query('query', '');
-
-        // Fetch all root-level folders to check for matching subfolders or files
-        $folders = Folder::with('files', 'subfolders', 'access_to_role.companyRole')
-            ->where('company_id', get_active_company())
-            ->whereNull('parent_id')
-            ->with(['subfolders', 'files'])
-            ->get();
-
-        // Fetch root-level files (files without a folder), applying search filter if query exists
-        $filesQuery = File::with('access_to_role.companyRole')
-            ->where('company_id', get_active_company())
-            ->whereNull('folder_id');
+        $fileTree = [];
+        $isDownload    = $request->boolean('is_download', false);
 
         if ($query) {
-            $filesQuery->where('name', 'LIKE', '%' . $query . '%');
-        }
+            // Search mode: Find all files and folders that match the query across the entire structure
+            $matchingFolders = Folder::with('access_to_role.companyRole')
+                ->where('company_id', get_active_company())
+                ->where('name', 'LIKE', '%' . $query . '%')
+                ->get();
 
-        $files = $filesQuery->get();
+            $matchingFiles = File::with('access_to_role.companyRole')
+                ->where('company_id', get_active_company())
+                ->where('file_name', 'LIKE', '%' . $query . '%')
+                ->get();
 
-        // Build hierarchical structure with search query
-        $fileTree = $this->buildFileTree($folders, $defaultAccess, $query);
+            // Add matching folders to results
+            foreach ($matchingFolders as $folder) {
+                if ($folder->has_access()) {
+                    $fileTree[] = [
+                        'id' => $folder->id,
+                        'parentId' => $folder->parent_id,
+                        'name' => $folder->name,
+                        'isDirectory' => true,
+                        'dateModified' => $folder->created_at,
+                        'owner' => $folder->access_to_role->map(function ($rolePermission) {
+                            return $rolePermission->companyRole->role_name ?? null;
+                        })->filter()->join(', '),
+                        'permissions' => $this->formatPermissions($folder, $defaultAccess),
+                        'items' => [],
+                        'index' => $folder->item_index,
+                    ];
+                }
+            }
 
-        // Merge root-level files into the structured tree
-        foreach ($files as $file) {
-            $ownerRoles = $file->access_to_role->map(function ($rolePermission) {
-                return $rolePermission->companyRole->role_name ?? null;
-            })->filter()->join(', ');
-            if ($file->hasAccess()) {
-                $fileTree[] = [
-                    'id' => $file->id,
-                    'parentId' => null,
-                    'name' => $file->name,
-                    'isDirectory' => false,
-                    "size" => $file->size_kb,
-                    "dateModified" => $file->created_at,
-                    'owner' => $ownerRoles,
-                    'permissions' => $this->formatPermissions($file, $defaultAccess, false),
-                    'index' => $file->item_index,
-                ];
+            // Add matching files to results
+            foreach ($matchingFiles as $file) {
+                if ($file->hasAccess()) {
+                    $fileTree[] = [
+                        'id' => $file->id,
+                        'parentId' => $file->folder_id,
+                        'name' => $file->file_name,
+                        'file_name' => $file->name,
+                        'isDirectory' => false,
+                        'size' => $file->size_kb,
+                        'dateModified' => $file->created_at,
+                        'owner' => $file->access_to_role->map(function ($rolePermission) {
+                            return $rolePermission->companyRole->role_name ?? null;
+                        })->filter()->join(', '),
+                        'permissions' => $this->formatPermissions($file, $defaultAccess, false),
+                        'index' => $file->item_index,
+                    ];
+                }
+            }
+        } else {
+            // Normal mode: Show root folders and files
+            $folders = Folder::with('files', 'subfolders', 'access_to_role.companyRole')
+                ->where('company_id', get_active_company())
+                ->whereNull('parent_id')
+                ->with(['subfolders', 'files'])
+                ->get();
+
+            $files = File::with('access_to_role.companyRole')
+                ->where('company_id', get_active_company())
+                ->whereNull('folder_id')
+                ->get();
+
+            // Build hierarchical structure
+            $fileTree = $this->buildFileTree($folders, $defaultAccess);
+
+            // Add root-level files
+            foreach ($files as $file) {
+                if ($file->hasAccess()) {
+                    $fileTree[] = [
+                        'id' => $file->id,
+                        'parentId' => null,
+                        'name' => $file->file_name,
+                        'file_name' => $file->name,
+                        'isDirectory' => false,
+                        'size' => $file->size_kb,
+                        'dateModified' => $file->created_at,
+                        'owner' => $file->access_to_role->map(function ($rolePermission) {
+                            return $rolePermission->companyRole->role_name ?? null;
+                        })->filter()->join(', '),
+                        'permissions' => $this->formatPermissions($file, $defaultAccess, false),
+                        'index' => $file->item_index,
+                    ];
+                }
             }
         }
 
+        // === PDF DOWNLOAD ===
+        if ($isDownload) {
+            $flatTree = $this->flattenTreeForPdf($fileTree);
+
+            // Render Blade to HTML string
+            $html = view('pdf_tree', compact('flatTree'))->render();
+
+            // Configure Dompdf
+            $options = new Options();
+            $options->set('isRemoteEnabled', true);
+            $options->set('isHtml5ParserEnabled', true);
+            $options->set('defaultFont', 'DejaVu Sans');
+
+            $dompdf = new Dompdf($options);
+            $dompdf->loadHtml($html);
+            $dompdf->setPaper('A4', 'landscape');
+            $dompdf->render();
+
+            // Output PDF
+            return response($dompdf->output(), 200, [
+                'Content-Type' => 'application/pdf',
+                'Content-Disposition' => 'attachment; filename="File-Manager-Tree.pdf"',
+            ]);
+        }
+
         return response()->json($fileTree);
+    }
+
+    private function flattenTreeForPdf(array $tree, int $depth = 0): array
+    {
+        $flat = [];
+
+        foreach ($tree as $node) {
+            // --- FORCE EVERYTHING TO STRING ---
+            $name = $node['name'] ?? '';
+            if (is_array($name)) {
+                $name = implode(', ', $name); // fallback
+            } elseif (is_object($name) && method_exists($name, '__toString')) {
+                $name = (string) $name;
+            } else {
+                $name = (string) $name;
+            }
+
+            $flat[] = [
+                'depth'       => $depth,
+                'name'        => $name,
+                'isDirectory' => !empty($node['isDirectory']),
+            ];
+
+            // Recurse into children
+            if (!empty($node['items']) && is_array($node['items'])) {
+                $flat = array_merge($flat, $this->flattenTreeForPdf($node['items'], $depth + 1));
+            }
+        }
+
+        return $flat;
     }
 
     /**
@@ -417,7 +524,7 @@ class FolderController extends Controller implements HasMiddleware
 
         // Check files
         foreach ($folder->files as $file) {
-            $matchesQuery = !$query || stripos($file->name, $query) !== false;
+            $matchesQuery = !$query || stripos($file->file_name, $query) !== false;
             if ($file->hasAccess() && $matchesQuery) { // Assuming File model has a has_access method
                 return true;
             }
@@ -437,7 +544,7 @@ class FolderController extends Controller implements HasMiddleware
         });
 
         $hasMatchingFile = $folder->files->some(function ($file) use ($query) {
-            return $file->hasAccess() && (!$query || stripos($file->name, $query) !== false);
+            return $file->hasAccess() && (!$query || stripos($file->file_name, $query) !== false);
         });
 
         return $hasMatchingSubfolder || $hasMatchingFile;
@@ -449,12 +556,13 @@ class FolderController extends Controller implements HasMiddleware
     private function getPermittedFiles($folder, $defaultAccess, $query = '')
     {
         return $folder->files->filter(function ($file) use ($query) {
-            return $file->hasAccess() && (!$query || stripos($file->name, $query) !== false);
+            return $file->hasAccess() && (!$query || stripos($file->file_name, $query) !== false);
         })
             ->map(function ($file) use ($defaultAccess) {
                 return [
                     'id' => $file->id,
-                    'name' => $file->name,
+                    'name' => $file->file_name,
+                    'file_name' => $file->name,
                     "size" => $file->size_kb,
                     "dateModified" => $file->created_at,
                     'isDirectory' => false,
@@ -505,6 +613,7 @@ class FolderController extends Controller implements HasMiddleware
         // $permissions = $model->getPermissions();
         if ($isFolder) {
             return [
+                'download' => $permissions->can_download ?? $defaultAccess,
                 'create' => $permissions->can_create ?? $defaultAccess,
                 'update' => $permissions->can_update ?? $defaultAccess,
                 'delete' => $permissions->can_delete ?? $defaultAccess,
@@ -618,8 +727,9 @@ class FolderController extends Controller implements HasMiddleware
                 $this->addToZip($subItem, $entryName . '/', $zip, $company_id);
             }
         } else {
+            $file_name = $item['file_name'] ?? '';
             // Construct the physical file path based on your storage logic
-            $filePath = "uploads/company_{$company_id}/{$name}";
+            $filePath = "uploads/company_{$company_id}/{$file_name}";
             $physicalPath = Storage::path($filePath);
 
             // Check if the file exists and add it to the zip
@@ -685,7 +795,7 @@ class FolderController extends Controller implements HasMiddleware
         if ($request->ajax()) {
             try {
                 $trashedFolders = Folder::where('company_id', get_active_company())->onlyTrashed()->select(['id', 'name', 'created_at']);
-                $trashedFiles = File::where('company_id', get_active_company())->onlyTrashed()->select(['id', 'name', 'created_at']);
+                $trashedFiles = File::where('company_id', get_active_company())->onlyTrashed()->select(['id', 'name', 'file_name', 'created_at']);
 
                 // Combine the collections without mapping to arrays
                 $data = $trashedFolders->get()->map(function ($folder) {
@@ -738,7 +848,7 @@ class FolderController extends Controller implements HasMiddleware
     {
         if (isset($request->file_id)) {
             $file = File::find($request->file_id);
-            $sizeInMB = $file->size_kb / 1024; // Convert KB to MB
+            $sizeInMB = ($file->size_kb / 1024) / 1024; // Convert KB to MB
 
             if ($sizeInMB < 1) {
                 // Show in KB if less than 1 MB
@@ -749,7 +859,7 @@ class FolderController extends Controller implements HasMiddleware
             }
 
 
-            $data['name'] = $file->name;
+            $data['name'] = $file->file_name;
             $data['dateModified'] = $file->created_at->format('Y-m-d H:i:s');
             $data['owner'] = $file->access_to_role->map(function ($rolePermission) {
                 return $rolePermission->companyRole->role_name ?? null;
@@ -806,7 +916,7 @@ class FolderController extends Controller implements HasMiddleware
             'text/plain',
             'application/x-rar-compressed',
             'application/vnd.rar',
-            
+
             // Additional MIME types
             'image/tiff',
             'image/tif',
@@ -833,7 +943,7 @@ class FolderController extends Controller implements HasMiddleware
             'drawing/dwg',
             'image/vnd.dwg',
             'image/x-dwg',
-            
+
             // Archives
             'application/zip',
             'application/x-zip-compressed',
@@ -856,7 +966,7 @@ class FolderController extends Controller implements HasMiddleware
             return $this->errorResponse('Active company not found.', 400);
         }
 
-        try {
+        // try {
             return DB::transaction(function () use ($request, $allowedMimeTypes, $company_id) {
                 $files = $request->file('files');
                 $file_paths = $request->input('file_paths');
@@ -943,6 +1053,7 @@ class FolderController extends Controller implements HasMiddleware
 
                     $fileRecord = File::create([
                         'name' => $uniqueFileName,
+                        'file_name' => $originalName . '.' . $extension,
                         'folder_id' => $currentParentId,
                         'company_id' => $company_id,
                         'file_path' => $filePath . '/' . $uniqueFileName,
@@ -981,13 +1092,13 @@ class FolderController extends Controller implements HasMiddleware
 
                 return $this->successResponse('Folder structure uploaded successfully!', []);
             });
-        } catch (\Exception $e) {
-            // Log the error
-            addUserAction([
-                'user_id' => Auth::id(),
-                'action' => "Error creating folder structure: " . $e->getMessage()
-            ]);
-            return $this->errorResponse('There was an error uploading the folder structure.', 500, $e);
-        }
+        // } catch (\Exception $e) {
+        //     // Log the error
+        //     addUserAction([
+        //         'user_id' => Auth::id(),
+        //         'action' => "Error creating folder structure: " . $e->getMessage()
+        //     ]);
+        //     return $this->errorResponse('There was an error uploading the folder structure.', 500, $e);
+        // }
     }
 }

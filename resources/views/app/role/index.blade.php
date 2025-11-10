@@ -17,7 +17,10 @@
 @endpush
 
 @section('content')
-    <x-app-breadcrumb title="Roles" :breadcrumbs="[['name' => 'Home', 'url' => route('companyrole.index')], ['name' => 'Roles', 'url' => route('companyrole.index')]]" />
+    <x-app-breadcrumb title="Roles" :breadcrumbs="[
+        ['name' => 'Home', 'url' => route('companyrole.index')],
+        ['name' => 'Roles', 'url' => route('companyrole.index')],
+    ]" />
     <div class="app-content">
         <div class="container-fluid">
             @if (current_user()->hasPermission('Company Role', 'create'))
@@ -29,11 +32,12 @@
                     </div>
                 </div>
             @endif
-            
+
             @php
                 $columns = [
                     ['data' => 'id', 'title' => 'ID'],
                     ['data' => 'name', 'title' => 'Name'],
+                    ['data' => 'rights', 'title' => 'rights'],
                     ['data' => 'created_at', 'title' => 'Created At'],
                 ];
 
@@ -60,16 +64,23 @@
             // Define the columns for the users table
             const columns = [{
                     data: 'id',
-                    name: 'id'
+                    name: 'id',
+                    width: '10%'
                 },
                 {
                     data: 'role_name',
-                    name: 'role_name'
+                    name: 'role_name',
+                    width: '20%'
                 },
-
+                {
+                    data: 'rights',
+                    name: 'rights',
+                    width: '20%'
+                },
                 {
                     data: 'created_at',
-                    name: 'created_at'
+                    name: 'created_at',
+                    width: '10%'
                 },
 
                 @if (current_user()->hasPermission('Company Role', 'update') || current_user()->hasPermission('Company Role', 'delete'))
@@ -78,7 +89,8 @@
                         name: 'action',
                         orderable: false,
                         searchable: false,
-                        className: 'text-center'
+                        className: 'text-center',
+                        width: '15%'
                     }
                 @endif
             ];

@@ -64,6 +64,11 @@ class CompanyRoleController extends Controller implements HasMiddleware
 
                     return $actionButtons;
                 })
+                ->addColumn('rights', function ($role) {
+                    return $role->permissions->map(function ($permission) {
+                        return $permission->module_name . ' - ' . $permission->name;
+                    })->implode(', ');
+                })
 
                 ->make(true);
         }
@@ -77,7 +82,7 @@ class CompanyRoleController extends Controller implements HasMiddleware
     public function create()
     {
         $data = [];
-        $data['permissionsArr'] = Permission::where('module_name', 'folder')->orderBy('module_name')->orderBy('name')->get()->groupBy('module_name');
+        $data['permissionsArr'] = Permission::whereIn('module_name', ['folder','settings'])->orderBy('module_name')->orderBy('name')->get()->groupBy('module_name');
         return view('app.role.add-update', $data);
     }
 
@@ -139,7 +144,7 @@ class CompanyRoleController extends Controller implements HasMiddleware
         }
 
         $data['role'] = $companyrole;
-        $data['permissionsArr'] = Permission::where('module_name', 'folder')->orderBy('module_name')->orderBy('name')->get()->groupBy('module_name');
+        $data['permissionsArr'] = Permission::whereIn('module_name', ['folder','settings'])->orderBy('module_name')->orderBy('name')->get()->groupBy('module_name');
         return view('app.role.add-update', $data);
     }
 

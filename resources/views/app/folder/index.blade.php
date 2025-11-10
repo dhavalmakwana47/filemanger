@@ -41,7 +41,7 @@
             flex: 1;
             max-height: 70vh;
         }
-        
+
         .modal-footer {
             flex-shrink: 0;
             position: sticky;
@@ -97,94 +97,97 @@
             color: #333;
             text-align: center;
         }
+
         /* ===== USER-FRIENDLY SELECT CHECKBOX DESIGN ===== */
-.dx-filemanager .dx-datagrid .dx-select-checkbox {
-  display: flex !important;
-  align-items: center !important;
-  justify-content: center !important;
-  width: 24px !important;
-  height: 24px !important;
-  cursor: pointer !important;
-  transition: all 0.2s ease-in-out !important;
-  user-select: none !important;
-}
+        .dx-filemanager .dx-datagrid .dx-select-checkbox {
+            display: flex !important;
+            align-items: center !important;
+            justify-content: center !important;
+            width: 24px !important;
+            height: 24px !important;
+            cursor: pointer !important;
+            transition: all 0.2s ease-in-out !important;
+            user-select: none !important;
+        }
 
-/* Checkbox look */
-.dx-filemanager .dx-select-checkbox .dx-checkbox-icon {
-  width: 18px !important;
-  height: 18px !important;
-  border-radius: 6px !important;
-  border: 2px solid #0078d4 !important;
-  background-color: #ffffff !important;
-  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.1);
-  transition: all 0.25s ease-in-out !important;
-}
+        /* Checkbox look */
+        .dx-filemanager .dx-select-checkbox .dx-checkbox-icon {
+            width: 18px !important;
+            height: 18px !important;
+            border-radius: 6px !important;
+            border: 2px solid #0078d4 !important;
+            background-color: #ffffff !important;
+            box-shadow: 0 1px 2px rgba(0, 0, 0, 0.1);
+            transition: all 0.25s ease-in-out !important;
+        }
 
-/* Hover feedback */
-.dx-filemanager .dx-select-checkbox:hover .dx-checkbox-icon {
-  border-color: #005a9e !important;
-  background-color: #f3f9ff !important;
-}
+        /* Hover feedback */
+        .dx-filemanager .dx-select-checkbox:hover .dx-checkbox-icon {
+            border-color: #005a9e !important;
+            background-color: #f3f9ff !important;
+        }
 
-/* Checked state */
-.dx-filemanager .dx-select-checkbox.dx-checkbox-checked .dx-checkbox-icon {
-  background-color: #0078d4 !important;
-  border-color: #0078d4 !important;
-  box-shadow: 0 0 4px rgba(0, 120, 212, 0.6);
-  position: relative;
-}
+        /* Checked state */
+        .dx-filemanager .dx-select-checkbox.dx-checkbox-checked .dx-checkbox-icon {
+            background-color: #0078d4 !important;
+            border-color: #0078d4 !important;
+            box-shadow: 0 0 4px rgba(0, 120, 212, 0.6);
+            position: relative;
+        }
 
-/* Smooth checkmark */
-.dx-filemanager .dx-select-checkbox.dx-checkbox-checked .dx-checkbox-icon::after {
-  content: "";
-  position: absolute;
-  width: 6px;
-  height: 12px;
-  border: solid white;
-  border-width: 0 2px 2px 0;
-  transform: rotate(45deg);
-  top: 0px;
-  left: 5px;
-  animation: checkmarkAppear 0.2s ease forwards;
-}
+        /* Smooth checkmark */
+        .dx-filemanager .dx-select-checkbox.dx-checkbox-checked .dx-checkbox-icon::after {
+            content: "";
+            position: absolute;
+            width: 6px;
+            height: 12px;
+            border: solid white;
+            border-width: 0 2px 2px 0;
+            transform: rotate(45deg);
+            top: 0px;
+            left: 5px;
+            animation: checkmarkAppear 0.2s ease forwards;
+        }
 
-/* Row highlighting for clarity */
-.dx-filemanager .dx-data-row.dx-selection {
-  background-color: #eaf4ff !important;
-  transition: background 0.2s ease;
-}
+        /* Row highlighting for clarity */
+        .dx-filemanager .dx-data-row.dx-selection {
+            background-color: #eaf4ff !important;
+            transition: background 0.2s ease;
+        }
 
-/* Row hover */
-.dx-filemanager .dx-data-row:hover {
-  background-color: #f7fbff !important;
-}
+        /* Row hover */
+        .dx-filemanager .dx-data-row:hover {
+            background-color: #f7fbff !important;
+        }
 
-/* Animation for checkmark */
-@keyframes checkmarkAppear {
-  from {
-    opacity: 0;
-    transform: scale(0.8) rotate(45deg);
-  }
-  to {
-    opacity: 1;
-    transform: scale(1) rotate(45deg);
-  }
-}
+        /* Animation for checkmark */
+        @keyframes checkmarkAppear {
+            from {
+                opacity: 0;
+                transform: scale(0.8) rotate(45deg);
+            }
 
-/* Dark mode friendly */
-@media (prefers-color-scheme: dark) {
-  .dx-filemanager .dx-select-checkbox .dx-checkbox-icon {
-    background-color: #222 !important;
-    border-color: #3399ff !important;
-  }
-  .dx-filemanager .dx-select-checkbox.dx-checkbox-checked .dx-checkbox-icon {
-    background-color: #3399ff !important;
-  }
-  .dx-filemanager .dx-data-row.dx-selection {
-    background-color: #2d3748 !important;
-  }
-}
+            to {
+                opacity: 1;
+                transform: scale(1) rotate(45deg);
+            }
+        }
 
+        /* Dark mode friendly */
+        @media (prefers-color-scheme: dark) {
+            .dx-filemanager .dx-select-checkbox .dx-checkbox-icon {
+                background-color: #222 !important;
+                border-color: #3399ff !important;
+            }
+
+            .dx-filemanager .dx-select-checkbox.dx-checkbox-checked .dx-checkbox-icon {
+                background-color: #3399ff !important;
+            }
+
+            .dx-filemanager .dx-data-row.dx-selection {
+                background-color: #2d3748 !important;
+            }
+        }
     </style>
 @endpush
 
@@ -195,6 +198,11 @@
     ]" />
 
     <div class="app-content">
+        <div class="d-flex justify-content-end mb-3">
+            <a href="{{ route('filemanger.data', ['is_download' => true]) }}" class="btn btn-primary" id="downloadTreeBtn">
+                <i class="fas fa-download me-2"></i>Download Tree
+            </a>
+        </div>
         <div class="container-fluid">
             <div class="modal fade " id="createFolderModal" tabindex="-1" aria-labelledby="createFolderModalLabel"
                 aria-hidden="true">

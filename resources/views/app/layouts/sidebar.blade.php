@@ -34,6 +34,8 @@
 
                          <x-nav-item route="{{ route('filemanager.trash.data') }}" activeRoute="filemanager.trash.data" icon="bi bi-trash"
                         text="Trash Folders" module="Company Role" permission="view" />
+                        <x-nav-item route="{{ route('settings.index') }}" activeRoute="settings.index" icon="bi bi-gear"
+                        text="Settings" module="Settings" permission="view" />
                 @endif
 
             </ul>

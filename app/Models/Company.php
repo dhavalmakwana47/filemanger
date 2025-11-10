@@ -18,10 +18,11 @@ class Company extends Model
     public function admin_user()
     {
 
-        return $this->hasMany(CompanyUserRole::class, 'company_id');
+        return $this->belongsTo(User::class, 'admin_id');
     }
     public function companyRoles()
     {
         return $this->hasMany(CompanyRole::class, 'company_id');
     }
+
 }

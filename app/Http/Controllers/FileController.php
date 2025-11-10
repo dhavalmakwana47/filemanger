@@ -7,13 +7,23 @@ use App\Models\CompanyRole;
 use App\Models\File;
 use App\Models\Folder;
 use App\Models\RoleFilePermission;
+use App\Models\Setting;
 use App\Services\FileViewer;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Storage;
-use Illuminate\Support\Facades\Response;
 use ZipArchive;
 use Illuminate\Support\Facades\Log;
+use Intervention\Image\Image;
+use setasign\Fpdi\Fpdi;
+use setasign\Fpdi\PdfParser\StreamReader;
+use Intervention\Image\ImageManager;
+use Intervention\Image\Drivers\Gd\Driver; // or Imagick\Driver
+use PhpOffice\PhpWord\IOFactory as WordIO;
+use PhpOffice\PhpSpreadsheet\IOFactory as SpreadsheetIO;
+use PhpOffice\PhpSpreadsheet\Writer\Xlsx as XlsxWriter;
+use PhpOffice\PhpSpreadsheet\Worksheet\Drawing;
+use PhpOffice\PhpWord\SimpleType\Jc;
 
 class FileController extends Controller
 {
@@ -83,6 +93,7 @@ class FileController extends Controller
                     // Save file info in the database
                     $folder = File::create([
                         'name' => $fileName,
+                        'file_name' => $originalName . '.' . $extension,
                         'folder_id' => $request->folder_id ?? null,
                         'company_id' => $company_id,
                         'file_path' => $filePath . '/' . $fileName,
@@ -151,25 +162,174 @@ class FileController extends Controller
     // Method to download the file
     public function downloadFile(Request $request)
     {
-        $file = File::findOrFail($request->id);  // throws 404 if not found
+        // 1. Find file or 404
+        $file = File::findOrFail($request->id);
 
+        // 2. Access check
         if (!$file || !$file->checkAccess('Folder', 'download')) {
             abort(404, 'File not found.');
         }
+
+        // 3. Build storage path
         $path = "uploads/company_" . get_active_company() . "/" . $file->name;
 
+        // 4. Check file exists in storage
         if (!Storage::exists($path)) {
             abort(404, 'File not found.');
         }
 
-        // Log the file download action
+        // 5. Load watermark path
+        $setting = Setting::where('company_id', get_active_company())->first();
+        if (!isset($setting)) {
+            $setting = Setting::create([
+                'company_id' => get_active_company(),
+                'watermark_image' => null,
+                'ip_restriction' => null,
+                'enable_watermark' => false,
+            ]);
+        }
+
+        $user = auth()->user();
+        if (!$setting->enable_watermark || ($user->is_master_admin() || $user->is_super_admin())) {
+            addUserAction([
+                'user_id' => Auth::id(),
+                'action' => "File {$file->name} downloaded"
+            ]);
+
+            // This forces a download with the original filename
+            return Storage::download($path, $file->name);
+        }
+
+        $watermarkPath = $setting && $setting->watermark_image
+            ? storage_path('app/public/' . $setting->watermark_image)
+            : null;
+        // 6. Read file contents
+        $contents = Storage::get($path);
+        $mime     = Storage::mimeType($path);
+        $ext      = strtolower(pathinfo($file->name, PATHINFO_EXTENSION));
+
+        // === USER INFO FOR TEXT WATERMARK ===
+        $userEmail = Auth::user()?->email ?? 'unknown@domain.com';
+        $downloadDate = now()->format('Y-m-d H:i');
+        $textWatermark = "Downloaded by: $userEmail | $downloadDate";
+
+        // === SHARED IMAGE WATERMARK FILE ===
+        $tempWatermarkFile = null;
+
+        if ($watermarkPath && file_exists($watermarkPath) && in_array($ext, ['docx', 'xlsx', 'xls', 'xlsm'])) {
+            $wmManager = new ImageManager(new Driver());
+            try {
+                $wmImg = $wmManager->read($watermarkPath);
+                $tempWatermarkFile = tempnam(sys_get_temp_dir(), 'wm_');
+                file_put_contents($tempWatermarkFile, $wmImg->toPng()->toString());
+                if (!file_exists($tempWatermarkFile)) throw new \Exception('Failed to create watermark');
+            } catch (\Exception $e) {
+                \Log::error('Watermark creation failed: ' . $e->getMessage());
+                $tempWatermarkFile = null;
+            }
+        }
+
+        // 7. APPLY WATERMARK IF POSSIBLE
+        if ($watermarkPath && file_exists($watermarkPath) && in_array($ext, ['png', 'jpg', 'jpeg', 'pdf'])) {
+            try {
+                // ------------------- IMAGES (PNG, JPG, JPEG) -------------------
+                if (in_array($ext, ['png', 'jpg', 'jpeg'])) {
+                    $manager = new ImageManager(new Driver());
+                    $image   = $manager->read($contents);
+
+                    if ($watermarkPath) {
+                        $wm = $manager->read($watermarkPath)->resize(
+                            $image->width() * 0.3,
+                            null,
+                            fn($c) => $c->aspectRatio()
+                        );
+                        $image->place($wm, 'center', 0, 0, 70);
+                    }
+
+                    // Text watermark (system font)
+                    $image->text($textWatermark, $image->width() / 2, $image->height() - 30, function ($font) {
+                        $font->size(24);
+                        $font->color('#888888');
+                        $font->align('center');
+                        $font->valign('bottom');
+                    });
+
+                    $contents = $ext === 'png' ? $image->toPng()->toString() : $image->toJpeg(90)->toString();
+                    $mime = $ext === 'png' ? 'image/png' : 'image/jpeg';
+                }
+
+                // ------------------- PDF -------------------
+                elseif ($ext === 'pdf') {
+                    $pdf = new Fpdi();
+                    $stream    = StreamReader::createByString($contents);
+                    $pageCount = $pdf->setSourceFile($stream);
+
+                    $wmManager = new ImageManager(new Driver());
+                    $wmImg     = $wmManager->read($watermarkPath);
+                    $tmpWm     = tempnam(sys_get_temp_dir(), 'wm_') . '.png';
+                    file_put_contents($tmpWm, $wmImg->toPng()->toString());
+
+                    for ($i = 1; $i <= $pageCount; $i++) {
+                        $tpl  = $pdf->importPage($i);
+                        $size = $pdf->getTemplateSize($tpl);
+
+                        $pdf->AddPage($size['orientation'], [$size['width'], $size['height']]);
+                        $pdf->useTemplate($tpl);
+
+                        // Image watermark
+                        $wmWidth  = $size['width'] * 0.3;
+                        $wmHeight = $wmImg->height() * ($wmWidth / $wmImg->width());
+                        $x = ($size['width'] - $wmWidth) / 2;
+                        $y = ($size['height'] - $wmHeight) / 2;
+                        $pdf->Image($tmpWm, $x, $y, $wmWidth);
+
+                        // Text watermark
+                        $pdf->SetFont('Arial', '', 12);
+                        $pdf->SetTextColor(150, 150, 150);
+                        $pdf->SetXY(10, $size['height'] - 20);
+                        $pdf->Cell(0, 10, $textWatermark, 0, 1, 'C');
+                    }
+
+                    @unlink($tmpWm);
+                    $contents = $pdf->Output('S');
+                    $mime     = 'application/pdf';
+                }
+            } catch (\Exception $e) {
+                // Log the error but continue with the original file
+                // The $contents variable will contain the original file contents
+                addUserAction([
+                    'user_id' => Auth::id(),
+                    'action' => "File {$file->name} downloaded"
+                ]);
+
+                // This forces a download with the original filename
+                return Storage::download($path, $file->name);
+            }
+        } else {
+            addUserAction([
+                'user_id' => Auth::id(),
+                'action' => "File {$file->name} downloaded"
+            ]);
+
+            // This forces a download with the original filename
+            return Storage::download($path, $file->name);
+        }
+
+        // === CLEAN UP ===
+        if ($tempWatermarkFile && file_exists($tempWatermarkFile)) {
+            @unlink($tempWatermarkFile);
+        }
+
+        // 8. LOG DOWNLOAD
         addUserAction([
             'user_id' => Auth::id(),
-            'action' => "File {$file->name} downloaded"
+            'action'  => "File {$file->name} downloaded"
         ]);
 
-        // This forces a download with the original filename
-        return Storage::download($path, $file->name);
+        // 9. RETURN FILE
+        return response($contents, 200)
+            ->header('Content-Type', $mime)
+            ->header('Content-Disposition', 'attachment; filename="' . $file->name . '"');
     }
     /**
      * Display the specified resource.
@@ -457,7 +617,7 @@ class FileController extends Controller
             'text/plain',
             'application/x-rar-compressed',
             'application/vnd.rar',
-            
+
             // Additional MIME types
             'image/tiff',
             'image/tif',
@@ -540,6 +700,7 @@ class FileController extends Controller
         // Save file metadata in database
         $file = File::create([
             'name' => $newFileName,
+            'file_name' => $fileName,
             'folder_id' => $parentFolderId,
             'company_id' => $company_id,
             'file_path' => $filePath,

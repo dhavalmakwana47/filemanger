@@ -16,7 +16,8 @@ class File extends Model
         'created_by',
         'updated_by',
         'size_kb',
-        'item_index'
+        'item_index',
+        'file_name'
     ];
 
     public function  access_to_role()

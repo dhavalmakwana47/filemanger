@@ -16,6 +16,9 @@
     <!-- PDF Canvas -->
     <div class="position-relative">
         <canvas id="pdf-canvas" class="w-100 border rounded-3 shadow-sm"></canvas>
+        <div id="pdf-loader" style="display:none;position:absolute;inset:0;z-index:10;background:rgba(255,255,255,0.6);align-items:center;justify-content:center;">
+            <div class="spinner-border text-primary" role="status" aria-label="Loading"></div>
+        </div>
         <!-- Floating Controls -->
         <div class="pdf-controls d-flex justify-content-center gap-3 mt-3">
             <button id="prev-page" class="btn btn-outline-primary rounded-pill px-4" disabled>
@@ -37,6 +40,10 @@
     let currentPage = 1;
     let pdfDoc = null;
     const scale = 1.4;
+    const loader = document.getElementById('pdf-loader');
+    function showLoader() { if (loader) loader.style.display = 'flex'; }
+    function hideLoader() { if (loader) loader.style.display = 'none'; }
+    showLoader();
 
     pdfjsLib.getDocument(url).promise.then(pdf => {
         pdfDoc = pdf;
@@ -61,6 +68,11 @@
         });
 
         function renderPage(pageNum) {
+            showLoader();
+            const prevBtn = document.getElementById('prev-page');
+            const nextBtn = document.getElementById('next-page');
+            prevBtn.disabled = true;
+            nextBtn.disabled = true;
             pdfDoc.getPage(pageNum).then(page => {
                 const canvas = document.getElementById('pdf-canvas');
                 const context = canvas.getContext('2d');
@@ -70,13 +82,15 @@
                 canvas.height = viewport.height;
                 canvas.width = viewport.width;
 
-                page.render({
+                const renderTask = page.render({
                     canvasContext: context,
                     viewport: viewport
                 });
-
-                document.getElementById('prev-page').disabled = pageNum === 1;
-                document.getElementById('next-page').disabled = pageNum === numPages;
+                renderTask.promise.then(() => {
+                    prevBtn.disabled = pageNum === 1;
+                    nextBtn.disabled = pageNum === numPages;
+                    hideLoader();
+                });
             });
         }
 
@@ -86,6 +100,7 @@
     }).catch(error => {
         console.error('PDF load error:', error);
         document.body.innerHTML += `<div class="alert alert-danger mt-3">Error: ${error.message}</div>`;
+        hideLoader();
     });
 
     // Prevent right-click, F12, Ctrl+Shift+I, Ctrl+U, Ctrl+P, and context menu

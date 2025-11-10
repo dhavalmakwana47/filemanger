@@ -7,6 +7,7 @@ use App\Http\Controllers\DashboardController;
 use App\Http\Controllers\FileController;
 use App\Http\Controllers\FolderController;
 use App\Http\Controllers\ProfileController;
+use App\Http\Controllers\SettingController;
 use App\Http\Controllers\UserController;
 use App\Http\Controllers\UserLogController;
 use App\Models\Company;
@@ -95,9 +96,13 @@ Route::middleware('auth')->group(function () {
     Route::post('folder/upload', [FolderController::class, 'uploadFolderStructure'])->name('folder.uploadstructure');
     
     //logs
-    Route::get('userlog/', [UserLogController::class, "index"])->name('userlog.index');
+    Route::get('userlog', [UserLogController::class, "index"])->name('userlog.index');
     Route::post('userlog/download', [UserLogController::class, "userlog_downlaod"])->name('userlog.download');
     Route::post('userlog/getusers', [UserLogController::class, "getusers"])->name('userlog.users');
+
+    //settings
+    Route::get('settings', [SettingController::class, "index"])->name('settings.index');
+    Route::post('settings', [SettingController::class, "store"])->name('settings.store');
 });
 
 require __DIR__ . '/auth.php';
