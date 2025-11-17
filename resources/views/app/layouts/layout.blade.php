@@ -1,3 +1,10 @@
+@php
+    if (get_active_company()) {
+        $setting = \App\Models\Setting::where('company_id', get_active_company())->first();
+    } else {
+        $setting = null;
+    }
+@endphp
 <!DOCTYPE html>
 <html lang="en"> <!--begin::Head-->
 
@@ -18,8 +25,8 @@
         integrity="sha256-Qsx5lrStHZyR9REqhUF8iQt73X06c8LGIUPzpOhwRrI=" crossorigin="anonymous">
 
     <link rel="stylesheet" href="{{ asset('app/css/adminlte.css') }}">
-<!-- Include SweetAlert CSS & JS (if not already included) -->
-<script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+    <!-- Include SweetAlert CSS & JS (if not already included) -->
+    <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
 
 
 
@@ -44,10 +51,15 @@
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.min.js"
         integrity="sha256-YMa+wAM6QkVyz999odX7lPRxkoYAan8suedu4k2Zur8=" crossorigin="anonymous"></script> <!--end::Required Plugin(Bootstrap 5)--><!--begin::Required Plugin(AdminLTE)-->
     <script src="{{ asset('app/custom/js/datatable.js') }}"></script>
-<script src="{{ asset('app/js/adminlte.js') }}"></script>
+    <script src="{{ asset('app/js/adminlte.js') }}"></script>
     @stack('scripts')
-        {{-- ✅ SweetAlert for Success --}}
-    @if(session('success'))
+
+    @if (isset($setting) && $setting->nda_content_enable && $setting->nda_content)
+        <x-nda-modal :ndaContent="$setting->nda_content" />
+    @endif
+
+    {{-- ✅ SweetAlert for Success --}}
+    @if (session('success'))
         <script>
             Swal.fire({
                 icon: 'success',
@@ -58,6 +70,38 @@
             });
         </script>
     @endif
+
+    <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            const ndaModal = new bootstrap.Modal(document.getElementById('ndaModal'));
+            const agreeCheckbox = document.getElementById('agreeCheckbox');
+            const agreeButton = document.getElementById('agreeButton');
+
+            // Show modal if NDA agreement is not signed
+            @if (isset($setting) &&
+                    !session('nda_agreement') &&
+                    $setting->nda_content_enable &&
+                    $setting->nda_content &&
+                    !auth()->user()->is_master_admin() &&
+                    !auth()->user()->is_super_admin())
+                ndaModal.show();
+            @endif
+
+            // Enable/disable agree button based on checkbox
+            agreeCheckbox.addEventListener('change', function() {
+                agreeButton.disabled = !this.checked;
+            });
+
+            // Prevent closing modal when clicking outside or pressing escape
+            document.getElementById('ndaModal').addEventListener('hide.bs.modal', function(e) {
+                if (!@json(session('nda_agreement'))) {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    return false;
+                }
+            });
+        });
+    </script>
 </body>
 
 </html>

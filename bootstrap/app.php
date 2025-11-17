@@ -1,6 +1,7 @@
 <?php
 
 use App\Http\Middleware\PermissionCheck;
+use App\Http\Middleware\RestrictIpByCompany;
 use Illuminate\Foundation\Application;
 use Illuminate\Foundation\Configuration\Exceptions;
 use Illuminate\Foundation\Configuration\Middleware;
@@ -13,7 +14,8 @@ return Application::configure(basePath: dirname(__DIR__))
     )
     ->withMiddleware(function (Middleware $middleware) {
         $middleware->alias([
-            'permission_check' => PermissionCheck::class
+            'permission_check' => PermissionCheck::class,
+            'restrict_ip_by_company' => RestrictIpByCompany::class,
         ]);
     })
     ->withExceptions(function (Exceptions $exceptions) {

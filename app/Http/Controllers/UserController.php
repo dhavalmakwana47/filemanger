@@ -284,6 +284,7 @@ class UserController extends Controller implements HasMiddleware
     {
 
         session(['active_company' => $request->company_id]);
+        session()->forget('nda_agreement');
         return redirect()->route('dashboard');
     }
 

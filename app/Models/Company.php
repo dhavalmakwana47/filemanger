@@ -25,4 +25,8 @@ class Company extends Model
         return $this->hasMany(CompanyRole::class, 'company_id');
     }
 
+    public function settings()
+    {
+        return $this->hasOne(Setting::class);
+    }
 }

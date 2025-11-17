@@ -28,7 +28,7 @@ Route::get('/access-denied', function () {
     return view('accessdenied');
 })->name('accessdenied');
 
-Route::middleware('auth')->group(function () {
+Route::middleware(['auth', 'restrict_ip_by_company'])->group(function () {
     //dashboard
     Route::get('/dashboard', [DashboardController::class, 'index'])->name('dashboard');
 
@@ -103,6 +103,11 @@ Route::middleware('auth')->group(function () {
     //settings
     Route::get('settings', [SettingController::class, "index"])->name('settings.index');
     Route::post('settings', [SettingController::class, "store"])->name('settings.store');
+    Route::post('/settings/ip', [SettingController::class, 'addIp'])->name('settings.ip.add');
+    Route::delete('/settings/ip/{id}', [SettingController::class, 'removeIp'])->name('settings.ip.remove');
+
+    //sign nda agreement
+    Route::post('sign-nda-agreement', [SettingController::class, "signNdaAgreement"])->name('sign.nda.agreement');
 });
 
 require __DIR__ . '/auth.php';

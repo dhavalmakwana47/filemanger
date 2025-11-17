@@ -40,6 +40,8 @@ class AuthenticatedSessionController extends Controller
                 'user_id' => Auth::id(),
                 'action' => "User " . (Auth::user()->name ?? 'Unknown') . " logged in"
             ]);
+        $request->session()->forget('nda_agreement');
+
         }
 
 
@@ -51,6 +53,9 @@ class AuthenticatedSessionController extends Controller
      */
     public function destroy(Request $request): RedirectResponse
     {
+        // Remove NDA agreement session
+        $request->session()->forget('nda_agreement');
+        
         Auth::guard('web')->logout();
 
         $request->session()->invalidate();

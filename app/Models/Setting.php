@@ -14,10 +14,16 @@ class Setting extends Model
         'watermark_image',
         'ip_restriction',
         'enable_watermark',
+        'nda_content',
+        'nda_content_enable',
     ];
     
     public function company()
     {
         return $this->belongsTo(Company::class);
+    }
+    public function ipRestrictions()
+    {
+        return $this->hasMany(CompanyIpRestriction::class);
     }
 }
