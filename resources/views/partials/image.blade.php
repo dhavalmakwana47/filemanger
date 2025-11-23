@@ -10,12 +10,12 @@
         </div>
     </div>
 
-    <div class="image-body mt-3 rounded shadow-sm bg-white p-3 text-center position-relative overflow-hidden">
+    <div class="image-body mt-3 rounded shadow-sm bg-white p-3 text-center position-relative">
         <img id="zoomableImg"
              src="{{ route($routeName, ['id' => $id]) }}"
              alt="{{ $fileName }}"
-             class="img-fluid rounded shadow transition-transform"
-             style="max-height:80vh;object-fit:contain;transform:scale(1);">
+             class="img-fluid rounded shadow"
+             style="max-height:80vh; object-fit:contain; cursor:grab;">
         
         <!-- Zoom Controls -->
         <div class="zoom-controls position-absolute bottom-0 end-0 m-3 d-flex flex-column gap-2">
@@ -32,46 +32,44 @@
 <script>
     document.addEventListener('DOMContentLoaded', function () {
         const img = document.getElementById('zoomableImg');
-        const zoomInBtn  = document.getElementById('zoomInBtn');
-        const zoomOutBtn = document.getElementById('zoomOutBtn');
-
+        const body = document.querySelector('.image-body');
+        
         let scale = 1;
-        const step = 0.25;
-        const minScale = 0.5;
-        const maxScale = 5;
 
-        const updateTransform = () => {
+        const update = () => {
             img.style.transform = `scale(${scale})`;
+            if (scale > 1) {
+                body.style.overflow = 'auto';
+            } else {
+                body.style.overflow = 'hidden';
+            }
         };
 
-        zoomInBtn.addEventListener('click', () => {
-            if (scale < maxScale) {
-                scale = Math.min(scale + step, maxScale);
-                updateTransform();
-            }
+        document.getElementById('zoomInBtn').addEventListener('click', () => {
+            scale += 0.3;
+            update();
         });
 
-        zoomOutBtn.addEventListener('click', () => {
-            if (scale > minScale) {
-                scale = Math.max(scale - step, minScale);
-                updateTransform();
-            }
+        document.getElementById('zoomOutBtn').addEventListener('click', () => {
+            scale = Math.max(1, scale - 0.3);
+            update();
         });
 
-        // Optional: wheel zoom (hold Ctrl to avoid page scroll)
+        // Wheel zoom with Ctrl
         img.addEventListener('wheel', e => {
             if (e.ctrlKey) {
                 e.preventDefault();
-                const delta = e.deltaY > 0 ? -step : step;
-                scale = Math.min(Math.max(scale + delta, minScale), maxScale);
-                updateTransform();
+                if (e.deltaY > 0) {
+                    scale = Math.max(1, scale - 0.3);
+                } else {
+                    scale += 0.3;
+                }
+                update();
             }
         });
 
-        // Prevent right-click on the image (keeps your original context-menu block)
-        document.addEventListener('contextmenu', e => {
-            if (e.target.tagName === 'IMG') e.preventDefault();
-        });
+        // Prevent right-click
+        img.addEventListener('contextmenu', e => e.preventDefault());
     });
 </script>
 
@@ -81,50 +79,37 @@
         padding: 20px;
         border-radius: 12px;
         min-height: 100vh;
-        height: 100%;
-        display: flex;
-        flex-direction: column;
     }
-
     .viewer-header {
         background-color: #fff;
         padding: 15px 20px;
         border-radius: 8px;
         box-shadow: 0 2px 6px rgba(0,0,0,.05);
     }
-
     .image-body {
+        overflow: hidden;
         position: relative;
+        height: calc(100vh - 160px);
     }
-
     .image-body img {
         transition: transform .2s ease;
+        transform-origin: center center;
     }
-
     .zoom-controls button {
         width: 36px;
         height: 36px;
         display: flex;
         align-items: center;
         justify-content: center;
-        font-weight: bold;
     }
-
     @media (max-width: 768px) {
-        .viewer-header {
-            flex-direction: column;
-            text-align: center;
-            gap: 10px;
-        }
         .zoom-controls {
             flex-direction: row;
-            bottom: auto;
-            top: 50%;
-            transform: translateY(-50%);
-            right: 10px;
+            bottom: 10px;
+            left: 50%;
+            transform: translateX(-50%);
         }
     }
 </style>
 
-<!-- Bootstrap Icons (if not already included) -->
 <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css">

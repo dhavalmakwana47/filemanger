@@ -35,10 +35,7 @@
                 </div>
                 <!-- Navigation -->
                 <nav class="hidden md:flex space-x-10">
-                    <a href="#" class="text-base font-medium text-gray-500 hover:text-gray-900 transition-colors duration-200">Home</a>
-                    <a href="#" class="text-base font-medium text-gray-500 hover:text-gray-900 transition-colors duration-200">Features</a>
-                    <a href="#" class="text-base font-medium text-gray-500 hover:text-gray-900 transition-colors duration-200">Pricing</a>
-                    <a href="#" class="text-base font-medium text-gray-500 hover:text-gray-900 transition-colors duration-200">Contact</a>
+                    {{-- Navigation items commented as before --}}
                 </nav>
                 <!-- Login Button -->
                 <div class="hidden md:flex items-center justify-end md:flex-1 lg:w-0">
@@ -46,10 +43,9 @@
                 </div>
                 <!-- Mobile Menu Button -->
                 <div class="md:hidden flex items-center">
-                    <button id="mobile-menu-button" type="button" class="inline-flex items-center justify-center p-2 rounded-md text-gray-400 hover:text-gray-500 hover:bg-gray-100 focus:outline-none focus:ring-2 focus:ring-inset focus:ring-indigo-500 transition-colors duration-200" aria-expanded="false">
+                    <button id="mobile-menu-button" type="button" class="inline-flex items-center justify-center p-2 rounded-md text-gray-400 hover:text-gray-500 hover:bg-gray-100 focus:outline-none focus:ring-2 focus:ring-inset focus:ring-indigo-500 transition-colors duration-200">
                         <span class="sr-only">Open main menu</span>
-                        <!-- Heroicon name: outline/menu -->
-                        <svg class="h-6 w-6" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" aria-hidden="true">
+                        <svg class="h-6 w-6" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h16" />
                         </svg>
                     </button>
@@ -58,11 +54,7 @@
             <!-- Mobile Menu -->
             <div id="mobile-menu" class="hidden md:hidden">
                 <div class="px-2 pt-2 pb-3 space-y-1 sm:px-3">
-                    <a href="#" class="block px-3 py-2 rounded-md text-base font-medium text-gray-700 hover:text-gray-900 hover:bg-gray-50 transition-colors duration-200">Home</a>
-                    <a href="#" class="block px-3 py-2 rounded-md text-base font-medium text-gray-700 hover:text-gray-900 hover:bg-gray-50 transition-colors duration-200">Features</a>
-                    <a href="#" class="block px-3 py-2 rounded-md text-base font-medium text-gray-700 hover:text-gray-900 hover:bg-gray-50 transition-colors duration-200">Pricing</a>
-                    <a href="#" class="block px-3 py-2 rounded-md text-base font-medium text-gray-700 hover:text-gray-900 hover:bg-gray-50 transition-colors duration-200">Contact</a>
-                    <a href="#" class="block px-3 py-2 rounded-md text-base font-medium text-white bg-indigo-600 hover:bg-indigo-700 transition-colors duration-200">Login</a>
+                    <a href="{{ route('login') }}" class="block px-3 py-2 rounded-md text-base font-medium text-white bg-indigo-600 hover:bg-indigo-700 transition-colors duration-200">Login</a>
                 </div>
             </div>
         </div>
@@ -81,12 +73,14 @@
 
     <!-- Features Section -->
     <section class="py-20 bg-white" data-aos="fade-up">
+        <!-- ... your existing features section ... -->
         <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
             <div class="text-center" data-aos="fade-down">
                 <h2 class="text-3xl font-extrabold text-gray-900 sm:text-4xl">Powerful Features for Your Files</h2>
                 <p class="mt-4 max-w-2xl mx-auto text-xl text-gray-500">Discover why FileManager is the best choice for secure file handling.</p>
             </div>
             <div class="mt-16 grid grid-cols-1 gap-8 sm:grid-cols-2 lg:grid-cols-4">
+                <!-- Your 4 feature cards remain unchanged -->
                 <!-- Feature Card 1 -->
                 <div class="bg-white rounded-lg shadow-md overflow-hidden hover:shadow-xl transition-all duration-300 hover:scale-105" data-aos="fade-up" data-aos-delay="100">
                     <div class="p-6">
@@ -99,7 +93,8 @@
                         <p class="mt-2 text-base text-gray-500 text-center">Your data is encrypted and private, always under your control.</p>
                     </div>
                 </div>
-                <!-- Feature Card 2 -->
+                <!-- Repeat other 3 cards exactly as before -->
+                <!-- Feature Card 2, 3, 4 ... -->
                 <div class="bg-white rounded-lg shadow-md overflow-hidden hover:shadow-xl transition-all duration-300 hover:scale-105" data-aos="fade-up" data-aos-delay="200">
                     <div class="p-6">
                         <div class="flex items-center justify-center h-12 w-12 rounded-md bg-indigo-500 text-white mx-auto transition-transform duration-300 hover:rotate-12">
@@ -111,7 +106,6 @@
                         <p class="mt-2 text-base text-gray-500 text-center">Multi-factor authentication and real-time threat detection.</p>
                     </div>
                 </div>
-                <!-- Feature Card 3 -->
                 <div class="bg-white rounded-lg shadow-md overflow-hidden hover:shadow-xl transition-all duration-300 hover:scale-105" data-aos="fade-up" data-aos-delay="300">
                     <div class="p-6">
                         <div class="flex items-center justify-center h-12 w-12 rounded-md bg-indigo-500 text-white mx-auto transition-transform duration-300 hover:rotate-12">
@@ -123,7 +117,6 @@
                         <p class="mt-2 text-base text-gray-500 text-center">Share files securely with links that expire automatically.</p>
                     </div>
                 </div>
-                <!-- Feature Card 4 -->
                 <div class="bg-white rounded-lg shadow-md overflow-hidden hover:shadow-xl transition-all duration-300 hover:scale-105" data-aos="fade-up" data-aos-delay="400">
                     <div class="p-6">
                         <div class="flex items-center justify-center h-12 w-12 rounded-md bg-indigo-500 text-white mx-auto transition-transform duration-300 hover:rotate-12">
@@ -139,68 +132,49 @@
         </div>
     </section>
 
-    <!-- Pricing Section -->
-    <section class="py-20 bg-gray-50" data-aos="fade-up">
+    <!-- Contact Details Section -->
+    <section class="py-20 bg-gradient-to-b from-gray-50 to-gray-100" data-aos="fade-up">
         <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-            <div class="text-center" data-aos="fade-down">
-                <h2 class="text-3xl font-extrabold text-gray-900 sm:text-4xl">Simple Pricing for Everyone</h2>
-                <p class="mt-4 max-w-2xl mx-auto text-xl text-gray-500">Choose a plan that fits your needs.</p>
+            <div class="text-center mb-12">
+                <h2 class="text-3xl font-extrabold text-gray-900 sm:text-4xl">Get in Touch</h2>
+                <p class="mt-4 text-xl text-gray-600">We’re here to help you with any questions or support</p>
             </div>
-            <div class="mt-16 grid grid-cols-1 gap-8 sm:grid-cols-3">
-                <!-- Free Plan -->
-                <div class="bg-white rounded-lg shadow-md overflow-hidden hover:shadow-xl transition-all duration-300 hover:scale-105 relative" data-aos="flip-left" data-aos-delay="100">
-                    <div class="p-8">
-                        <h3 class="text-lg font-medium text-gray-900 text-center">Free</h3>
-                        <div class="mt-4 flex items-baseline justify-center">
-                            <span class="text-5xl font-extrabold text-gray-900">$0</span>
-                            <span class="ml-1 text-xl font-medium text-gray-500">/mo</span>
-                        </div>
-                        <ul class="mt-6 space-y-4">
-                            <li class="text-base text-gray-500">5GB Storage</li>
-                            <li class="text-base text-gray-500">Basic Security</li>
-                            <li class="text-base text-gray-500">Limited Sharing</li>
-                        </ul>
-                        <div class="mt-8">
-                            <a href="#" class="block w-full py-3 px-6 border border-transparent rounded-md text-base font-medium text-indigo-600 bg-indigo-100 hover:bg-indigo-200 transition-all duration-200 hover:scale-105 text-center">Sign Up</a>
-                        </div>
+
+            <div class="grid grid-cols-1 md:grid-cols-3 gap-8 max-w-4xl mx-auto">
+                <!-- Email -->
+                <div class="bg-white rounded-xl shadow-lg p-8 text-center hover:shadow-xl transition-all duration-300 hover:scale-105">
+                    <div class="w-16 h-16 mx-auto mb-4 bg-indigo-100 rounded-full flex items-center justify-center">
+                        <svg class="w-8 h-8 text-indigo-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
+                        </svg>
                     </div>
+                    <h3 class="text-lg font-semibold text-gray-900">Email Us</h3>
+                    <p class="mt-2 text-gray-600">info@datasafehub.in</p>
+                    <a href="mailto:info@datasafehub.in" class="inline-block mt-3 text-indigo-600 font-medium hover:underline">Send Email →</a>
                 </div>
-                <!-- Pro Plan -->
-                <div class="bg-white rounded-lg shadow-md overflow-hidden hover:shadow-xl transition-all duration-300 hover:scale-105 relative" data-aos="flip-left" data-aos-delay="200">
-                    <div class="absolute inset-x-0 top-0 h-1 bg-indigo-600"></div>
-                    <div class="p-8">
-                        <h3 class="text-lg font-medium text-gray-900 text-center">Pro</h3>
-                        <div class="mt-4 flex items-baseline justify-center">
-                            <span class="text-5xl font-extrabold text-gray-900">$9</span>
-                            <span class="ml-1 text-xl font-medium text-gray-500">/mo</span>
-                        </div>
-                        <ul class="mt-6 space-y-4">
-                            <li class="text-base text-gray-500">50GB Storage</li>
-                            <li class="text-base text-gray-500">Advanced Security</li>
-                            <li class="text-base text-gray-500">Unlimited Sharing</li>
-                        </ul>
-                        <div class="mt-8">
-                            <a href="#" class="block w-full py-3 px-6 border border-transparent rounded-md text-base font-medium text-white bg-indigo-600 hover:bg-indigo-700 transition-all duration-200 hover:scale-105 text-center">Get Started</a>
-                        </div>
+
+                <!-- Phone -->
+                <div class="bg-white rounded-xl shadow-lg p-8 text-center hover:shadow-xl transition-all duration-300 hover:scale-105">
+                    <div class="w-16 h-16 mx-auto mb-4 bg-indigo-100 rounded-full flex items-center justify-center">
+                        <svg class="w-8 h-8 text-indigo-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 5a2 2 0 012-2h3.28a1 1 0 01.948.684l1.498 4.493a1 1 0 01-.502 1.21l-2.257 1.13a11.042 11.042 0 005.516 5.516l1.13-2.257a1 1 0 011.21-.502l4.493 1.498a1 1 0 01.684.949V19a2 2 0 01-2 2h-1C9.716 21 3 14.284 3 6V5z" />
+                        </svg>
                     </div>
+                    <h3 class="text-lg font-semibold text-gray-900">Call Us</h3>
+                    <p class="mt-2 text-gray-600">+91 79908 22351</p>
+                    <a href="tel:+917990822351" class="inline-block mt-3 text-indigo-600 font-medium hover:underline">Call Now →</a>
                 </div>
-                <!-- Enterprise Plan -->
-                <div class="bg-white rounded-lg shadow-md overflow-hidden hover:shadow-xl transition-all duration-300 hover:scale-105 relative" data-aos="flip-left" data-aos-delay="300">
-                    <div class="p-8">
-                        <h3 class="text-lg font-medium text-gray-900 text-center">Enterprise</h3>
-                        <div class="mt-4 flex items-baseline justify-center">
-                            <span class="text-5xl font-extrabold text-gray-900">$49</span>
-                            <span class="ml-1 text-xl font-medium text-gray-500">/mo</span>
-                        </div>
-                        <ul class="mt-6 space-y-4">
-                            <li class="text-base text-gray-500">Unlimited Storage</li>
-                            <li class="text-base text-gray-500">Enterprise Security</li>
-                            <li class="text-base text-gray-500">Team Collaboration</li>
-                        </ul>
-                        <div class="mt-8">
-                            <a href="#" class="block w-full py-3 px-6 border border-transparent rounded-md text-base font-medium text-indigo-600 bg-indigo-100 hover:bg-indigo-200 transition-all duration-200 hover:scale-105 text-center">Contact Us</a>
-                        </div>
+
+                <!-- Contact Person -->
+                <div class="bg-white rounded-xl shadow-lg p-8 text-center hover:shadow-xl transition-all duration-300 hover:scale-105">
+                    <div class="w-16 h-16 mx-auto mb-4 bg-indigo-100 rounded-full flex items-center justify-center">
+                        <svg class="w-8 h-8 text-indigo-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
+                        </svg>
                     </div>
+                    <h3 class="text-lg font-semibold text-gray-900">Contact Person</h3>
+                    <p class="mt-2 text-gray-600 font-medium">Dixit Prajapati</p>
+                    <p class="text-sm text-gray-500 mt-1">Support & Sales Head</p>
                 </div>
             </div>
         </div>
@@ -208,15 +182,16 @@
 
     <!-- Footer -->
     <footer class="bg-white border-t border-gray-200" data-aos="fade-up">
-        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
             <div class="flex flex-col md:flex-row justify-between items-center">
-                <div class="text-center md:text-left">
-                    <p class="text-base text-gray-500">&copy; 2025 FileManager. All rights reserved.</p>
+                <div class="text-center md:text-left mb-6 md:mb-0">
+                    <p class="text-base text-gray-500">&copy; 2025 THE APEXRISE CONSULTANT AND E-SERVICES. All rights reserved.</p>
+                    <p class="text-sm text-gray-400 mt-2">Powered by DataSafeHub</p>
                 </div>
-                <div class="mt-4 md:mt-0 flex space-x-6">
+                <div class="flex space-x-8">
                     <a href="#" class="text-base text-gray-500 hover:text-gray-900 transition-colors duration-200">Privacy Policy</a>
                     <a href="#" class="text-base text-gray-500 hover:text-gray-900 transition-colors duration-200">Terms of Service</a>
-                    <a href="#" class="text-base text-gray-500 hover:text-gray-900 transition-colors duration-200">Contact</a>
+                    <a href="mailto:info@datasafehub.in" class="text-base text-gray-500 hover:text-gray-900 transition-colors duration-200">Contact</a>
                 </div>
             </div>
         </div>
@@ -238,6 +213,5 @@
             mobileMenu.classList.toggle('hidden');
         });
     </script>
-
 </body>
 </html>

@@ -36,14 +36,28 @@ class AuthenticatedSessionController extends Controller
                 session(['active_company' => $firstCompanyId]);
             }
             // Log the user login action
-          addUserAction([
+            addUserAction([
                 'user_id' => Auth::id(),
                 'action' => "User " . (Auth::user()->name ?? 'Unknown') . " logged in"
             ]);
-        $request->session()->forget('nda_agreement');
+            $request->session()->forget('nda_agreement');
+
 
         }
+            $user = Auth::user();
+            if(!$user->two_factor_enabled){
+                return redirect()->intended(route('dashboard', absolute: false));
+            }
 
+            // Check if user has 2FA enabled (optional – add a column later if needed)
+            // For now, force 2FA for everyone
+            $user->sendOtp();
+
+            Auth::logout(); // Important: log out until OTP verified
+
+            $request->session()->put('2fa_user_id', $user->id);
+
+            return redirect()->route('2fa.show');
 
         return redirect()->intended(route('dashboard', absolute: false));
     }
@@ -55,7 +69,7 @@ class AuthenticatedSessionController extends Controller
     {
         // Remove NDA agreement session
         $request->session()->forget('nda_agreement');
-        
+
         Auth::guard('web')->logout();
 
         $request->session()->invalidate();

@@ -15,6 +15,7 @@
     </script>
 
     <style>
+        
         .modal-content {
             border-radius: 8px;
             box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
@@ -98,96 +99,119 @@
             text-align: center;
         }
 
-        /* ===== USER-FRIENDLY SELECT CHECKBOX DESIGN ===== */
-        .dx-filemanager .dx-datagrid .dx-select-checkbox {
-            display: flex !important;
-            align-items: center !important;
-            justify-content: center !important;
-            width: 24px !important;
-            height: 24px !important;
-            cursor: pointer !important;
-            transition: all 0.2s ease-in-out !important;
-            user-select: none !important;
-        }
+       /* ==========================================================
+   CUSTOM CHECKBOX DESIGN FOR DEVEXTREME FILEMANAGER
+   FULLY FIXED + REFRESH SAFE + CLEAN VERSION
+   ========================================================== */
 
-        /* Checkbox look */
-        .dx-filemanager .dx-select-checkbox .dx-checkbox-icon {
-            width: 18px !important;
-            height: 18px !important;
-            border-radius: 6px !important;
-            border: 2px solid #0078d4 !important;
-            background-color: #ffffff !important;
-            box-shadow: 0 1px 2px rgba(0, 0, 0, 0.1);
-            transition: all 0.25s ease-in-out !important;
-        }
+/* Ensure checkbox column has proper space */
+.dx-filemanager .dx-datagrid .dx-command-select {
+    width: 40px !important;
+    min-width: 40px !important;
+    max-width: 40px !important;
+    padding: 0 !important;
+    overflow: visible !important;
+    text-align: center !important;
+}
 
-        /* Hover feedback */
-        .dx-filemanager .dx-select-checkbox:hover .dx-checkbox-icon {
-            border-color: #005a9e !important;
-            background-color: #f3f9ff !important;
-        }
+/* Center checkbox inside the cell */
+.dx-filemanager .dx-datagrid .dx-command-select .dx-select-checkbox {
+    display: flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    width: 24px !important;
+    height: 24px !important;
+    margin: auto !important;
+    cursor: pointer !important;
+    transition: all 0.2s ease-in-out !important;
+    user-select: none !important;
+}
 
-        /* Checked state */
-        .dx-filemanager .dx-select-checkbox.dx-checkbox-checked .dx-checkbox-icon {
-            background-color: #0078d4 !important;
-            border-color: #0078d4 !important;
-            box-shadow: 0 0 4px rgba(0, 120, 212, 0.6);
-            position: relative;
-        }
+/* Checkbox base look */
+.dx-filemanager .dx-select-checkbox .dx-checkbox-icon {
+    width: 18px !important;
+    height: 18px !important;
+    border-radius: 6px !important;
+    border: 2px solid #0078d4 !important;
+    background-color: #ffffff !important;
+    box-shadow: 0 1px 2px rgba(0, 0, 0, 0.1);
+    transition: all 0.25s ease-in-out !important;
+}
 
-        /* Smooth checkmark */
-        .dx-filemanager .dx-select-checkbox.dx-checkbox-checked .dx-checkbox-icon::after {
-            content: "";
-            position: absolute;
-            width: 6px;
-            height: 12px;
-            border: solid white;
-            border-width: 0 2px 2px 0;
-            transform: rotate(45deg);
-            top: 0px;
-            left: 5px;
-            animation: checkmarkAppear 0.2s ease forwards;
-        }
+/* Hover effect */
+.dx-filemanager .dx-select-checkbox:hover .dx-checkbox-icon {
+    border-color: #005a9e !important;
+    background-color: #f3f9ff !important;
+}
 
-        /* Row highlighting for clarity */
-        .dx-filemanager .dx-data-row.dx-selection {
-            background-color: #eaf4ff !important;
-            transition: background 0.2s ease;
-        }
+/* Checked state */
+.dx-filemanager .dx-select-checkbox.dx-checkbox-checked .dx-checkbox-icon {
+    background-color: #0078d4 !important;
+    border-color: #0078d4 !important;
+    box-shadow: 0 0 4px rgba(0, 120, 212, 0.6);
+    position: relative;
+}
 
-        /* Row hover */
-        .dx-filemanager .dx-data-row:hover {
-            background-color: #f7fbff !important;
-        }
+/* Checkmark animation */
+.dx-filemanager .dx-select-checkbox.dx-checkbox-checked .dx-checkbox-icon::after {
+    content: "";
+    position: absolute;
+    width: 6px;
+    height: 12px;
+    border: solid white;
+    border-width: 0 2px 2px 0;
+    transform: rotate(45deg);
+    top: 0px;
+    left: 5px;
+    animation: checkmarkAppear 0.2s ease forwards;
+}
 
-        /* Animation for checkmark */
-        @keyframes checkmarkAppear {
-            from {
-                opacity: 0;
-                transform: scale(0.8) rotate(45deg);
-            }
+/* Row highlighting */
+.dx-filemanager .dx-data-row.dx-selection {
+    background-color: #eaf4ff !important;
+    transition: background 0.2s ease;
+}
 
-            to {
-                opacity: 1;
-                transform: scale(1) rotate(45deg);
-            }
-        }
+.dx-filemanager .dx-data-row:hover {
+    background-color: #f7fbff !important;
+}
 
-        /* Dark mode friendly */
-        @media (prefers-color-scheme: dark) {
-            .dx-filemanager .dx-select-checkbox .dx-checkbox-icon {
-                background-color: #222 !important;
-                border-color: #3399ff !important;
-            }
+/* Checkmark animation keyframes */
+@keyframes checkmarkAppear {
+    from {
+        opacity: 0;
+        transform: scale(0.8) rotate(45deg);
+    }
+    to {
+        opacity: 1;
+        transform: scale(1) rotate(45deg);
+    }
+}
 
-            .dx-filemanager .dx-select-checkbox.dx-checkbox-checked .dx-checkbox-icon {
-                background-color: #3399ff !important;
-            }
+/* ==========================================================
+   DARK MODE SUPPORT
+   ========================================================== */
+@media (prefers-color-scheme: dark) {
 
-            .dx-filemanager .dx-data-row.dx-selection {
-                background-color: #2d3748 !important;
-            }
-        }
+    .dx-filemanager .dx-select-checkbox .dx-checkbox-icon {
+        background-color: #222 !important;
+        border-color: #3399ff !important;
+    }
+
+    .dx-filemanager .dx-select-checkbox.dx-checkbox-checked .dx-checkbox-icon {
+        background-color: #3399ff !important;
+        border-color: #3399ff !important;
+    }
+
+    .dx-filemanager .dx-data-row.dx-selection {
+        background-color: #2d3748 !important;
+    }
+
+    .dx-filemanager .dx-data-row:hover {
+        background-color: #1f2733 !important;
+    }
+}
+
     </style>
 @endpush
 

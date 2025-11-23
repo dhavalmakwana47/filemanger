@@ -5,9 +5,23 @@
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/flatpickr/dist/flatpickr.min.css">
     <style>
         /* Custom styles */
+        .dataTables_wrapper {
+            width: 100%;
+            margin: 0 auto;
+        }
         .dataTables_wrapper .dataTables_paginate .paginate_button {
             padding: 0.2em 0.5em;
             margin-left: 5px;
+        }
+        #user-logs-table {
+            table-layout: fixed;
+            width: 100% !important;
+        }
+        #user-logs-table th, 
+        #user-logs-table td {
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
         }
 
         .dataTables_wrapper .dataTables_length select {
@@ -115,7 +129,7 @@
                                             <th>ID</th>
                                             <th>Date & Time</th>
                                             <th>User Name</th>
-                                            <th>Action</th>
+                                            <th width="5%">Action</th>
                                             <th>IP Address</th>
                                         </tr>
                                     </thead>
@@ -160,8 +174,18 @@
                         d.to_date = $('#to_date').val();
                     }
                 },
+                scrollX: false,
+                autoWidth: true,
+                columnDefs: [
+                    { width: '5%', targets: 0 }, // ID column
+                    { width: '25%', targets: 1 }, // Date column
+                    { width: '10%', targets: 2 }, // User Name column
+                    { width: '50%', targets: 3 }, // Action column
+                    { width: '10%', targets: 4 }, // IP Address column
+                    { className: 'text-center', targets: [0, 3, 4] } // Center align ID, Action, and IP columns
+                ],
                 columns: [
-                    { data: 'id', name: 'id' },
+                    { data: 'id', name: 'id', className: 'text-center' },
                     { 
                         data: 'created_at', 
                         name: 'created_at',
@@ -170,13 +194,14 @@
                         }
                     },
                     { data: 'user_name', name: 'user.name' },
-                    { data: 'action', name: 'action', orderable: false, searchable: false, width: '20%' },
-                    { data: 'ipaddress', name: 'ipaddress' }
+                    { data: 'action', name: 'action', orderable: false, searchable: false, className: 'text-center' },
+                    { data: 'ipaddress', name: 'ipaddress', className: 'text-center' }
                 ],
                 order: [[0, 'desc']],
                 dom: "<'row'<'col-sm-12 col-md-6'l><'col-sm-12 col-md-6'f>>" +
                      "<'row'<'col-sm-12'tr>>" +
-                     "<'row'<'col-sm-12 col-md-5'i><'col-sm-12 col-md-7'p>>",
+                     "<'row'<'col-sm-12 col-md-5'i><'col-sm-12 col-md-7'p>>" + 
+                     "<'no-print'B>",
                 lengthMenu: [
                     [10, 25, 50, 100, -1],
                     ['10 rows', '25 rows', '50 rows', '100 rows', 'Show all']

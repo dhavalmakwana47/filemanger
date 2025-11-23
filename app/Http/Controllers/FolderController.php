@@ -359,6 +359,8 @@ class FolderController extends Controller implements HasMiddleware
                         'permissions' => $this->formatPermissions($folder, $defaultAccess),
                         'items' => [],
                         'index' => $folder->item_index,
+                        'isBookmarked' => $folder->bookmarks->isNotEmpty(),
+
                     ];
                 }
             }
@@ -379,6 +381,7 @@ class FolderController extends Controller implements HasMiddleware
                         })->filter()->join(', '),
                         'permissions' => $this->formatPermissions($file, $defaultAccess, false),
                         'index' => $file->item_index,
+                        'isBookmarked' => $file->bookmarks->isNotEmpty(),
                     ];
                 }
             }
@@ -414,6 +417,7 @@ class FolderController extends Controller implements HasMiddleware
                         })->filter()->join(', '),
                         'permissions' => $this->formatPermissions($file, $defaultAccess, false),
                         'index' => $file->item_index,
+                        'isBookmarked' => $file->bookmarks->isNotEmpty(),
                     ];
                 }
             }
@@ -503,6 +507,7 @@ class FolderController extends Controller implements HasMiddleware
                         $this->getPermittedFiles($folder, $defaultAccess, $query)
                     ),
                     'index' => $folder->item_index,
+                    'isBookmarked' => $folder->bookmarks->isNotEmpty(),
                 ];
             })
             ->values()
@@ -571,6 +576,7 @@ class FolderController extends Controller implements HasMiddleware
                     })->filter()->join(', '),
                     'permissions' => $this->formatPermissions($file, $defaultAccess, false),
                     'index' => $file->item_index,
+                    'isBookmarked' => $file->bookmarks->isNotEmpty(),
                 ];
             })
             ->values()
@@ -859,7 +865,7 @@ class FolderController extends Controller implements HasMiddleware
             }
 
 
-            $data['name'] = $file->file_name;
+            $data['name'] = $file->filname_name;
             $data['dateModified'] = $file->created_at->format('Y-m-d H:i:s');
             $data['owner'] = $file->access_to_role->map(function ($rolePermission) {
                 return $rolePermission->companyRole->role_name ?? null;
@@ -967,131 +973,131 @@ class FolderController extends Controller implements HasMiddleware
         }
 
         // try {
-            return DB::transaction(function () use ($request, $allowedMimeTypes, $company_id) {
-                $files = $request->file('files');
-                $file_paths = $request->input('file_paths');
-                $root_folder_id = $request->input('folder_id') ?: null;
-                $item_index = $request->input('item_index', 0);
-                $created_by = current_user()->id;
-                $selectedRoles = array_filter($request->input('roles', []), fn($value) => !empty($value));
+        return DB::transaction(function () use ($request, $allowedMimeTypes, $company_id) {
+            $files = $request->file('files');
+            $file_paths = $request->input('file_paths');
+            $root_folder_id = $request->input('folder_id') ?: null;
+            $item_index = $request->input('item_index', 0);
+            $created_by = current_user()->id;
+            $selectedRoles = array_filter($request->input('roles', []), fn($value) => !empty($value));
 
-                if (!$files || !$file_paths || count($files) !== count($file_paths)) {
-                    return $this->errorResponse('Invalid or mismatched files and paths.', 400);
+            if (!$files || !$file_paths || count($files) !== count($file_paths)) {
+                return $this->errorResponse('Invalid or mismatched files and paths.', 400);
+            }
+
+            // Check storage space
+            $totalSizeBytes = 0;
+            foreach ($files as $file) {
+                $totalSizeBytes += $file->getSize();
+            }
+            if ($totalSizeBytes / 1024 > getTotalUsedSpace()) {
+                return $this->errorResponse('Not enough storage space available.', 400);
+            }
+
+            $folderMap = [];
+            $fileNamesCreated = [];
+            $folderNamesCreated = [];
+            $validFilesProcessed = false;
+
+            foreach ($file_paths as $index => $relativePath) {
+                if (!isset($files[$index]) || !$files[$index]->isValid()) {
+                    continue;
                 }
 
-                // Check storage space
-                $totalSizeBytes = 0;
-                foreach ($files as $file) {
-                    $totalSizeBytes += $file->getSize();
-                }
-                if ($totalSizeBytes / 1024 > getTotalUsedSpace()) {
-                    return $this->errorResponse('Not enough storage space available.', 400);
-                }
+                $pathParts = explode('/', trim($relativePath, '/'));
+                $fileName = array_pop($pathParts); // Last part is the file
+                $currentParentId = $root_folder_id; // Start with the provided folder_id
 
-                $folderMap = [];
-                $fileNamesCreated = [];
-                $folderNamesCreated = [];
-                $validFilesProcessed = false;
+                // Create folder hierarchy
+                $currentPath = '';
+                foreach ($pathParts as $folderName) {
+                    $currentPath .= $folderName . '/';
 
-                foreach ($file_paths as $index => $relativePath) {
-                    if (!isset($files[$index]) || !$files[$index]->isValid()) {
-                        continue;
-                    }
+                    // Unique key for folderMap to avoid conflicts
+                    $mapKey = $currentParentId . '|' . $currentPath;
 
-                    $pathParts = explode('/', trim($relativePath, '/'));
-                    $fileName = array_pop($pathParts); // Last part is the file
-                    $currentParentId = $root_folder_id; // Start with the provided folder_id
+                    if (!isset($folderMap[$mapKey])) {
+                        // Check if folder exists
+                        $folder = Folder::where('name', $folderName)
+                            ->where('parent_id', $currentParentId)
+                            ->where('company_id', $company_id)
+                            ->first();
 
-                    // Create folder hierarchy
-                    $currentPath = '';
-                    foreach ($pathParts as $folderName) {
-                        $currentPath .= $folderName . '/';
+                        if (!$folder) {
+                            $folder = Folder::create([
+                                'name' => $folderName,
+                                'parent_id' => $currentParentId,
+                                'company_id' => $company_id,
+                                'item_index' => $item_index,
+                                'created_by' => $created_by,
+                                'updated_by' => $created_by,
+                            ]);
+                            $folderNamesCreated[] = $folder->name;
 
-                        // Unique key for folderMap to avoid conflicts
-                        $mapKey = $currentParentId . '|' . $currentPath;
-
-                        if (!isset($folderMap[$mapKey])) {
-                            // Check if folder exists
-                            $folder = Folder::where('name', $folderName)
-                                ->where('parent_id', $currentParentId)
-                                ->where('company_id', $company_id)
-                                ->first();
-
-                            if (!$folder) {
-                                $folder = Folder::create([
-                                    'name' => $folderName,
-                                    'parent_id' => $currentParentId,
-                                    'company_id' => $company_id,
-                                    'item_index' => $item_index,
-                                    'created_by' => $created_by,
-                                    'updated_by' => $created_by,
-                                ]);
-                                $folderNamesCreated[] = $folder->name;
-
-                                // Sync permissions for folder
-                                if (!empty($selectedRoles)) {
-                                    $request->merge(['permissions' => $selectedRoles]);
-                                    $this->syncPermissions($folder->id, $selectedRoles, Folder::class);
-                                }
+                            // Sync permissions for folder
+                            if (!empty($selectedRoles)) {
+                                $request->merge(['permissions' => $selectedRoles]);
+                                $this->syncPermissions($folder->id, $selectedRoles, Folder::class);
                             }
-
-                            $folderMap[$mapKey] = $folder->id;
-                            $currentParentId = $folder->id;
-                        } else {
-                            $currentParentId = $folderMap[$mapKey];
                         }
-                    }
 
-                    // Store file
-                    $file = $files[$index];
-                    $originalName = pathinfo($file->getClientOriginalName(), PATHINFO_FILENAME);
-                    $extension = $file->getClientOriginalExtension();
-                    $uniqueFileName = $originalName . '_' . time() . '_' . $index . '.' . $extension; // Ensure unique filename
-                    $filePath = "uploads/company_{$company_id}";
-                    $file->storeAs($filePath, $uniqueFileName, 'public');
-                    $sizeKb = $file->getSize();
-
-                    $fileRecord = File::create([
-                        'name' => $uniqueFileName,
-                        'file_name' => $originalName . '.' . $extension,
-                        'folder_id' => $currentParentId,
-                        'company_id' => $company_id,
-                        'file_path' => $filePath . '/' . $uniqueFileName,
-                        'item_index' => $item_index,
-                        'created_by' => $created_by,
-                        'updated_by' => $created_by,
-                        'size_kb' => $sizeKb,
-                    ]);
-
-                    $fileNamesCreated[] = $fileRecord->name;
-                    $validFilesProcessed = true;
-
-                    // Sync permissions for file
-                    if (!empty($selectedRoles)) {
-                        $request->merge(['permissions' => $selectedRoles]);
-                        $this->syncFilePermissions($fileRecord->id, $selectedRoles, File::class);
+                        $folderMap[$mapKey] = $folder->id;
+                        $currentParentId = $folder->id;
+                    } else {
+                        $currentParentId = $folderMap[$mapKey];
                     }
                 }
 
-                if (!$validFilesProcessed) {
-                    return $this->errorResponse('No valid files were uploaded. Only PNG, JPEG, GIF, PDF, Word, ZIP, CSV, and Excel files are allowed.', 400);
-                }
+                // Store file
+                $file = $files[$index];
+                $originalName = pathinfo($file->getClientOriginalName(), PATHINFO_FILENAME);
+                $extension = $file->getClientOriginalExtension();
+                $uniqueFileName = $originalName . '_' . time() . '_' . $index . '.' . $extension; // Ensure unique filename
+                $filePath = "uploads/company_{$company_id}";
+                $file->storeAs($filePath, $uniqueFileName, 'public');
+                $sizeKb = $file->getSize();
 
-                // Send emails
-                if (!empty($selectedRoles)) {
-                    $this->sendPermissionEmails($folderNamesCreated, $fileNamesCreated, $selectedRoles, $company_id);
-                }
-
-                // Log action
-                $resourceNames = array_merge($folderNamesCreated, $fileNamesCreated);
-                $roles = CompanyRole::whereIn('id', $selectedRoles)->pluck('role_name')->toArray();
-                addUserAction([
-                    'user_id' => Auth::id(),
-                    'action' => "Folders " . implode(', ', $resourceNames) . " created with Role Assigned: " . implode(', ', $roles)
+                $fileRecord = File::create([
+                    'name' => $uniqueFileName,
+                    'file_name' => $originalName . '.' . $extension,
+                    'folder_id' => $currentParentId,
+                    'company_id' => $company_id,
+                    'file_path' => $filePath . '/' . $uniqueFileName,
+                    'item_index' => $item_index,
+                    'created_by' => $created_by,
+                    'updated_by' => $created_by,
+                    'size_kb' => $sizeKb,
                 ]);
 
-                return $this->successResponse('Folder structure uploaded successfully!', []);
-            });
+                $fileNamesCreated[] = $fileRecord->name;
+                $validFilesProcessed = true;
+
+                // Sync permissions for file
+                if (!empty($selectedRoles)) {
+                    $request->merge(['permissions' => $selectedRoles]);
+                    $this->syncFilePermissions($fileRecord->id, $selectedRoles, File::class);
+                }
+            }
+
+            if (!$validFilesProcessed) {
+                return $this->errorResponse('No valid files were uploaded. Only PNG, JPEG, GIF, PDF, Word, ZIP, CSV, and Excel files are allowed.', 400);
+            }
+
+            // Send emails
+            if (!empty($selectedRoles)) {
+                $this->sendPermissionEmails($folderNamesCreated, $fileNamesCreated, $selectedRoles, $company_id);
+            }
+
+            // Log action
+            $resourceNames = array_merge($folderNamesCreated, $fileNamesCreated);
+            $roles = CompanyRole::whereIn('id', $selectedRoles)->pluck('role_name')->toArray();
+            addUserAction([
+                'user_id' => Auth::id(),
+                'action' => "Folders " . implode(', ', $resourceNames) . " created with Role Assigned: " . implode(', ', $roles)
+            ]);
+
+            return $this->successResponse('Folder structure uploaded successfully!', []);
+        });
         // } catch (\Exception $e) {
         //     // Log the error
         //     addUserAction([

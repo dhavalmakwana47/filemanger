@@ -117,6 +117,12 @@
                 <button type="button" class="btn btn-warning" id="disableSelectedBtn">
                     <i class="fas fa-times-circle me-2"></i> Inactive
                 </button>
+                <button type="button" class="btn btn-info text-white" id="enable2FABtn">
+                    <i class="fas fa-shield-alt me-2"></i> Enable 2FA
+                </button>
+                <button type="button" class="btn btn-secondary" id="disable2FABtn">
+                    <i class="fas fa-shield-virus me-2"></i> Disable 2FA
+                </button>
                 <button type="button" class="btn btn-danger" id="deleteSelectedBtn">
                     <i class="fas fa-trash me-2"></i> Delete Selected
                 </button>
@@ -201,6 +207,22 @@
                 searchPlaceholder: "Search...",
                 dom: '<"row"<"col-md-6"l><"col-md-6"f>>rt<"row"<"col-md-6"i><"col-md-6"p>>'
             });
+
+        // Handle enable 2FA for selected users
+        $('#enable2FABtn').on('click', function() {
+            const selectedIds = getSelectedUserIds();
+            if (!selectedIds.length) return;
+            
+            update2FAStatus(selectedIds, true);
+        });
+
+        // Handle disable 2FA for selected users
+        $('#disable2FABtn').on('click', function() {
+            const selectedIds = getSelectedUserIds();
+            if (!selectedIds.length) return;
+            
+            update2FAStatus(selectedIds, false);
+        });
 
         // Handle delete selected button
         $('#deleteSelectedBtn').on('click', function() {
@@ -391,6 +413,75 @@
         });
 
         // Bulk update status function
+        // Function to get selected user IDs
+        function getSelectedUserIds() {
+            const selectedIds = [];
+            $('.user-checkbox:checked').each(function() {
+                selectedIds.push($(this).val());
+            });
+
+            if (selectedIds.length === 0) {
+                Swal.fire({
+                    icon: 'warning',
+                    title: 'No Selection',
+                    text: 'Please select at least one user.',
+                });
+                return [];
+            }
+            return selectedIds;
+        }
+
+        // Function to update 2FA status for multiple users
+        function update2FAStatus(userIds, enable) {
+            if (!userIds.length) return;
+
+            const action = enable ? 'enable' : 'disable';
+            
+            Swal.fire({
+                title: `${action.charAt(0).toUpperCase() + action.slice(1)} 2FA`,
+                text: `Are you sure you want to ${action} two-factor authentication for ${userIds.length} selected user(s)?`,
+                icon: 'question',
+                showCancelButton: true,
+                confirmButtonColor: enable ? '#0d6efd' : '#6c757d',
+                cancelButtonColor: '#6c757d',
+                confirmButtonText: `Yes, ${action}`,
+                cancelButtonText: 'Cancel'
+            }).then((result) => {
+                if (result.isConfirmed) {
+                    $.ajax({
+                        url: "{{ route('users.bulk_2fa_update') }}",
+                        type: 'POST',
+                        data: {
+                            _token: '{{ csrf_token() }}',
+                            user_ids: userIds,
+                            enable: enable ? 1 : 0
+                        },
+                        success: function(response) {
+                            Swal.fire({
+                                icon: 'success',
+                                title: 'Success',
+                                text: response.message,
+                                timer: 2000,
+                                showConfirmButton: false
+                            });
+                            
+                            // Reset checkboxes and reload table
+                            $('#select-all').prop('checked', false);
+                            $('#bulkActionButtons').addClass('d-none');
+                            $('#users-table').DataTable().ajax.reload(null, false);
+                        },
+                        error: function(xhr) {
+                            Swal.fire({
+                                icon: 'error',
+                                title: 'Error',
+                                text: xhr.responseJSON?.message || `Failed to ${action} 2FA for selected users.`,
+                            });
+                        }
+                    });
+                }
+            });
+        }
+
         function bulkUpdateStatus(userIds, isActive) {
             $.ajax({
                 url: "{{ route('users.bulk_status') }}",

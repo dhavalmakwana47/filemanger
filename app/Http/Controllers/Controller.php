@@ -47,7 +47,7 @@ abstract class Controller
 
         // Send email to each user
         foreach ($users as $user) {
-            Mail::to($user->email)->queue(new SendResourcePermissionEmail($folderNames, $fileNames,$companyName));
+            Mail::to($user->email)->queue(new SendResourcePermissionEmail($folderNames, $fileNames,$companyName,$companyId,$user->id));
         }
     }
 }

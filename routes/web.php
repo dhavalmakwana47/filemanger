@@ -1,5 +1,7 @@
 <?php
 
+use App\Http\Controllers\Auth\AuthenticatedSessionController;
+use App\Http\Controllers\BookmarkController;
 use App\Http\Controllers\CompanyController;
 use App\Http\Controllers\CompanyRoleController;
 use App\Http\Controllers\CompanyRolePermissionController;
@@ -8,6 +10,7 @@ use App\Http\Controllers\FileController;
 use App\Http\Controllers\FolderController;
 use App\Http\Controllers\ProfileController;
 use App\Http\Controllers\SettingController;
+use App\Http\Controllers\TwoFactorController;
 use App\Http\Controllers\UserController;
 use App\Http\Controllers\UserLogController;
 use App\Models\Company;
@@ -18,6 +21,17 @@ use Carbon\Carbon;
 use Illuminate\Support\Facades\Route;
 
 
+Route::middleware('guest')->group(function () {
+    Route::get('login', [AuthenticatedSessionController::class, 'create'])->name('login');
+    Route::post('login', [AuthenticatedSessionController::class, 'store']);
+});
+
+// 2FA Routes
+Route::middleware('guest')->group(function () {
+    Route::get('/2fa', [TwoFactorController::class, 'show'])->name('2fa.show');
+    Route::post('/2fa', [TwoFactorController::class, 'verify'])->name('2fa.verify');
+    Route::post('/2fa/resend', [TwoFactorController::class, 'resend'])->name('2fa.resend');
+});
 
 Route::get('/', function () {
     return view('welcome');
@@ -59,8 +73,9 @@ Route::middleware(['auth', 'restrict_ip_by_company'])->group(function () {
     Route::post('users-upload', [UserController::class, 'upload'])->name('users.upload');
     Route::get('users-resendpassword/{id}', [UserController::class, 'resendPassword'])->name('users.resend_password');
     Route::post('chnage-status', [UserController::class, 'changeStatus'])->name('users.change_status');
-    Route::post('users-bulk-status', [UserController::class, 'bulkStatusUpdate'])->name('users.bulk_status');
-    Route::post('users-bulk-delete', [UserController::class, 'bulkDelete'])->name('users.bulk_delete');
+    Route::post('/users/bulk-delete', [UserController::class, 'bulkDelete'])->name('users.bulk_delete');
+    Route::post('/users/bulk-status', [UserController::class, 'bulkStatusUpdate'])->name('users.bulk_status');
+    Route::post('/users/bulk-2fa-update', [UserController::class, 'bulk2FAUpdate'])->name('users.bulk_2fa_update');
 
     //company
     Route::resource('company', CompanyController::class);
@@ -97,7 +112,7 @@ Route::middleware(['auth', 'restrict_ip_by_company'])->group(function () {
     
     //logs
     Route::get('userlog', [UserLogController::class, "index"])->name('userlog.index');
-    Route::post('userlog/download', [UserLogController::class, "userlog_downlaod"])->name('userlog.download');
+    Route::post('userlog/download', [UserLogController::class, "userlog_download"])->name('userlog.download');
     Route::post('userlog/getusers', [UserLogController::class, "getusers"])->name('userlog.users');
 
     //settings
@@ -108,6 +123,9 @@ Route::middleware(['auth', 'restrict_ip_by_company'])->group(function () {
 
     //sign nda agreement
     Route::post('sign-nda-agreement', [SettingController::class, "signNdaAgreement"])->name('sign.nda.agreement');
+
+      Route::post('/bookmarks/toggle', [BookmarkController::class, 'toggleBookmark'])->name('bookmarks.toggle');
+    Route::get('/bookmarks', [BookmarkController::class, 'getBookmarks'])->name('bookmarks.index');
 });
 
 require __DIR__ . '/auth.php';

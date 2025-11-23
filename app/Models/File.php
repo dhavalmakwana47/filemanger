@@ -28,7 +28,7 @@ class File extends Model
     protected static function booted()
     {
         static::addGlobalScope('item_index', function ($query) {
-            $query->orderBy('item_index', 'asc');
+            $query->orderBy('item_index', 'desc');
         });
     }
 
@@ -79,5 +79,9 @@ class File extends Model
     public function createdBy()
     {
         return $this->belongsTo(User::class, 'created_by');
+    }
+    public function bookmarks()
+    {
+        return $this->morphMany(Bookmark::class, 'bookmarkable');
     }
 }

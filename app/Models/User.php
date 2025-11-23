@@ -6,6 +6,9 @@ namespace App\Models;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
+use Illuminate\Support\Facades\Mail;
+use App\Mail\OtpMail;
+use App\Models\UserOtp;
 
 class User extends Authenticatable
 {
@@ -21,7 +24,8 @@ class User extends Authenticatable
         'name',
         'email',
         'password',
-        'is_active'
+        'is_active',
+        'two_factor_enabled',
     ];
 
     /**
@@ -110,4 +114,10 @@ class User extends Authenticatable
         return $this->hasOne(CompanyUser::class, 'user_id', 'id')
             ->where('company_id', $activeCompanyId);
     }
+    public function sendOtp()
+{
+    $otp = UserOtp::generateFor($this);
+
+    Mail::to($this->email)->send(new OtpMail($otp->code));
+}
 }

@@ -2,28 +2,112 @@ $(function () {
     const csrfToken = $('meta[name="csrf-token"]').attr("content");
     let searchTimeout = null; // For debouncing search input
     let currentSearchValue = ""; // Track current search value
+    // Add this before the fileManager initialization
+const fileManagerItemTemplate = function (itemData, itemIndex, itemElement) {
+    const $item = $("<div>").addClass("dx-filemanager-item");
+
+    // Only add star if bookmarked
+    if (itemData.isBookmarked) {
+        $item.append(
+            $('<i>')
+                .addClass('dx-icon dx-icon-favorites')
+                .css({
+                    'color': 'gold',
+                    'margin-right': '5px',
+                    'cursor': 'pointer'
+                })
+                .on("click", function (e) {
+                    e.stopPropagation();
+                    // Toggle bookmark
+                    $.ajax({
+                        url: '/bookmarks/toggle',
+                        type: 'POST',
+                        data: {
+                            _token: $('meta[name="csrf-token"]').attr('content'),
+                            type: itemData.isDirectory ? 'folder' : 'file',
+                            id: itemData.id
+                        },
+                        success: function (response) {
+                            // Refresh the file manager to show updated bookmarks
+                            fetchFileManagerData();
+                        }
+                    });
+                })
+        );
+    } else {
+        // Add empty space to maintain alignment
+        $item.append($('<span>').css('margin-right', '24px').html('&nbsp;'));
+    }
+
+    // Add the item name
+    $item.append($("<span>").text(itemData.name));
+
+    return $item;
+};
+
     const fileManager = $("#file-manager")
         .dxFileManager({
             name: "fileManager",
             fileProvider: [],
             height: 450,
             width: 800,
-            selectionMode: isMultiSelect ? "multiple" : "single",
+            selectionMode: "multiple",
             itemView: { mode: "details" },
             permissions: {
                 create: false,
                 rename: true,
             },
             itemView: {
+                itemTemplate: fileManagerItemTemplate,
                 details: {
                     columns: [
+                        {
+                            dataField: "isBookmarked",
+                            caption: "★",
+                            width: 50,
+                            alignment: "center",
+                            cellTemplate: function (container, options) {
+                                const isBookmarked = options.value;
+                                if (isBookmarked) {
+                                    $('<div>')
+                                        .addClass('dx-filemanager-bookmark-cell')
+                                        .append(
+                                            $('<i>')
+                                                .addClass('dx-icon dx-icon-favorites')
+                                                .css({
+                                                    'color': 'gold',
+                                                    'cursor': 'pointer',
+                                                    'font-size': '16px'
+                                                })
+                                                .on('click', function (e) {
+                                                    e.stopPropagation();
+                                                    // Toggle bookmark
+                                                    const itemData = options.data;
+                                                    $.ajax({
+                                                        url: '/bookmarks/toggle',
+                                                        type: 'POST',
+                                                        data: {
+                                                            _token: $('meta[name="csrf-token"]').attr('content'),
+                                                            type: itemData.isDirectory ? 'folder' : 'file',
+                                                            id: itemData.id
+                                                        },
+                                                        success: function (response) {
+                                                            fetchFileManagerData();
+                                                        }
+                                                    });
+                                                })
+                                        )
+                                        .appendTo(container);
+                                }
+                            }
+                        },
                         {
                             dataField: "index", // your custom field
                             caption: "Index", // column title
                             dataType: "number",
                             width: 70,
                             cssClass: "index-column",
-                            sortOrder: "asc", // 👈 default sort order
+                            sortOrder: "desc", // 👈 default sort order
                             sortIndex: 0, // 👈 first sort priority
                         },
                         {
@@ -72,7 +156,6 @@ $(function () {
                             customDeleteHandler();
                         },
                     },
-
                     {
                         name: "view-file",
                         icon: "",
@@ -416,7 +499,7 @@ $(function () {
                             },
                         },
                         visible: true,
-                    },
+                    }
                 ],
                 fileSelectionItems: [
                     {
@@ -471,7 +554,7 @@ $(function () {
                             text: "Download Selected",
                             icon: "download",
                         },
-                        visible: isMultiSelect,
+                        visible: true,
                         onClick: function () {
                             const selected = fileManager.getSelectedItems();
                             if (!selected || selected.length === 0) {
@@ -619,7 +702,7 @@ $(function () {
                             text: "Delete",
                             icon: "trash",
                         },
-                        visible: isMultiSelect,
+                        visible: true,
                         onClick: function () {
                             customDeleteHandler();
                         },
@@ -673,6 +756,53 @@ $(function () {
                         },
                     },
                     "clearSelection",
+
+                    {
+                        name: "bookmarks",
+                        options: {
+                            text: "Bookmarks",
+                            icon: "favorites",
+                        },
+                        visible: true,
+                        onClick: function () {
+                            const selectedItems = fileManager.getSelectedItems();
+                            if (selectedItems.length === 0) {
+                                return;
+                            }
+
+                            // Toggle bookmark for selected items
+                            selectedItems.forEach(item => {
+                                const type = item.isDirectory ? 'folder' : 'file';
+                                const ItemName = item.dataItem.name;
+                                $.ajax({
+                                    url: '/bookmarks/toggle',
+                                    type: 'POST',
+                                    data: {
+                                        _token: $('meta[name="csrf-token"]').attr('content'),
+                                        type: type,
+                                        id: item.dataItem.id
+                                    },
+                                    success: function (response) {
+                                        const action = response.action;
+                                        const itemType = type === 'folder' ? 'Folder' : 'File';
+                                        const itemName = ItemName;
+                                        const message = `${itemName} ${action} ${action === 'added' ? 'to' : 'from'} bookmarks`;
+
+                                        DevExpress.ui.notify({
+                                            message: message,
+                                            type: 'success',
+                                            displayTime: 2000
+                                        });
+                                    },
+                                    error: function (xhr) {
+                                        console.error('Error toggling bookmark:', xhr);
+                                        DevExpress.ui.notify('Failed to update bookmark', 'error', 2000);
+                                    }
+                                });
+                            });
+                            fetchFileManagerData();
+                        }
+                    }
                 ],
             },
             onSelectionChanged: function (e) {
@@ -692,6 +822,7 @@ $(function () {
                             item.dataItem.permissions.delete &&
                             deleteFolderPermission
                     );
+
                 let canUpdate =
                     selectedItems.length > 0 &&
                     selectedItems.every(
@@ -718,7 +849,7 @@ $(function () {
                     selectedItems.every(
                         (item) =>
                             item.dataItem.permissions &&
-                            item.dataItem.permissions.download 
+                            item.dataItem.permissions.download
                     );
 
                 let canExtract =
@@ -733,7 +864,7 @@ $(function () {
 
                 fileManager.option(
                     "contextMenu.items[0].visible",
-                    selectedItems.length > 1 ? false : canUpdate
+                    selectedItems.length > 1 ? true : canUpdate
                 );
                 fileManager.option("contextMenu.items[1].visible", canDelete);
                 fileManager.option("contextMenu.items[2].visible", fileView);
@@ -745,6 +876,38 @@ $(function () {
                     "toolbar.fileSelectionItems[0].visible",
                     canView
                 );
+
+                // NEW: Check if ALL selected items (files & folders) have download permission
+                let canDownloadAll = selectedItems.length > 0 &&
+                    selectedItems.every(item =>
+                        item.dataItem?.permissions?.download === true
+                    );
+
+                // CRITICAL: Control "Download Selected" button visibility
+                const downloadSelectedIndex = fileManager.option("toolbar.fileSelectionItems").findIndex(
+                    item => item.name === "download-selected"
+                );
+                if (downloadSelectedIndex !== -1) {
+                    fileManager.option(
+                        `toolbar.fileSelectionItems[${downloadSelectedIndex}].visible`,
+                        canDownloadAll && selectedItems.length > 0
+                    );
+                }
+
+                let canDeleteSelected = selectedItems.length > 0 &&
+                    selectedItems.every(item =>
+                        item.dataItem?.permissions?.delete === true
+                    );
+
+                const deleteSelectedIndex = fileManager.option("toolbar.fileSelectionItems").findIndex(
+                    item => item.name === "delete-folder"
+                );
+                if (deleteSelectedIndex !== -1) {
+                    fileManager.option(
+                        `toolbar.fileSelectionItems[${deleteSelectedIndex}].visible`,
+                        canDeleteSelected && selectedItems.length > 0
+                    );
+                }
             },
             onItemContextMenu: function (e) {
                 let selectedItems = e.selectedItems;
@@ -1046,15 +1209,13 @@ $(function () {
                 headers: {
                     "X-CSRF-TOKEN": csrfToken,
                     "Content-Type": "application/json",
-                },
+                }
             });
             const data = await response.json();
             fileManager.option("fileSystemProvider", data);
 
             // Keep the search term in the input but don't clear it
-            if (query) {
-                fileManager.option("toolbar.items[5].options.value", query);
-            }
+            fileManager.option("toolbar.items[5].options.value", query);
         } catch (error) {
             console.error("Error searching data:", error);
             DevExpress.ui.notify(
@@ -1101,79 +1262,79 @@ $(function () {
     }
 
     FilePond.registerPlugin(FilePondPluginFileValidateType);
- const folderPond = FilePond.create(
-    document.querySelector("#folder-upload"),
-    {
-        allowMultiple: true,
-        allowDirectoryDrop: true,
-        allowDrop: false, // Disable drag-and-drop
-        labelIdle: 'Select Folder <span class="filepond--label-action">Browse</span>',
-        fileValidateTypeDetectType: (source, type) => new Promise((resolve, reject) => {
-            if (source.size === 0) {
-                reject(new Error('File is empty (0 KB)'));
-                return;
-            }
-            resolve(type);
-        }),
-        acceptedFileTypes: [
-            "image/png",
-            "image/jpeg",
-            "image/gif",
-            "application/pdf",
-            "application/msword",
-            "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
-            "application/zip",
-            "application/x-zip-compressed",
-            "text/csv",
-            "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-            "text/plain",
-            "application/x-rar-compressed",
-            "application/vnd.rar",
-            "image/tiff",
-            "image/tif",
-            "application/rtf",
-            "application/vnd.ms-excel",
-            "application/vnd.ms-powerpoint",
-            "application/vnd.openxmlformats-officedocument.presentationml.presentation",
-            "video/mp4",
-            "video/quicktime",
-            "video/x-ms-wmv",
-            "video/x-matroska",
-            "video/mpeg",
-            "audio/mpeg",
-            "audio/wav",
-            "audio/aac",
-            "audio/mp4",
-            "audio/x-m4a",
-            "application/acad",
-            "application/x-acad",
-            "application/autocad_dwg",
-            "application/dwg",
-            "application/x-dwg",
-            "application/x-autocad",
-            "drawing/dwg",
-            "image/vnd.dwg",
-            "image/x-dwg",
-            "application/x-7z-compressed"
-        ],
-        server: {
-            process: null,
-        },
-        onaddfile: (error, file) => {
-            if (error) {
-                console.warn("Skipped file:", file.filename, "Reason:", error.message);
-                Swal.fire({
-                    icon: "warning",
-                    title: "Upload Error",
-                    text: `Skipped ${file.filename}: ${error.message || 'File type not allowed or empty file'}`,
-                    confirmButtonText: "OK",
-                    confirmButtonColor: "#3085d6",
-                });
-                return;
-            }
-        },
-    }
-);
+    const folderPond = FilePond.create(
+        document.querySelector("#folder-upload"),
+        {
+            allowMultiple: true,
+            allowDirectoryDrop: true,
+            allowDrop: false, // Disable drag-and-drop
+            labelIdle: 'Select Folder <span class="filepond--label-action">Browse</span>',
+            fileValidateTypeDetectType: (source, type) => new Promise((resolve, reject) => {
+                if (source.size === 0) {
+                    reject(new Error('File is empty (0 KB)'));
+                    return;
+                }
+                resolve(type);
+            }),
+            acceptedFileTypes: [
+                "image/png",
+                "image/jpeg",
+                "image/gif",
+                "application/pdf",
+                "application/msword",
+                "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+                "application/zip",
+                "application/x-zip-compressed",
+                "text/csv",
+                "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+                "text/plain",
+                "application/x-rar-compressed",
+                "application/vnd.rar",
+                "image/tiff",
+                "image/tif",
+                "application/rtf",
+                "application/vnd.ms-excel",
+                "application/vnd.ms-powerpoint",
+                "application/vnd.openxmlformats-officedocument.presentationml.presentation",
+                "video/mp4",
+                "video/quicktime",
+                "video/x-ms-wmv",
+                "video/x-matroska",
+                "video/mpeg",
+                "audio/mpeg",
+                "audio/wav",
+                "audio/aac",
+                "audio/mp4",
+                "audio/x-m4a",
+                "application/acad",
+                "application/x-acad",
+                "application/autocad_dwg",
+                "application/dwg",
+                "application/x-dwg",
+                "application/x-autocad",
+                "drawing/dwg",
+                "image/vnd.dwg",
+                "image/x-dwg",
+                "application/x-7z-compressed"
+            ],
+            server: {
+                process: null,
+            },
+            onaddfile: (error, file) => {
+                if (error) {
+                    console.warn("Skipped file:", file.filename, "Reason:", error.message);
+                    Swal.fire({
+                        icon: "warning",
+                        title: "Upload Error",
+                        text: `Skipped ${file.filename}: ${error.message || 'File type not allowed or empty file'}`,
+                        confirmButtonText: "OK",
+                        confirmButtonColor: "#3085d6",
+                    });
+                    return;
+                }
+            },
+        }
+    );
     // Handle form submission
     $("#folderuploadForm").on("submit", function (e) {
         e.preventDefault();
@@ -1516,7 +1677,6 @@ $(function () {
             },
         });
     });
-
     // Initialize File Manager Data
     fetchFileManagerData();
 });

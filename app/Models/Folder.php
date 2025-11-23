@@ -21,7 +21,7 @@ class Folder extends Model
     protected static function booted()
     {
         static::addGlobalScope('item_index', function ($query) {
-            $query->orderBy('item_index', 'asc');
+            $query->orderBy('item_index', 'desc');
         });
     }
 
@@ -61,8 +61,12 @@ class Folder extends Model
             ->whereIn('company_role_id', current_user()->companyRoles->pluck('id'))
             ->get(['can_create', 'can_update', 'can_delete']);
     }
-      public function createdBy()
+    public function createdBy()
     {
         return $this->belongsTo(User::class, 'created_by');
+    }
+    public function bookmarks()
+    {
+        return $this->morphMany(Bookmark::class, 'bookmarkable');
     }
 }

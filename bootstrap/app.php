@@ -1,5 +1,6 @@
 <?php
 
+use App\Http\Middleware\Check2FA;
 use App\Http\Middleware\PermissionCheck;
 use App\Http\Middleware\RestrictIpByCompany;
 use Illuminate\Foundation\Application;
@@ -16,6 +17,7 @@ return Application::configure(basePath: dirname(__DIR__))
         $middleware->alias([
             'permission_check' => PermissionCheck::class,
             'restrict_ip_by_company' => RestrictIpByCompany::class,
+            '2fa' => Check2FA::class,
         ]);
     })
     ->withExceptions(function (Exceptions $exceptions) {

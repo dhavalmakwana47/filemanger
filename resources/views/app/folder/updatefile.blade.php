@@ -7,7 +7,7 @@
     <div class="mb-3">
         <label for="folderName" class="form-label fw-bold"><i class="fas fa-folder"></i> File Name</label>
         <input type="text" class="form-control form-control-lg" id="folderName" name="name"
-            value="{{ isset($file->name) ? $file->name : '' }}" required placeholder="Enter folder name..." disabled>
+            value="{{ isset($file->file_name) ? $file->file_name : '' }}" required placeholder="Enter folder name..." >
     </div>
 
     <div class="form-group mb-3">

@@ -397,6 +397,7 @@ class UserController extends Controller implements HasMiddleware
         // Update user details
         $user->name = $request->input('name');
         $user->email = $request->input('email');
+        $user->two_factor_enabled = $request->input('two_factor_enabled', false);
 
         // Update password if provided
         if ($request->filled('password')) {
@@ -467,6 +468,50 @@ class UserController extends Controller implements HasMiddleware
         return response()->json([
             'status' => 'success', 
             'message' => "{$count} user(s) status updated successfully."
+        ]);
+    }
+
+    public function bulk2FAUpdate(Request $request)
+    {
+        $request->validate([
+            'user_ids' => 'required|array',
+            'user_ids.*' => 'exists:users,id',
+            'enable' => 'required|boolean',
+        ]);
+
+        $userIds = $request->user_ids;
+        $enable = $request->enable;
+        $activeCompanyId = get_active_company();
+        $updatedCount = 0;
+
+        // Update 2FA status for all selected users in the active company
+        foreach ($userIds as $userId) {
+            $user = User::find($userId);
+            
+            // Check if user exists in the active company
+            $companyUser = CompanyUser::where('user_id', $userId)
+                ->where('company_id', $activeCompanyId)
+                ->first();
+                
+            if ($companyUser) {
+                // Update the user's 2FA status
+                $user->two_factor_enabled = $enable;
+                $user->save();
+                $updatedCount++;
+            }
+        }
+
+        $action = $enable ? 'enabled' : 'disabled';
+        
+        // Log the action
+        addUserAction([
+            'user_id' => Auth::id(),
+            'action' => "Bulk 2FA update: {$updatedCount} user(s) 2FA {$action}"
+        ]);
+
+        return response()->json([
+            'status' => 'success',
+            'message' => "2FA has been {$action} for {$updatedCount} user(s) successfully."
         ]);
     }
 

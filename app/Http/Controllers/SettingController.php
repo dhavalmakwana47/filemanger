@@ -4,7 +4,9 @@ namespace App\Http\Controllers;
 
 use App\Http\Requests\SettingRequest;
 use App\Models\CompanyIpRestriction;
+use App\Models\IpRestrictedUser;
 use App\Models\Setting;
+use App\Models\User;
 use Illuminate\Routing\Controllers\Middleware;
 use Illuminate\Routing\Controllers\HasMiddleware;
 use Symfony\Component\HttpFoundation\Request;
@@ -27,8 +29,23 @@ class SettingController extends Controller implements HasMiddleware
                 ['company_id' => get_active_company()],
                 ['ip_restriction' => false, 'enable_watermark' => false]
             );
+        $users = User::with('companies', 'companyRoles', 'companyUser')
+            ->select(['id', 'name', 'email', 'created_at', 'is_active'])
+            ->whereHas('companies', function ($query) {
+                $query->where('company_id', get_active_company());
+            })
+            ->where(function ($query) {
+                $query->whereDoesntHave('companyRoles')
+                    ->orWhereHas('companyRoles', function ($q) {
+                        $q->where('role_name', '!=', 'Super Admin');
+                    });
+            })
+            ->get();
 
-        return view('app.settings.index', compact('setting'));
+        $ipRestrictedUsers = IpRestrictedUser::where('company_id', get_active_company())
+            ->pluck('user_id')->toArray();
+
+        return view('app.settings.index', compact('setting', 'users', 'ipRestrictedUsers'));
     }
 
     public function store(SettingRequest $request)
@@ -49,6 +66,17 @@ class SettingController extends Controller implements HasMiddleware
                 Storage::disk('public')->delete($setting->watermark_image);
             }
             $data['watermark_image'] = $request->file('watermark_image')->store('watermarks', 'public');
+        }
+
+        IpRestrictedUser::where('company_id', $companyId)->delete();
+
+        if ($request->has('users')) {
+            foreach ($request->users as $userId) {
+                IpRestrictedUser::create([
+                    'company_id' => $companyId,
+                    'user_id' => $userId,
+                ]);
+            }
         }
 
         $setting->update($data);

@@ -407,6 +407,7 @@ class FileController extends Controller
         try {
             $file = File::findOrFail($id);
             $file->update([
+                'file_name' => $request->name,
                 'updated_by' => current_user()->id,
                 'item_index' => $request->item_index ?? 0,
             ]);

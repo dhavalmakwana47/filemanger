@@ -2,6 +2,7 @@
 
 namespace App\Http\Middleware;
 
+use App\Models\IpRestrictedUser;
 use App\Models\Setting;
 use Closure;
 use Illuminate\Http\Request;
@@ -40,6 +41,11 @@ class RestrictIpByCompany
 
         if (!$setting->ip_restriction) {
             return $next($request); // IP restriction disabled
+        }
+        $ipRestrictedUser = IpRestrictedUser::where('company_id', $companyId)->where('user_id', $user->id)->exists();
+
+        if (!$ipRestrictedUser) {
+            return $next($request); // User is not restricted
         }
 
         $clientIp = $request->ip();

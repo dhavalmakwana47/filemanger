@@ -100,9 +100,16 @@
                                         name="password_confirmation">
                                 </div>
 
+                                <div class="mb-3 form-check form-switch ml-3">
+                                    <input type="checkbox" class="form-check-input" id="two_factor_enabled" name="two_factor_enabled" value="1" {{ old('two_factor_enabled', current_user()->two_factor_enabled) ? 'checked' : '' }}>
+                                    <label class="form-check-label" for="two_factor_enabled">Enable Two-Factor Authentication</label>
+                                    <div class="form-text text-muted">Add an extra layer of security to your account</div>
+                                </div>
+
                                 <div class="text-right">
-                                    <button type="submit" class="btn btn-primary"><i class="fas fa-save"></i> Update
-                                        Profile</button>
+                                    <button type="submit" class="btn btn-primary">
+                                        <i class="fas fa-save"></i> Update Profile
+                                    </button>
                                 </div>
                             </form>
                         </div>
