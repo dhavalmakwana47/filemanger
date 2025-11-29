@@ -1427,19 +1427,20 @@ const fileManagerItemTemplate = function (itemData, itemIndex, itemElement) {
             "folder_id",
             fileManager.getCurrentDirectory().dataItem?.id || ""
         );
-        // Show loading alert
+        // Show progress alert
         Swal.fire({
-            title: "Uploading...",
+            title: "Uploading Folder...",
             html: `
-                <p>Please wait while your folder are being uploaded.</p>
-                <small>This may take a few minutes depending on your folder size and internet speed.</small>
+                <p>Please wait while your folder is being uploaded.</p>
+                <div class="progress mt-3">
+                    <div class="progress-bar" role="progressbar" style="width: 0%" id="folderUploadProgress">0%</div>
+                </div>
+                <small class="mt-2 d-block">This may take a few minutes depending on your folder size and internet speed.</small>
             `,
             allowOutsideClick: false,
-            didOpen: () => {
-                Swal.showLoading();
-            },
+            showConfirmButton: false
         });
-        // AJAX request
+        // AJAX request with progress
         $.ajax({
             url: $form.attr("action"),
             type: "POST",
@@ -1448,6 +1449,20 @@ const fileManagerItemTemplate = function (itemData, itemIndex, itemElement) {
             contentType: false,
             headers: {
                 "X-CSRF-TOKEN": $('meta[name="csrf-token"]').attr("content"),
+            },
+            xhr: function() {
+                const xhr = new window.XMLHttpRequest();
+                xhr.upload.addEventListener('progress', function(e) {
+                    if (e.lengthComputable) {
+                        const percentComplete = Math.round((e.loaded / e.total) * 100);
+                        const progressBar = document.getElementById('folderUploadProgress');
+                        if (progressBar) {
+                            progressBar.style.width = percentComplete + '%';
+                            progressBar.textContent = percentComplete + '%';
+                        }
+                    }
+                });
+                return xhr;
             },
             success: function (response) {
                 Swal.fire({
@@ -1606,26 +1621,37 @@ const fileManagerItemTemplate = function (itemData, itemIndex, itemElement) {
                 formData.append("file[]", fileItem.file);
             });
 
-            // Show loading alert
+            // Show progress alert
             Swal.fire({
                 title: "Uploading...",
                 html: `
-                <p>Please wait while your files are being uploaded.</p>
-                <small>This may take a few minutes depending on your file size and internet speed.</small>
-            `,
+                    <p>Please wait while your files are being uploaded.</p>
+                    <div class="progress mt-3">
+                        <div class="progress-bar" role="progressbar" style="width: 0%" id="uploadProgress">0%</div>
+                    </div>
+                    <small class="mt-2 d-block">This may take a few minutes depending on your file size and internet speed.</small>
+                `,
                 allowOutsideClick: false,
-                didOpen: () => {
-                    Swal.showLoading();
-                },
+                showConfirmButton: false
             });
 
-            // Submit via AJAX
-            fetch(form.action, {
-                method: "POST",
-                body: formData,
-            })
-                .then((response) => response.json())
-                .then((data) => {
+            // Submit via XMLHttpRequest for progress tracking
+            const xhr = new XMLHttpRequest();
+            
+            xhr.upload.addEventListener('progress', function(e) {
+                if (e.lengthComputable) {
+                    const percentComplete = Math.round((e.loaded / e.total) * 100);
+                    const progressBar = document.getElementById('uploadProgress');
+                    if (progressBar) {
+                        progressBar.style.width = percentComplete + '%';
+                        progressBar.textContent = percentComplete + '%';
+                    }
+                }
+            });
+            
+            xhr.onload = function() {
+                const data = JSON.parse(xhr.responseText);
+
                     Swal.close(); // Close loader
 
                     if (data.success) {
@@ -1647,16 +1673,20 @@ const fileManagerItemTemplate = function (itemData, itemIndex, itemElement) {
                             text: data.message || "Unknown error occurred.",
                         });
                     }
-                })
-                .catch((error) => {
-                    Swal.close();
-                    console.error("Error:", error);
-                    Swal.fire({
-                        icon: "error",
-                        title: "Unexpected Error",
-                        text: "An unexpected error occurred. Please try again.",
-                    });
+            };
+            
+            xhr.onerror = function() {
+                Swal.close();
+                Swal.fire({
+                    icon: "error",
+                    title: "Unexpected Error",
+                    text: "An unexpected error occurred. Please try again.",
                 });
+            };
+            
+            xhr.open('POST', form.action);
+            xhr.setRequestHeader('X-CSRF-TOKEN', document.querySelector('input[name="_token"]').value);
+            xhr.send(formData);
         });
     $("#createFolderForm").on("submit", function (e) {
         e.preventDefault();
