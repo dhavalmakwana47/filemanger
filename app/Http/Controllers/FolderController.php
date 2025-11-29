@@ -29,7 +29,7 @@ class FolderController extends Controller implements HasMiddleware
         return [
             new Middleware('permission_check:Folder,view', only: ['index', 'show']),
             new Middleware('permission_check:Folder,create', only: ['create', 'store']),
-            new Middleware('permission_check:Folder,update', only: ['edit', 'update','moveItems']),
+            new Middleware('permission_check:Folder,update', only: ['edit', 'update', 'moveItems']),
             new Middleware('permission_check:Folder,delete', only: ['destroy', 'deleteFolder']),
             new Middleware('permission_check:Company Role,create', only: ['trashData']),
 
@@ -221,6 +221,8 @@ class FolderController extends Controller implements HasMiddleware
                     if ($folder) {
                         // Sync folder permissions/roles
                         $this->syncPermissions($folder->id, $roles, Folder::class);
+                        $this->updatePermissions($request, $folder->id);
+
                         $folderNames[] = $folder->name;
 
                         // Sync roles to all files inside folder
@@ -424,31 +426,31 @@ class FolderController extends Controller implements HasMiddleware
         }
 
         // === PDF DOWNLOAD ===
-if ($isDownload) {
-    $flatTree = $this->flattenTreeForPdf($fileTree);
+        if ($isDownload) {
+            $flatTree = $this->flattenTreeForPdf($fileTree);
 
-    $html = view('pdf_tree', compact('flatTree'))->render();
+            $html = view('pdf_tree', compact('flatTree'))->render();
 
-    $options = new Options();
-    $options->set('isRemoteEnabled', true);
-    $options->set('isHtml5ParserEnabled', true);
-    $options->set('defaultFont', 'DejaVu Sans');
+            $options = new Options();
+            $options->set('isRemoteEnabled', true);
+            $options->set('isHtml5ParserEnabled', true);
+            $options->set('defaultFont', 'DejaVu Sans');
 
-    $dompdf = new Dompdf($options);
-    $dompdf->loadHtml($html);
-    $dompdf->setPaper('A4', 'landscape');
-    $dompdf->render();
+            $dompdf = new Dompdf($options);
+            $dompdf->loadHtml($html);
+            $dompdf->setPaper('A4', 'landscape');
+            $dompdf->render();
 
-    // Add page numbers & footer text
-    $canvas = $dompdf->getCanvas();
-    $canvas->page_text(50, 570, "Generated on " . now()->format('M d, Y \a\t h:i A'), null, 9, [0.5,0.5,0.5]);
-    $canvas->page_text(720, 570, "Page {PAGE_NUM} of {PAGE_COUNT}", null, 10, [0.3,0.3,0.3]);
+            // Add page numbers & footer text
+            $canvas = $dompdf->getCanvas();
+            $canvas->page_text(50, 570, "Generated on " . now()->format('M d, Y \a\t h:i A'), null, 9, [0.5, 0.5, 0.5]);
+            $canvas->page_text(720, 570, "Page {PAGE_NUM} of {PAGE_COUNT}", null, 10, [0.3, 0.3, 0.3]);
 
-    return response($dompdf->output(), 200, [
-        'Content-Type' => 'application/pdf',
-        'Content-Disposition' => 'attachment; filename="Directory-Structure-' . now()->format('Y-m-d') . '.pdf"',
-    ]);
-}
+            return response($dompdf->output(), 200, [
+                'Content-Type' => 'application/pdf',
+                'Content-Disposition' => 'attachment; filename="Directory-Structure-' . now()->format('Y-m-d') . '.pdf"',
+            ]);
+        }
 
         return response()->json($fileTree);
     }
@@ -1116,26 +1118,26 @@ if ($isDownload) {
             $fileIds = $request->input('file_ids', []);
             $folderIds = $request->input('folder_ids', []);
             $destinationFolderId = $request->input('destination_folder_id');
-            
+
             $movedItems = [];
-            
+
             // Move files
             if (!empty($fileIds)) {
                 File::whereIn('id', $fileIds)->update(['folder_id' => $destinationFolderId]);
                 $movedItems = array_merge($movedItems, File::whereIn('id', $fileIds)->pluck('name')->toArray());
             }
-            
+
             // Move folders
             if (!empty($folderIds)) {
                 Folder::whereIn('id', $folderIds)->update(['parent_id' => $destinationFolderId]);
                 $movedItems = array_merge($movedItems, Folder::whereIn('id', $folderIds)->pluck('name')->toArray());
             }
-            
+
             addUserAction([
                 'user_id' => Auth::id(),
                 'action' => 'Items moved: ' . implode(', ', $movedItems)
             ]);
-            
+
             return response()->json([
                 'status' => true,
                 'message' => 'Items moved successfully!',
