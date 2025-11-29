@@ -56,7 +56,7 @@
                     <form action="{{ route('settings.store') }}" method="POST" enctype="multipart/form-data">
                         @csrf
 
-                        <!-- Watermark Image -->
+                        {{-- <!-- Watermark Image -->
                         <div class="mb-4">
                             <label for="watermark_image" class="form-label fw-bold">Watermark Image</label>
                             <input type="file" class="form-control @error('watermark_image') is-invalid @enderror"
@@ -74,7 +74,7 @@
                             @error('watermark_image')
                                 <div class="invalid-feedback">{{ $message }}</div>
                             @enderror
-                        </div>
+                        </div> --}}
 
 
 
@@ -83,9 +83,9 @@
                             <input class="form-check-input" type="checkbox" name="enable_watermark" value="1"
                                 id="enable_watermark" {{ $setting->enable_watermark ? 'checked' : '' }}>
                             <label class="form-check-label fw-bold" for="enable_watermark">
-                                Enable Watermark on Images
+                                Enable Watermark 
                                 <span class="text-muted fw-normal d-block small">
-                                    Automatically apply watermark to generated images
+                                    Automatically apply watermark
                                 </span>
                             </label>
                         </div>

@@ -173,14 +173,14 @@ class FileController extends Controller
         // 3. Build storage path
         $path = "uploads/company_" . get_active_company() . "/" . $file->name;
 
-        // 4. Check file exists in storage
+        // 4. Check file exists
         if (!Storage::exists($path)) {
             abort(404, 'File not found.');
         }
 
-        // 5. Load watermark path
+        // 5. Get settings & user
         $setting = Setting::where('company_id', get_active_company())->first();
-        if (!isset($setting)) {
+        if (!$setting) {
             $setting = Setting::create([
                 'company_id' => get_active_company(),
                 'watermark_image' => null,
@@ -190,143 +190,113 @@ class FileController extends Controller
         }
 
         $user = auth()->user();
-        if (!$setting->enable_watermark || ($user->is_master_admin() || $user->is_super_admin())) {
+        $userEmail = $user?->email ?? 'unknown@domain.com';
+        $downloadDate = now()->format('Y-m-d H:i');
+        $textWatermark = "Downloaded by: $userEmail | $downloadDate";
+
+        // If watermark disabled or admin → direct download
+        if (!$setting->enable_watermark || $user->is_master_admin() || $user->is_super_admin()) {
             addUserAction([
                 'user_id' => Auth::id(),
-                'action' => "File {$file->name} downloaded"
+                'action'  => "File {$file->name} downloaded"
             ]);
 
-            // This forces a download with the original filename
             return Storage::download($path, $file->name);
         }
 
-        $watermarkPath = $setting && $setting->watermark_image
-            ? storage_path('app/public/' . $setting->watermark_image)
-            : null;
-        // 6. Read file contents
+        // Load file info
         $contents = Storage::get($path);
         $mime     = Storage::mimeType($path);
         $ext      = strtolower(pathinfo($file->name, PATHINFO_EXTENSION));
 
-        // === USER INFO FOR TEXT WATERMARK ===
-        $userEmail = Auth::user()?->email ?? 'unknown@domain.com';
-        $downloadDate = now()->format('Y-m-d H:i');
-        $textWatermark = "Downloaded by: $userEmail | $downloadDate";
+        try {
+            // === IMAGES: PNG, JPG, JPEG ===
+            if (in_array($ext, ['png', 'jpg', 'jpeg'])) {
+                $manager = new ImageManager(new Driver());
+                $image   = $manager->read($contents);
 
-        // === SHARED IMAGE WATERMARK FILE ===
-        $tempWatermarkFile = null;
+                // Only text watermark at bottom center
+                $image->text($textWatermark, $image->width() / 2, $image->height() - 30, function ($font) {
+                    $font->size(24);
+                    $font->color('#888888');
+                    $font->align('center');
+                    $font->valign('bottom');
+                });
 
-        if ($watermarkPath && file_exists($watermarkPath) && in_array($ext, ['docx', 'xlsx', 'xls', 'xlsm'])) {
-            $wmManager = new ImageManager(new Driver());
-            try {
-                $wmImg = $wmManager->read($watermarkPath);
-                $tempWatermarkFile = tempnam(sys_get_temp_dir(), 'wm_');
-                file_put_contents($tempWatermarkFile, $wmImg->toPng()->toString());
-                if (!file_exists($tempWatermarkFile)) throw new \Exception('Failed to create watermark');
-            } catch (\Exception $e) {
-                \Log::error('Watermark creation failed: ' . $e->getMessage());
-                $tempWatermarkFile = null;
-            }
-        }
+                $contents = $ext === 'png'
+                    ? $image->toPng()->toString()
+                    : $image->toJpeg(90)->toString();
 
-        // 7. APPLY WATERMARK IF POSSIBLE
-        if ($watermarkPath && file_exists($watermarkPath) && in_array($ext, ['png', 'jpg', 'jpeg', 'pdf'])) {
-            try {
-                // ------------------- IMAGES (PNG, JPG, JPEG) -------------------
-                if (in_array($ext, ['png', 'jpg', 'jpeg'])) {
-                    $manager = new ImageManager(new Driver());
-                    $image   = $manager->read($contents);
+                $mime = $ext === 'png' ? 'image/png' : 'image/jpeg';
+            } elseif ($ext === 'pdf') {
+                // Create new PDF instance
+                $pdf = new \setasign\Fpdi\Fpdi();
 
-                    if ($watermarkPath) {
-                        $wm = $manager->read($watermarkPath)->resize(
-                            $image->width() * 0.3,
-                            null,
-                            fn($c) => $c->aspectRatio()
+                // Set auto page break to false
+                $pdf->SetAutoPageBreak(false);
+
+                // Get the number of pages in the source PDF
+                $pageCount = $pdf->setSourceFile(
+                    \setasign\Fpdi\PdfParser\StreamReader::createByString($contents)
+                );
+
+                // Process each page
+                for ($i = 1; $i <= $pageCount; $i++) {
+                    // Import the page
+                    $templateId = $pdf->importPage($i);
+                    $size = $pdf->getTemplateSize($templateId);
+
+                    // Only proceed if we have valid page dimensions
+                    if ($size['width'] > 0 && $size['height'] > 0) {
+                        // Add a page with the same dimensions and orientation as the original
+                        $pdf->AddPage(
+                            $size['orientation'] === 'L' ? 'L' : 'P',
+                            [$size['width'], $size['height']]
                         );
-                        $image->place($wm, 'center', 0, 0, 70);
+
+                        // Use the imported page
+                        $pdf->useTemplate($templateId, 0, 0, $size['width'], $size['height'], true);
+
+                        // Set the font for the watermark
+                        $pdf->SetFont('Helvetica', '', 10);
+                        $pdf->SetTextColor(160, 160, 160);
+
+                        // Calculate position for the watermark (bottom center)
+                        $textWidth = $pdf->GetStringWidth($textWatermark);
+                        $x = ($size['width'] - $textWidth) / 2;
+                        $y = $size['height'] - 15; // 15pt from bottom
+
+                        // Add the text watermark
+                        $pdf->SetXY($x, $y);
+                        $pdf->Cell($textWidth, 10, $textWatermark, 0, 0, 'C');
                     }
-
-                    // Text watermark (system font)
-                    $image->text($textWatermark, $image->width() / 2, $image->height() - 30, function ($font) {
-                        $font->size(24);
-                        $font->color('#888888');
-                        $font->align('center');
-                        $font->valign('bottom');
-                    });
-
-                    $contents = $ext === 'png' ? $image->toPng()->toString() : $image->toJpeg(90)->toString();
-                    $mime = $ext === 'png' ? 'image/png' : 'image/jpeg';
                 }
 
-                // ------------------- PDF -------------------
-                elseif ($ext === 'pdf') {
-                    $pdf = new Fpdi();
-                    $stream    = StreamReader::createByString($contents);
-                    $pageCount = $pdf->setSourceFile($stream);
-
-                    $wmManager = new ImageManager(new Driver());
-                    $wmImg     = $wmManager->read($watermarkPath);
-                    $tmpWm     = tempnam(sys_get_temp_dir(), 'wm_') . '.png';
-                    file_put_contents($tmpWm, $wmImg->toPng()->toString());
-
-                    for ($i = 1; $i <= $pageCount; $i++) {
-                        $tpl  = $pdf->importPage($i);
-                        $size = $pdf->getTemplateSize($tpl);
-
-                        $pdf->AddPage($size['orientation'], [$size['width'], $size['height']]);
-                        $pdf->useTemplate($tpl);
-
-                        // Image watermark
-                        $wmWidth  = $size['width'] * 0.3;
-                        $wmHeight = $wmImg->height() * ($wmWidth / $wmImg->width());
-                        $x = ($size['width'] - $wmWidth) / 2;
-                        $y = ($size['height'] - $wmHeight) / 2;
-                        $pdf->Image($tmpWm, $x, $y, $wmWidth);
-
-                        // Text watermark
-                        $pdf->SetFont('Arial', '', 12);
-                        $pdf->SetTextColor(150, 150, 150);
-                        $pdf->SetXY(10, $size['height'] - 20);
-                        $pdf->Cell(0, 10, $textWatermark, 0, 1, 'C');
-                    }
-
-                    @unlink($tmpWm);
-                    $contents = $pdf->Output('S');
-                    $mime     = 'application/pdf';
-                }
-            } catch (\Exception $e) {
-                // Log the error but continue with the original file
-                // The $contents variable will contain the original file contents
-                addUserAction([
-                    'user_id' => Auth::id(),
-                    'action' => "File {$file->name} downloaded"
-                ]);
-
-                // This forces a download with the original filename
-                return Storage::download($path, $file->name);
+                // Get the watermarked PDF as string
+                $contents = $pdf->Output('S');
+                $mime = 'application/pdf';
             }
-        } else {
+
+            // For all other file types (docx, xlsx, etc.) → no watermark possible → download original
+        } catch (\Exception $e) {
+            \Log::error('Watermark application failed: ' . $e->getMessage());
+
+            // On error, serve original file
             addUserAction([
                 'user_id' => Auth::id(),
-                'action' => "File {$file->name} downloaded"
+                'action'  => "File {$file->name} downloaded (watermark failed)"
             ]);
 
-            // This forces a download with the original filename
             return Storage::download($path, $file->name);
         }
 
-        // === CLEAN UP ===
-        if ($tempWatermarkFile && file_exists($tempWatermarkFile)) {
-            @unlink($tempWatermarkFile);
-        }
-
-        // 8. LOG DOWNLOAD
+        // Log successful download with watermark
         addUserAction([
             'user_id' => Auth::id(),
-            'action'  => "File {$file->name} downloaded"
+            'action'  => "File {$file->name} downloaded with text watermark"
         ]);
 
-        // 9. RETURN FILE
+        // Return watermarked file
         return response($contents, 200)
             ->header('Content-Type', $mime)
             ->header('Content-Disposition', 'attachment; filename="' . $file->name . '"');

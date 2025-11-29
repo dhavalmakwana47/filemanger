@@ -424,29 +424,31 @@ class FolderController extends Controller implements HasMiddleware
         }
 
         // === PDF DOWNLOAD ===
-        if ($isDownload) {
-            $flatTree = $this->flattenTreeForPdf($fileTree);
+if ($isDownload) {
+    $flatTree = $this->flattenTreeForPdf($fileTree);
 
-            // Render Blade to HTML string
-            $html = view('pdf_tree', compact('flatTree'))->render();
+    $html = view('pdf_tree', compact('flatTree'))->render();
 
-            // Configure Dompdf
-            $options = new Options();
-            $options->set('isRemoteEnabled', true);
-            $options->set('isHtml5ParserEnabled', true);
-            $options->set('defaultFont', 'DejaVu Sans');
+    $options = new Options();
+    $options->set('isRemoteEnabled', true);
+    $options->set('isHtml5ParserEnabled', true);
+    $options->set('defaultFont', 'DejaVu Sans');
 
-            $dompdf = new Dompdf($options);
-            $dompdf->loadHtml($html);
-            $dompdf->setPaper('A4', 'landscape');
-            $dompdf->render();
+    $dompdf = new Dompdf($options);
+    $dompdf->loadHtml($html);
+    $dompdf->setPaper('A4', 'landscape');
+    $dompdf->render();
 
-            // Output PDF
-            return response($dompdf->output(), 200, [
-                'Content-Type' => 'application/pdf',
-                'Content-Disposition' => 'attachment; filename="File-Manager-Tree.pdf"',
-            ]);
-        }
+    // Add page numbers & footer text
+    $canvas = $dompdf->getCanvas();
+    $canvas->page_text(50, 570, "Generated on " . now()->format('M d, Y \a\t h:i A'), null, 9, [0.5,0.5,0.5]);
+    $canvas->page_text(720, 570, "Page {PAGE_NUM} of {PAGE_COUNT}", null, 10, [0.3,0.3,0.3]);
+
+    return response($dompdf->output(), 200, [
+        'Content-Type' => 'application/pdf',
+        'Content-Disposition' => 'attachment; filename="Directory-Structure-' . now()->format('Y-m-d') . '.pdf"',
+    ]);
+}
 
         return response()->json($fileTree);
     }
