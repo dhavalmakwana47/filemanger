@@ -69,4 +69,22 @@ class Folder extends Model
     {
         return $this->morphMany(Bookmark::class, 'bookmarkable');
     }
+
+    public function getFullPath()
+    {
+        $path = $this->name;
+        $parent = $this->parent;
+        
+        while ($parent) {
+            $path = $parent->name . ' / ' . $path;
+            $parent = $parent->parent;
+        }
+        
+        return $path;
+    }
+
+    public function parent()
+    {
+        return $this->belongsTo(Folder::class, 'parent_id');
+    }
 }

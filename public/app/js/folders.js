@@ -341,6 +341,23 @@ const fileManagerItemTemplate = function (itemData, itemIndex, itemElement) {
                         },
                     },
                     {
+                        name: "move-item",
+                        icon: "",
+                        html: "<i class='fas fa-arrows-alt'></i><span class='dx-button-text'>Move</span>",
+                        visible: true,
+                        onClick: function (e) {
+                            const selectedItems = fileManager.getSelectedItems();
+                            if (selectedItems.length === 0) return;
+                            
+                            let fileIds = selectedItems.filter(i => !i.dataItem.isDirectory).map(i => i.dataItem.id);
+                            let folderIds = selectedItems.filter(i => i.dataItem.isDirectory).map(i => i.dataItem.id);
+                            
+                            $("#move_file_ids").val(JSON.stringify(fileIds));
+                            $("#move_folder_ids").val(JSON.stringify(folderIds));
+                            $("#moveModal").modal("show");
+                        },
+                    },
+                    {
                         name: "properties",
                         icon: "",
                         html: "<i class='dx-icon dx-icon-info'></i><span class='dx-button-text'>Properties</span>",
@@ -758,6 +775,28 @@ const fileManagerItemTemplate = function (itemData, itemIndex, itemElement) {
                     "clearSelection",
 
                     {
+                        name: "move-selected",
+                        options: {
+                            text: "Move",
+                            icon: "fas fa-arrows-alt",
+                        },
+                        visible: true,
+                        onClick: function () {
+                            const selectedItems = fileManager.getSelectedItems();
+                            if (selectedItems.length === 0) {
+                                DevExpress.ui.notify("No items selected", "warning", 2000);
+                                return;
+                            }
+                            
+                            let fileIds = selectedItems.filter(i => !i.dataItem.isDirectory).map(i => i.dataItem.id);
+                            let folderIds = selectedItems.filter(i => i.dataItem.isDirectory).map(i => i.dataItem.id);
+                            
+                            $("#move_file_ids").val(JSON.stringify(fileIds));
+                            $("#move_folder_ids").val(JSON.stringify(folderIds));
+                            $("#moveModal").modal("show");
+                        }
+                    },
+                    {
                         name: "bookmarks",
                         options: {
                             text: "Bookmarks",
@@ -871,6 +910,14 @@ const fileManagerItemTemplate = function (itemData, itemIndex, itemElement) {
                 fileManager.option("contextMenu.items[3].visible", canView);
                 fileManager.option("contextMenu.items[4].visible", canZip);
                 fileManager.option("contextMenu.items[5].visible", canExtract);
+                
+                let canMove = selectedItems.length > 0 &&
+                    selectedItems.every(item =>
+                        item.dataItem.permissions &&
+                        item.dataItem.permissions.update &&
+                        updateFolderPermission
+                    );
+                fileManager.option("contextMenu.items[6].visible", canMove);
 
                 fileManager.option(
                     "toolbar.fileSelectionItems[0].visible",
@@ -906,6 +953,21 @@ const fileManagerItemTemplate = function (itemData, itemIndex, itemElement) {
                     fileManager.option(
                         `toolbar.fileSelectionItems[${deleteSelectedIndex}].visible`,
                         canDeleteSelected && selectedItems.length > 0
+                    );
+                }
+                
+                let canMoveSelected = selectedItems.length > 0 &&
+                    selectedItems.every(item =>
+                        item.dataItem?.permissions?.update === true
+                    );
+                
+                const moveSelectedIndex = fileManager.option("toolbar.fileSelectionItems").findIndex(
+                    item => item.name === "move-selected"
+                );
+                if (moveSelectedIndex !== -1) {
+                    fileManager.option(
+                        `toolbar.fileSelectionItems[${moveSelectedIndex}].visible`,
+                        canMoveSelected && selectedItems.length > 0
                     );
                 }
             },
@@ -1677,6 +1739,40 @@ const fileManagerItemTemplate = function (itemData, itemIndex, itemElement) {
             },
         });
     });
+    // Move form submission
+    $("#moveForm").on("submit", function (e) {
+        e.preventDefault();
+        
+        let formData = {
+            file_ids: JSON.parse($("#move_file_ids").val()),
+            folder_ids: JSON.parse($("#move_folder_ids").val()),
+            destination_folder_id: $("#destination_folder").val() || null,
+        };
+        
+        $.ajax({
+            url: moveItemsRoute,
+            method: "POST",
+            contentType: "application/json",
+            data: JSON.stringify(formData),
+            headers: {
+                "X-CSRF-TOKEN": $('meta[name="csrf-token"]').attr("content"),
+            },
+            success: function (resp) {
+                $("#moveModal").modal("hide");
+                DevExpress.ui.notify(
+                    resp.message || "Items moved successfully!",
+                    "success",
+                    2000
+                );
+                fetchFileManagerData();
+            },
+            error: function (err) {
+                console.error("Error:", err);
+                DevExpress.ui.notify("Error moving items", "error", 2000);
+            },
+        });
+    });
+
     // Initialize File Manager Data
     fetchFileManagerData();
 });

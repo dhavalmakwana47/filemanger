@@ -371,6 +371,36 @@
                 </div>
             </div>
 
+            <div class="modal fade" id="moveModal" tabindex="-1" aria-hidden="true">
+                <div class="modal-dialog modal-lg">
+                    <div class="modal-content">
+                        <form id="moveForm">
+                            <div class="modal-header">
+                                <h5 class="modal-title">Move Items</h5>
+                                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                            </div>
+                            <div class="modal-body">
+                                <input type="hidden" id="move_file_ids">
+                                <input type="hidden" id="move_folder_ids">
+                                <div class="form-group">
+                                    <label>Destination Folder:</label>
+                                    <select class="form-control" id="destination_folder">
+                                        <option value="">Root</option>
+                                        @foreach($allFolderArr as $folder)
+                                            <option value="{{ $folder->id }}">{{ $folder->getFullPath() }}</option>
+                                        @endforeach
+                                    </select>
+                                </div>
+                            </div>
+                            <div class="modal-footer">
+                                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                                <button type="submit" class="btn btn-primary">Move</button>
+                            </div>
+                        </form>
+                    </div>
+                </div>
+            </div>
+
             <div class="dx-viewport demo-container">
                 <div id="file-manager"></div>
             </div>
@@ -390,6 +420,7 @@
         let createFileRoute = "{{ route('file.store') }}";
         let multiItemAssignRolesRoute = "{{ route('folder.multiassignroles') }}"
         let getPropertiesRoute = "{{ route('folder.getproperties') }}"
+        let moveItemsRoute = "{{ route('folder.moveitems') }}"
 
         let createFolderPermission = "{{ current_user()->hasPermission('Folder', 'create') }}"
         let deleteFolderPermission = "{{ current_user()->hasPermission('Folder', 'delete') }}"

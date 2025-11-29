@@ -109,6 +109,7 @@ Route::middleware(['auth', 'restrict_ip_by_company'])->group(function () {
     Route::post('/filemanager/folder/{id}/restore', [FolderController::class, 'restoreFolder'])->name('filemanager.folder.restore');
     Route::post('/filemanager/file/{id}/restore', [FolderController::class, 'restoreFile'])->name('filemanager.file.restore');
     Route::post('folder/upload', [FolderController::class, 'uploadFolderStructure'])->name('folder.uploadstructure');
+    Route::post('move-items', [FolderController::class, 'moveItems'])->name('folder.moveitems');
     
     //logs
     Route::get('userlog', [UserLogController::class, "index"])->name('userlog.index');

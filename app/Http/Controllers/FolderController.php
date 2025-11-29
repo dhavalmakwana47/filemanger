@@ -29,7 +29,7 @@ class FolderController extends Controller implements HasMiddleware
         return [
             new Middleware('permission_check:Folder,view', only: ['index', 'show']),
             new Middleware('permission_check:Folder,create', only: ['create', 'store']),
-            new Middleware('permission_check:Folder,update', only: ['edit', 'update']),
+            new Middleware('permission_check:Folder,update', only: ['edit', 'update','moveItems']),
             new Middleware('permission_check:Folder,delete', only: ['destroy', 'deleteFolder']),
             new Middleware('permission_check:Company Role,create', only: ['trashData']),
 
@@ -1108,5 +1108,40 @@ if ($isDownload) {
         //     ]);
         //     return $this->errorResponse('There was an error uploading the folder structure.', 500, $e);
         // }
+    }
+
+    public function moveItems(Request $request)
+    {
+        try {
+            $fileIds = $request->input('file_ids', []);
+            $folderIds = $request->input('folder_ids', []);
+            $destinationFolderId = $request->input('destination_folder_id');
+            
+            $movedItems = [];
+            
+            // Move files
+            if (!empty($fileIds)) {
+                File::whereIn('id', $fileIds)->update(['folder_id' => $destinationFolderId]);
+                $movedItems = array_merge($movedItems, File::whereIn('id', $fileIds)->pluck('name')->toArray());
+            }
+            
+            // Move folders
+            if (!empty($folderIds)) {
+                Folder::whereIn('id', $folderIds)->update(['parent_id' => $destinationFolderId]);
+                $movedItems = array_merge($movedItems, Folder::whereIn('id', $folderIds)->pluck('name')->toArray());
+            }
+            
+            addUserAction([
+                'user_id' => Auth::id(),
+                'action' => 'Items moved: ' . implode(', ', $movedItems)
+            ]);
+            
+            return response()->json([
+                'status' => true,
+                'message' => 'Items moved successfully!',
+            ]);
+        } catch (\Exception $e) {
+            return $this->errorResponse('Error moving items.', 500, $e);
+        }
     }
 }
