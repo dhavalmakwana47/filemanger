@@ -186,13 +186,17 @@ class UserLogController extends Controller
             'corporate_debtor' => $corporate_debtor,
             'personName'      => $personName,
         ])
-            ->setPaper('a4', 'landscape')           // Landscape = more width
+            ->setPaper('a4', 'landscape')
             ->setOptions([
-                'defaultFont'       => 'DejaVu Sans',   // Important for special characters
+                'defaultFont'       => 'DejaVu Sans',
                 'isRemoteEnabled'   => true,
                 'isHtml5ParserEnabled' => true,
                 'isPhpEnabled'      => false,
-                'dpi'               => 150,
+                'dpi'               => 96,
+                'margin_top'        => 10,
+                'margin_right'      => 10,
+                'margin_bottom'     => 15,
+                'margin_left'       => 10,
             ])
             ->download($fileNameBase . '.pdf');
     }

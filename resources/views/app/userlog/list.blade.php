@@ -9,15 +9,18 @@
             width: 100%;
             margin: 0 auto;
         }
+
         .dataTables_wrapper .dataTables_paginate .paginate_button {
             padding: 0.2em 0.5em;
             margin-left: 5px;
         }
+
         #user-logs-table {
             table-layout: fixed;
             width: 100% !important;
         }
-        #user-logs-table th, 
+
+        #user-logs-table th,
         #user-logs-table td {
             white-space: nowrap;
             overflow: hidden;
@@ -28,6 +31,7 @@
             width: auto;
             display: inline-block;
         }
+
         .filter-section {
             background: #f8f9fa;
             padding: 15px;
@@ -35,9 +39,11 @@
             border-radius: 5px;
             border: 1px solid #dee2e6;
         }
+
         .filter-section .form-group {
             margin-bottom: 0;
         }
+
         .btn-apply {
             margin-top: 30px;
         }
@@ -45,7 +51,7 @@
 @endpush
 
 @section('content')
-    <x-app-breadcrumb title="Company" :breadcrumbs="[['name' => 'Home', 'url' => route('home')], ['name' => 'Comoany', 'url' => route('company.index')]]" />
+    <x-app-breadcrumb title="User Logs" :breadcrumbs="[['name' => 'Home', 'url' => route('home')], ['name' => 'User Logs', 'url' => route('userlog.index')]]" />
     <div class="app-content">
 
 
@@ -60,7 +66,8 @@
                                     <select class="form-control" id="user-id" name="user_id">
                                         <option value="">All Users</option>
                                         @foreach ($users as $user)
-                                            <option value="{{ $user->id }}" {{ request('user_id') == $user->id ? 'selected' : '' }}>
+                                            <option value="{{ $user->id }}"
+                                                {{ request('user_id') == $user->id ? 'selected' : '' }}>
                                                 {{ $user->name }}
                                             </option>
                                         @endforeach
@@ -72,16 +79,16 @@
                         <div class="col-md-3">
                             <div class="form-group">
                                 <label for="from_date">From Date</label>
-                                <input type="text" class="form-control datepicker" id="from_date" name="from_date" 
-                                       value="{{ request('from_date') }}" placeholder="Select start date">
+                                <input type="text" class="form-control datepicker" id="from_date" name="from_date"
+                                    value="{{ request('from_date') }}" placeholder="Select start date">
                             </div>
                         </div>
 
                         <div class="col-md-3">
                             <div class="form-group">
                                 <label for="to_date">To Date</label>
-                                <input type="text" class="form-control datepicker" id="to_date" name="to_date" 
-                                       value="{{ request('to_date') }}" placeholder="Select end date">
+                                <input type="text" class="form-control datepicker" id="to_date" name="to_date"
+                                    value="{{ request('to_date') }}" placeholder="Select end date">
                             </div>
                         </div>
 
@@ -176,32 +183,69 @@
                 },
                 scrollX: false,
                 autoWidth: true,
-                columnDefs: [
-                    { width: '5%', targets: 0 }, // ID column
-                    { width: '25%', targets: 1 }, // Date column
-                    { width: '10%', targets: 2 }, // User Name column
-                    { width: '50%', targets: 3 }, // Action column
-                    { width: '10%', targets: 4 }, // IP Address column
-                    { className: 'text-center', targets: [0, 3, 4] } // Center align ID, Action, and IP columns
+                columnDefs: [{
+                        width: '5%',
+                        targets: 0
+                    }, // ID column
+                    {
+                        width: '25%',
+                        targets: 1
+                    }, // Date column
+                    {
+                        width: '10%',
+                        targets: 2
+                    }, // User Name column
+                    {
+                        width: '50%',
+                        targets: 3
+                    }, // Action column
+                    {
+                        width: '10%',
+                        targets: 4
+                    }, // IP Address column
+                    {
+                        className: 'text-center',
+                        targets: [ 3, 4]
+                    } // Center align ID, Action, and IP columns
                 ],
-                columns: [
-                    { data: 'id', name: 'id', className: 'text-center' },
-                    { 
-                        data: 'created_at', 
+                columns: [{
+                        data: 'DT_RowIndex',
+                        name: 'DT_RowIndex',
+                        title: '#',
+                        orderable: false,
+                        searchable: false,
+                    },
+                    {
+                        data: 'created_at',
                         name: 'created_at',
                         render: function(data, type, row) {
                             return moment(data).format('DD-MMM-YYYY hh:mm A');
                         }
                     },
-                    { data: 'user_name', name: 'user.name' },
-                    { data: 'action', name: 'action', orderable: false, searchable: false, className: 'text-center' },
-                    { data: 'ipaddress', name: 'ipaddress', className: 'text-center' }
+                    {
+                        data: 'user_name',
+                        name: 'user.name'
+                    },
+                    {
+                        data: 'action',
+                        name: 'action',
+                        orderable: false,
+                        searchable: false,
+                        className: 'text-center'
+                    },
+                    {
+                        data: 'ipaddress',
+                        name: 'ipaddress',
+                        className: 'text-center'
+                    }
                 ],
-                order: [[0, 'desc']],
+                order: [
+                    [1, 'desc']
+                ],
                 dom: "<'row'<'col-sm-12 col-md-6'l><'col-sm-12 col-md-6'f>>" +
-                     "<'row'<'col-sm-12'tr>>" +
-                     "<'row'<'col-sm-12 col-md-5'i><'col-sm-12 col-md-7'p>>" + 
-                     "<'no-print'B>",
+                    "<'row'<'col-sm-12'tr>>" +
+                    "<'row'<'col-sm-12 col-md-5'i><'col-sm-12 col-md-7'p>>" +
+                    "<'no-print'B>",
                 lengthMenu: [
                     [10, 25, 50, 100, -1],
                     ['10 rows', '25 rows', '50 rows', '100 rows', 'Show all']
@@ -241,11 +285,11 @@
                 $('#export_from_date').val($('#from_date').val());
                 $('#export_to_date').val($('#to_date').val());
                 $('#export_type').val($('input[name="export_type"]:checked').val());
-                
+
                 // Submit the form
                 $('#exportForm').submit();
             });
-            
+
             // Update export button text based on selection
             $('input[name="export_type"]').change(function() {
                 const type = $(this).val().toUpperCase();

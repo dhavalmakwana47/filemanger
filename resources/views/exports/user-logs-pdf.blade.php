@@ -58,11 +58,13 @@
         }
 
         td {
-            padding: 8px;
+            padding: 6px 4px;
             border: 1px solid #ddd;
             vertical-align: top;
-            font-size: 9.5px;
-            line-height: 1.4;
+            font-size: 8px;
+            line-height: 1.3;
+            word-wrap: break-word;
+            max-width: 0;
         }
 
         .text-center {
@@ -109,10 +111,10 @@
     <table>
         <thead>
             <tr>
-                <th width="13%">Date & Time</th>
-                <th width="15%">User Name</th>
-                <th width="35%">Action</th>
-                <th width="11%">IP Address</th>
+                <th width="18%">Date & Time</th>
+                <th width="20%">User Name</th>
+                <th width="47%">Action</th>
+                <th width="15%">IP Address</th>
             </tr>
         </thead>
         <tbody>
@@ -120,7 +122,7 @@
                 <tr>
                     <td>{{ $log['date_time'] }}</td>
                     <td>{{ $log['user_name'] }}</td>
-                    <td class="wrap">{{ $log['action'] }}</td>
+                    <td style="word-break: break-word; white-space: normal;">{{ $log['action'] }}</td>
                     <td class="text-center">{{ $log['ip'] }}</td>
                 </tr>
             @empty

@@ -126,7 +126,8 @@ Route::middleware(['auth', 'restrict_ip_by_company'])->group(function () {
     Route::post('sign-nda-agreement', [SettingController::class, "signNdaAgreement"])->name('sign.nda.agreement');
 
       Route::post('/bookmarks/toggle', [BookmarkController::class, 'toggleBookmark'])->name('bookmarks.toggle');
-    Route::get('/bookmarks', [BookmarkController::class, 'getBookmarks'])->name('bookmarks.index');
+    Route::get('/bookmarks', [BookmarkController::class, 'index'])->name('bookmarks.index');
+    Route::post('/bookmarks/remove', [BookmarkController::class, 'remove'])->name('bookmarks.remove');
 });
 
 require __DIR__ . '/auth.php';

@@ -84,4 +84,33 @@ class File extends Model
     {
         return $this->morphMany(Bookmark::class, 'bookmarkable');
     }
+
+    /**
+     * Check if the current user has bookmarked this file
+     */
+    public function bookmarkedByCurrentUser()
+    {
+        if (!auth()->check()) {
+            return null;
+        }
+        
+        return $this->morphOne(Bookmark::class, 'bookmarkable')
+            ->where('user_id', auth()->id())
+            ->where('company_id', current_user()->company_id);
+    }
+
+    /**
+     * Check if the file is bookmarked by the current user
+     * @return bool
+     */
+    public function isBookmarkedByCurrentUser(): bool
+    {
+           if (!auth()->check()) {
+            return false;
+        }
+        return $this->bookmarks()
+            ->where('user_id', auth()->user()->id)
+            ->where('company_id',get_active_company())
+            ->exists();
+    }
 }

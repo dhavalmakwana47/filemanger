@@ -366,7 +366,7 @@ class FolderController extends Controller implements HasMiddleware
                         'permissions' => $this->formatPermissions($folder, $defaultAccess),
                         'items' => [],
                         'index' => $folder->item_index,
-                        'isBookmarked' => $folder->bookmarks->isNotEmpty(),
+                        'isBookmarked' => $folder->isBookmarkedByCurrentUser(),
 
                     ];
                 }
@@ -388,7 +388,7 @@ class FolderController extends Controller implements HasMiddleware
                         })->filter()->join(', '),
                         'permissions' => $this->formatPermissions($file, $defaultAccess, false),
                         'index' => $file->item_index,
-                        'isBookmarked' => $file->bookmarks->isNotEmpty(),
+                        'isBookmarked' => $file->isBookmarkedByCurrentUser(),
                     ];
                 }
             }
@@ -424,7 +424,7 @@ class FolderController extends Controller implements HasMiddleware
                         })->filter()->join(', '),
                         'permissions' => $this->formatPermissions($file, $defaultAccess, false),
                         'index' => $file->item_index,
-                        'isBookmarked' => $file->bookmarks->isNotEmpty(),
+                        'isBookmarked' => $file->isBookmarkedByCurrentUser(),
                     ];
                 }
             }
@@ -516,7 +516,7 @@ class FolderController extends Controller implements HasMiddleware
                         $this->getPermittedFiles($folder, $defaultAccess, $query)
                     ),
                     'index' => $folder->item_index,
-                    'isBookmarked' => $folder->bookmarks->isNotEmpty(),
+                    'isBookmarked' => $folder->isBookmarkedByCurrentUser(),
                 ];
             })
             ->values()
@@ -585,7 +585,7 @@ class FolderController extends Controller implements HasMiddleware
                     })->filter()->join(', '),
                     'permissions' => $this->formatPermissions($file, $defaultAccess, false),
                     'index' => $file->item_index,
-                    'isBookmarked' => $file->bookmarks->isNotEmpty(),
+                    'isBookmarked' =>$file->isBookmarkedByCurrentUser(),
                 ];
             })
             ->values()
@@ -822,6 +822,7 @@ class FolderController extends Controller implements HasMiddleware
                 }));
 
                 return DataTables::of($data)
+                ->addIndexColumn()
                     ->addColumn('type', function ($item) {
                         return $item->type;
                     })

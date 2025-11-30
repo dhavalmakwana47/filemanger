@@ -6,8 +6,8 @@ $(function () {
 const fileManagerItemTemplate = function (itemData, itemIndex, itemElement) {
     const $item = $("<div>").addClass("dx-filemanager-item");
 
-    // Only add star if bookmarked
-    if (itemData.isBookmarked) {
+    // Only add star if bookmarked and is file
+    if (itemData.isBookmarked && !itemData.isDirectory) {
         $item.append(
             $('<i>')
                 .addClass('dx-icon dx-icon-favorites')
@@ -18,17 +18,15 @@ const fileManagerItemTemplate = function (itemData, itemIndex, itemElement) {
                 })
                 .on("click", function (e) {
                     e.stopPropagation();
-                    // Toggle bookmark
                     $.ajax({
                         url: '/bookmarks/toggle',
                         type: 'POST',
                         data: {
                             _token: $('meta[name="csrf-token"]').attr('content'),
-                            type: itemData.isDirectory ? 'folder' : 'file',
+                            type: 'file',
                             id: itemData.id
                         },
                         success: function (response) {
-                            // Refresh the file manager to show updated bookmarks
                             fetchFileManagerData();
                         }
                     });
@@ -68,7 +66,8 @@ const fileManagerItemTemplate = function (itemData, itemIndex, itemElement) {
                             alignment: "center",
                             cellTemplate: function (container, options) {
                                 const isBookmarked = options.value;
-                                if (isBookmarked) {
+                                const itemData = options.data;
+                                if (isBookmarked && !itemData.isDirectory) {
                                     $('<div>')
                                         .addClass('dx-filemanager-bookmark-cell')
                                         .append(
@@ -81,14 +80,12 @@ const fileManagerItemTemplate = function (itemData, itemIndex, itemElement) {
                                                 })
                                                 .on('click', function (e) {
                                                     e.stopPropagation();
-                                                    // Toggle bookmark
-                                                    const itemData = options.data;
                                                     $.ajax({
                                                         url: '/bookmarks/toggle',
                                                         type: 'POST',
                                                         data: {
                                                             _token: $('meta[name="csrf-token"]').attr('content'),
-                                                            type: itemData.isDirectory ? 'folder' : 'file',
+                                                            type: 'file',
                                                             id: itemData.id
                                                         },
                                                         success: function (response) {
@@ -809,23 +806,26 @@ const fileManagerItemTemplate = function (itemData, itemIndex, itemElement) {
                                 return;
                             }
 
-                            // Toggle bookmark for selected items
-                            selectedItems.forEach(item => {
-                                const type = item.isDirectory ? 'folder' : 'file';
+                            // Only process files
+                            const files = selectedItems.filter(item => !item.dataItem.isDirectory);
+                            if (files.length === 0) {
+                                DevExpress.ui.notify('Bookmarks only available for files', 'warning', 2000);
+                                return;
+                            }
+
+                            files.forEach(item => {
                                 const ItemName = item.dataItem.name;
                                 $.ajax({
                                     url: '/bookmarks/toggle',
                                     type: 'POST',
                                     data: {
                                         _token: $('meta[name="csrf-token"]').attr('content'),
-                                        type: type,
+                                        type: 'file',
                                         id: item.dataItem.id
                                     },
                                     success: function (response) {
                                         const action = response.action;
-                                        const itemType = type === 'folder' ? 'Folder' : 'File';
-                                        const itemName = ItemName;
-                                        const message = `${itemName} ${action} ${action === 'added' ? 'to' : 'from'} bookmarks`;
+                                        const message = `${ItemName} ${action} ${action === 'added' ? 'to' : 'from'} bookmarks`;
 
                                         DevExpress.ui.notify({
                                             message: message,

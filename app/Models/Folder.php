@@ -87,4 +87,15 @@ class Folder extends Model
     {
         return $this->belongsTo(Folder::class, 'parent_id');
     }
+      public function isBookmarkedByCurrentUser(): bool
+    {
+        if (!auth()->check()) {
+            return false;
+        }
+        
+      return $this->bookmarks()
+            ->where('user_id', auth()->user()->id)
+            ->where('company_id',get_active_company())
+            ->exists();
+    }
 }
