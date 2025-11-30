@@ -272,6 +272,12 @@
                                     <input type="number" min="0" class="form-control form-control-lg" id="fileIndex"
                                         name="item_index" placeholder="Enter Index...">
                                 </div>
+                                <div class="mb-3">
+                                    <div class="form-check form-switch">
+                                        <input class="form-check-input" type="checkbox" id="send_email" name="send_email" value="1">
+                                        <label class="form-check-label" for="send_email">Send Email Notification</label>
+                                    </div>
+                                </div>
                             </div>
 
                             <div class="modal-footer bg-light">
@@ -305,6 +311,12 @@
                                         Index</label>
                                     <input type="number" min="0" class="form-control form-control-lg"
                                         id="folderIndex" name="item_index" placeholder="Enter Index...">
+                                </div>
+                                <div class="mb-3">
+                                    <div class="form-check form-switch">
+                                        <input class="form-check-input" type="checkbox" id="folder_send_email" name="send_email" value="1">
+                                        <label class="form-check-label" for="folder_send_email">Send Email Notification</label>
+                                    </div>
                                 </div>
                             </div>
 
@@ -341,6 +353,12 @@
                                             </option>
                                         @endforeach
                                     </select>
+                                </div>
+                                <div class="mb-3">
+                                    <div class="form-check form-switch">
+                                        <input class="form-check-input" type="checkbox" id="assign_send_email" name="send_email" value="1">
+                                        <label class="form-check-label" for="assign_send_email">Send Email Notification</label>
+                                    </div>
                                 </div>
                             </div>
 

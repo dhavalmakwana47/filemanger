@@ -97,8 +97,10 @@ class FolderController extends Controller implements HasMiddleware
                 $this->syncPermissions($file->id, $request->input('permissions', []), File::class);
             }
 
-            // Send emails
-            $this->sendPermissionEmails([$folder->name], $fileNamesCreated, $selectedRoles, $company_id);
+            // Send emails if toggle is enabled
+            if (isset($request->send_email)) {
+                $this->sendPermissionEmails([$folder->name], $fileNamesCreated, $selectedRoles, $company_id);
+            }
 
             // Log user action
             $resourceNames = array_merge([$folder->name], $fileNamesCreated);
@@ -162,8 +164,10 @@ class FolderController extends Controller implements HasMiddleware
                 $this->syncFilePermissions($file->id, $request->input('permissions', []));
             }
 
-            // Send emails with folder and file names
-            $this->sendPermissionEmails([$folder->name], $fileNames, $selectedRoles, $company_id);
+            // Send emails with folder and file names if toggle is enabled
+            if (isset($request->send_email)) {
+                $this->sendPermissionEmails([$folder->name], $fileNames, $selectedRoles, $company_id);
+            }
 
             addUserAction([
                 'user_id' => Auth::id(),
@@ -243,8 +247,8 @@ class FolderController extends Controller implements HasMiddleware
                 }
             }
 
-            // Send emails if roles were assigned
-            if (!empty($roles) && (!empty($folderNames) || !empty($fileNames))) {
+            // Send emails if roles were assigned and email toggle is enabled
+            if (!empty($roles) && (!empty($folderNames) || !empty($fileNames)) && isset($request->send_email)) {
                 $this->sendPermissionEmails($folderNames, $fileNames, $roles, $company_id);
             }
 
@@ -1088,8 +1092,8 @@ class FolderController extends Controller implements HasMiddleware
                 return $this->errorResponse('No valid files were uploaded. Only PNG, JPEG, GIF, PDF, Word, ZIP, CSV, and Excel files are allowed.', 400);
             }
 
-            // Send emails
-            if (!empty($selectedRoles)) {
+            // Send emails if toggle is enabled
+            if (!empty($selectedRoles) && isset($request->send_email)) {
                 $this->sendPermissionEmails($folderNamesCreated, $fileNamesCreated, $selectedRoles, $company_id);
             }
 

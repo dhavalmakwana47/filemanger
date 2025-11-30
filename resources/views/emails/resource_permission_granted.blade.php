@@ -2,7 +2,7 @@
 <html>
 <head>
     <meta charset="UTF-8">
-    <title>Resource Permission Granted</title>
+    <title>New Files/Folders Added - Data-room Services</title>
     <style>
         body {
             font-family: Arial, sans-serif;
@@ -20,30 +20,12 @@
             border-radius: 8px;
             box-shadow: 0 4px 15px rgba(0,0,0,0.08);
         }
-        h1 {
-            color: #2c3e50;
-            font-size: 22px;
-            margin-bottom: 15px;
-            border-bottom: 2px solid #3498db;
-            display: inline-block;
-            padding-bottom: 5px;
+        ol {
+            padding-left: 20px;
+            margin: 15px 0;
         }
-        h3 {
-            color: #3498db;
-            margin: 20px 0 10px 0;
-            font-size: 18px;
-        }
-        ul {
-            list-style-type: none;
-            padding-left: 0;
-            margin: 0 0 15px 0;
-        }
-        ul li {
-            background: #f4f8ff;
-            margin: 6px 0;
-            padding: 10px 12px;
-            border-radius: 5px;
-            border-left: 4px solid #3498db;
+        ol li {
+            margin: 5px 0;
             font-size: 14px;
         }
         p {
@@ -56,53 +38,49 @@
             border-top: 1px solid #ddd;
             font-size: 13px;
             color: #666;
-            text-align: center;
-        }
-        .footer a {
-            color: #3498db;
-            text-decoration: none;
-            font-weight: bold;
-        }
-        .footer a:hover {
-            text-decoration: underline;
         }
         .company {
             font-weight: bold;
             color: #2c3e50;
         }
+        .contact {
+            margin-top: 15px;
+            font-size: 12px;
+            color: #555;
+        }
     </style>
 </head>
 <body>
     <div class="container">
-        <h1>Resource Permission Granted</h1>
-        <p>Hello,</p>
-        <p>You have been granted permissions for the following resources:</p>
-
-        @if (!empty($folderNames))
-            <h3>{{ count($folderNames) > 1 ? 'Folders' : 'Folder' }}</h3>
-            <ul>
-                @foreach ($folderNames as $name)
-                    <li>{{ $name }}</li>
-                @endforeach
-            </ul>
-        @endif
-
-        @if (!empty($fileNames))
-            <h3>{{ count($fileNames) > 1 ? 'Files' : 'File' }}</h3>
-            <ul>
-                @foreach ($fileNames as $name)
-                    <li>{{ $name }}</li>
-                @endforeach
-            </ul>
-        @endif
-
-        <p>Thank you,<br><span class="company">{{ $companyName }}</span> Team</p>
-
+        <p>Dear User,</p>
+        
+        <p>We would like to inform you that <strong>{{ $companyName }}</strong> has added new file(s)/folder(s) to your Data-room Services.</p>
+        
+        <p>You can now access and review the newly added content using your Data-room account.</p>
+        
+        <p><strong>List of New Files/Folders:</strong></p>
+        <ol>
+            @foreach (array_merge($folderNames ?? [], $fileNames ?? []) as $index => $name)
+                <li>{{ $name }}</li>
+            @endforeach
+        </ol>
+        
+        <p>• <strong>Login URL:</strong> <a href="{{ url('/') }}">{{ url('/') }}</a></p>
+        
+        <p>For any assistance or queries, please feel free to contact our support team.</p>
+        
+        <p><strong>Best Regards,</strong><br>
+        The Data Safe Hub Team</p>
+        
         <div class="footer">
-            <p>&copy; {{ date('Y') }} {{ $companyName }}. All rights reserved.</p>
-            <p>
-                Visit us at: <a href="https://datasafehub.in/" target="_blank">https://datasafehub.in/</a>
-            </p>
+            <div class="contact">
+                <strong>Dixit Prajapati</strong> (Mo: 7990822351/7874138237)<br>
+                Head of IT/Marketing Department<br>
+                Apexrise Consultant and E-Service<br>
+                1018, Derasar Vado Khancho, Maneck Chowk Ahmedabad<br>
+                Gujarat India 380001<br>
+                W: <a href="https://www.datasafehub.in">www.datasafehub.in</a> &nbsp; E: <a href="mailto:info@indiaevoting.com">info@indiaevoting.com</a>
+            </div>
         </div>
     </div>
 </body>

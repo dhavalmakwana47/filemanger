@@ -123,8 +123,8 @@ class FileController extends Controller
                     }
                 }
 
-                // Send emails if roles were assigned
-                if (!empty($selectedRoles)) {
+                // Send emails if roles were assigned and email toggle is enabled
+                if (!empty($selectedRoles) && isset($request->send_email)) {
                     $this->sendPermissionEmails([], $fileNames, $selectedRoles, $company_id);
                 }
 
@@ -389,8 +389,8 @@ class FileController extends Controller
             // Sync permissions
             $this->syncPermissions($id, $request->input('permissions', []));
 
-            // Send emails if roles were assigned
-            if (!empty($selectedRoles)) {
+            // Send emails if roles were assigned and email toggle is enabled
+            if (!empty($selectedRoles) && isset($request->send_email)) {
                 $this->sendPermissionEmails([], [$file->name], $selectedRoles, $company_id);
             }
 

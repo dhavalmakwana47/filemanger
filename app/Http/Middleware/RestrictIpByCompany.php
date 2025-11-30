@@ -19,6 +19,11 @@ class RestrictIpByCompany
      */
     public function handle(Request $request, Closure $next): Response
     {
+        // Skip IP check for change_company route
+        if ($request->routeIs('change_company')) {
+            return $next($request);
+        }
+
         $user = auth()->user();
         if ($user->is_master_admin() || $user->is_super_admin()) {
             return $next($request);
@@ -53,7 +58,7 @@ class RestrictIpByCompany
         $ipAllowed = $setting->ipRestrictions()->where('ip_address', $clientIp)->exists();
 
         if (!$ipAllowed) {
-            abort(403, 'Access denied: Your IP address is not authorized for this company.');
+            return response()->view('ip-restricted', [], 403);
         }
 
         return $next($request);

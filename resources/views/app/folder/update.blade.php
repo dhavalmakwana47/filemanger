@@ -28,6 +28,13 @@
             value="{{ isset($folder->item_index) ? $folder->item_index : '' }}"  placeholder="Enter Index ...">
     </div>
 
+    <div class="mb-3">
+        <div class="form-check form-switch">
+            <input class="form-check-input" type="checkbox" id="folder_create_send_email" name="send_email" value="1">
+            <label class="form-check-label" for="folder_create_send_email">Send Email Notification</label>
+        </div>
+    </div>
+
 </div>
 
 <div class="modal-footer bg-light">

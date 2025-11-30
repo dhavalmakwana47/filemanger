@@ -39,11 +39,7 @@ class SendResourcePermissionEmail extends Mailable
         $user = User::find($this->userId);
         
         try {
-            // Log the email sending attempt
-            $logMessage = "Attempting to send Resource Permission Granted mail to {$user->name}";
-            $this->logAction($user, $logMessage);
-
-            $email = $this->subject('Resource Permission Granted')
+            $email = $this->subject('New File(s)/Folder(s) Added in Data-room – ' . $this->companyName)
                         ->view('emails.resource_permission_granted')
                         ->with([
                             'folderNames' => $this->folderNames,

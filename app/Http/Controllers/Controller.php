@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Mail\SendResourcePermissionEmail;
+use App\Models\Company;
 use App\Models\CompanyUserRole;
 use Illuminate\Support\Facades\Mail;
 
@@ -43,7 +44,9 @@ abstract class Controller
             })
             ->unique('id'); // Ensure unique users by ID
 
-            $companyName = auth()->user()->company->name ?? 'the company';
+            $company = Company::find($companyId);
+
+            $companyName = $company ? $company->name : 'The Company';
 
         // Send email to each user
         foreach ($users as $user) {

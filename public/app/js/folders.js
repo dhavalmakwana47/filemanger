@@ -1033,6 +1033,7 @@ const fileManagerItemTemplate = function (itemData, itemIndex, itemElement) {
             file_ids: JSON.parse($("#file_ids").val()),
             folder_ids: JSON.parse($("#folder_ids").val()),
             roles: $("#rolesv2").val(), // selected role IDs
+            send_email: $("#assign_send_email").is(':checked') ? 1 : 0,
         };
 
         $.ajax({
