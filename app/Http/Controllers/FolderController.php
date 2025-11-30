@@ -221,6 +221,7 @@ class FolderController extends Controller implements HasMiddleware
                     if ($folder) {
                         // Sync folder permissions/roles
                         $this->syncPermissions($folder->id, $roles, Folder::class);
+                        $request->merge(['permissions' => $roles]);
                         $this->updatePermissions($request, $folder->id);
 
                         $folderNames[] = $folder->name;
