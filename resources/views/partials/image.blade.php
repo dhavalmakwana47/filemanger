@@ -10,106 +10,170 @@
         </div>
     </div>
 
-    <div class="image-body mt-3 rounded shadow-sm bg-white p-3 text-center position-relative">
-        <img id="zoomableImg"
-             src="{{ route($routeName, ['id' => $id]) }}"
-             alt="{{ $fileName }}"
-             class="img-fluid rounded shadow"
-             style="max-height:80vh; object-fit:contain; cursor:grab;">
+    <div class="image-container">
+        <div class="image-viewport">
+            <img id="zoomableImg" 
+                 src="{{ route($routeName, ['id' => $id]) }}" 
+                 alt="{{ $fileName }}">
+        </div>
         
         <!-- Zoom Controls -->
-        <div class="zoom-controls position-absolute bottom-0 end-0 m-3 d-flex flex-column gap-2">
-            <button type="button" id="zoomInBtn" class="btn btn-sm btn-primary rounded-circle shadow" title="Zoom In">
+        <div class="zoom-controls">
+            <button type="button" id="zoomInBtn" class="btn btn-sm btn-primary" title="Zoom In">
                 <i class="bi bi-plus-lg"></i>
             </button>
-            <button type="button" id="zoomOutBtn" class="btn btn-sm btn-primary rounded-circle shadow" title="Zoom Out">
+            <button type="button" id="zoomOutBtn" class="btn btn-sm btn-primary" title="Zoom Out">
                 <i class="bi bi-dash-lg"></i>
+            </button>
+            <button type="button" id="resetBtn" class="btn btn-sm btn-secondary" title="Reset">
+                <i class="bi bi-arrow-clockwise"></i>
             </button>
         </div>
     </div>
 </div>
 
 <script>
-    document.addEventListener('DOMContentLoaded', function () {
-        const img = document.getElementById('zoomableImg');
-        const body = document.querySelector('.image-body');
-        
-        let scale = 1;
+document.addEventListener('DOMContentLoaded', function() {
+    const img = document.getElementById('zoomableImg');
+    const viewport = document.querySelector('.image-viewport');
+    let scale = 1;
+    let translateX = 0;
+    let translateY = 0;
+    let isDragging = false;
+    let startX, startY, initialTranslateX, initialTranslateY;
 
-        const update = () => {
-            img.style.transform = `scale(${scale})`;
-            if (scale > 1) {
-                body.style.overflow = 'auto';
-            } else {
-                body.style.overflow = 'hidden';
-            }
-        };
+    function updateTransform() {
+        img.style.transform = `translate(${translateX}px, ${translateY}px) scale(${scale})`;
+    }
 
-        document.getElementById('zoomInBtn').addEventListener('click', () => {
-            scale += 0.3;
-            update();
-        });
-
-        document.getElementById('zoomOutBtn').addEventListener('click', () => {
-            scale = Math.max(1, scale - 0.3);
-            update();
-        });
-
-        // Wheel zoom with Ctrl
-        img.addEventListener('wheel', e => {
-            if (e.ctrlKey) {
-                e.preventDefault();
-                if (e.deltaY > 0) {
-                    scale = Math.max(1, scale - 0.3);
-                } else {
-                    scale += 0.3;
-                }
-                update();
-            }
-        });
-
-        // Prevent right-click
-        img.addEventListener('contextmenu', e => e.preventDefault());
+    // Zoom In
+    document.getElementById('zoomInBtn').addEventListener('click', () => {
+        scale += 0.25;
+        updateTransform();
     });
+
+    // Zoom Out
+    document.getElementById('zoomOutBtn').addEventListener('click', () => {
+        scale = Math.max(0.5, scale - 0.25);
+        updateTransform();
+    });
+
+    // Reset
+    document.getElementById('resetBtn').addEventListener('click', () => {
+        scale = 1;
+        translateX = 0;
+        translateY = 0;
+        updateTransform();
+    });
+
+    // Mouse wheel zoom
+    viewport.addEventListener('wheel', (e) => {
+        e.preventDefault();
+        const delta = e.deltaY > 0 ? -0.1 : 0.1;
+        scale = Math.max(0.5, Math.min(5, scale + delta));
+        updateTransform();
+    });
+
+    // Mouse drag
+    img.addEventListener('mousedown', (e) => {
+        isDragging = true;
+        startX = e.clientX;
+        startY = e.clientY;
+        initialTranslateX = translateX;
+        initialTranslateY = translateY;
+        img.style.cursor = 'grabbing';
+        e.preventDefault();
+    });
+
+    document.addEventListener('mousemove', (e) => {
+        if (!isDragging) return;
+        translateX = initialTranslateX + (e.clientX - startX);
+        translateY = initialTranslateY + (e.clientY - startY);
+        updateTransform();
+    });
+
+    document.addEventListener('mouseup', () => {
+        isDragging = false;
+        img.style.cursor = 'grab';
+    });
+
+    // Prevent context menu
+    img.addEventListener('contextmenu', e => e.preventDefault());
+});
 </script>
 
 <style>
-    .image-viewer-wrapper {
-        background-color: #f8f9fa;
-        padding: 20px;
-        border-radius: 12px;
-        min-height: 100vh;
+.image-viewer-wrapper {
+    background-color: #f8f9fa;
+    padding: 20px;
+    border-radius: 12px;
+    min-height: 100vh;
+}
+
+.viewer-header {
+    background-color: #fff;
+    padding: 15px 20px;
+    border-radius: 8px;
+    box-shadow: 0 2px 6px rgba(0,0,0,.05);
+    margin-bottom: 20px;
+}
+
+.image-container {
+    position: relative;
+    background: white;
+    border-radius: 8px;
+    box-shadow: 0 2px 6px rgba(0,0,0,.05);
+    height: calc(100vh - 200px);
+}
+
+.image-viewport {
+    width: 100%;
+    height: 100%;
+    overflow: hidden;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    position: relative;
+    border-radius: 8px;
+}
+
+.image-viewport img {
+    max-width: 90%;
+    max-height: 90%;
+    cursor: grab;
+    transform-origin: center center;
+    transition: transform 0.1s ease;
+}
+
+.zoom-controls {
+    position: absolute;
+    bottom: 20px;
+    right: 20px;
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    z-index: 10;
+}
+
+.zoom-controls button {
+    width: 40px;
+    height: 40px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.2);
+}
+
+@media (max-width: 768px) {
+    .zoom-controls {
+        flex-direction: row;
+        bottom: 10px;
+        left: 50%;
+        transform: translateX(-50%);
+        right: auto;
     }
-    .viewer-header {
-        background-color: #fff;
-        padding: 15px 20px;
-        border-radius: 8px;
-        box-shadow: 0 2px 6px rgba(0,0,0,.05);
-    }
-    .image-body {
-        overflow: hidden;
-        position: relative;
-        height: calc(100vh - 160px);
-    }
-    .image-body img {
-        transition: transform .2s ease;
-        transform-origin: center center;
-    }
-    .zoom-controls button {
-        width: 36px;
-        height: 36px;
-        display: flex;
-        align-items: center;
-        justify-content: center;
-    }
-    @media (max-width: 768px) {
-        .zoom-controls {
-            flex-direction: row;
-            bottom: 10px;
-            left: 50%;
-            transform: translateX(-50%);
-        }
-    }
+}
 </style>
 
 <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css">
