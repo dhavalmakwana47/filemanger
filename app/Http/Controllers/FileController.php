@@ -192,7 +192,7 @@ class FileController extends Controller
         $user = auth()->user();
         $userEmail = $user?->email ?? 'unknown@domain.com';
         $downloadDate = now()->format('Y-m-d H:i');
-        $textWatermark = "Downloaded by: $userEmail | $downloadDate";
+        $textWatermark = "$userEmail | $downloadDate";
 
         // If watermark disabled or admin → direct download
         if (!$setting->enable_watermark || $user->is_master_admin() || $user->is_super_admin()) {
@@ -215,12 +215,27 @@ class FileController extends Controller
                 $manager = new ImageManager(new Driver());
                 $image   = $manager->read($contents);
 
-                // Only text watermark at bottom center
-                $image->text($textWatermark, $image->width() / 2, $image->height() - 30, function ($font) {
-                    $font->size(24);
-                    $font->color('#888888');
+                // Cross diagonal watermarks with bigger text
+                $width = $image->width();
+                $height = $image->height();
+                $fontSize = min($width, $height) / 3; // Much bigger font size
+                
+                // First diagonal (top-left to bottom-right)
+                $image->text($textWatermark, $width / 2, $height / 2, function ($font) use ($fontSize) {
+                    $font->size($fontSize);
+                    $font->color('#CCCCCC80'); // More visible
                     $font->align('center');
-                    $font->valign('bottom');
+                    $font->valign('middle');
+                    $font->angle(45);
+                });
+                
+                // Second diagonal (top-right to bottom-left)
+                $image->text($textWatermark, $width / 2, $height / 2, function ($font) use ($fontSize) {
+                    $font->size($fontSize);
+                    $font->color('#CCCCCC80'); // More visible
+                    $font->align('center');
+                    $font->valign('middle');
+                    $font->angle(-45);
                 });
 
                 $contents = $ext === 'png'
@@ -257,18 +272,30 @@ class FileController extends Controller
                         // Use the imported page
                         $pdf->useTemplate($templateId, 0, 0, $size['width'], $size['height'], true);
 
-                        // Set the font for the watermark
-                        $pdf->SetFont('Helvetica', '', 10);
-                        $pdf->SetTextColor(160, 160, 160);
-
-                        // Calculate position for the watermark (bottom center)
-                        $textWidth = $pdf->GetStringWidth($textWatermark);
-                        $x = ($size['width'] - $textWidth) / 2;
-                        $y = $size['height'] - 15; // 15pt from bottom
-
-                        // Add the text watermark
-                        $pdf->SetXY($x, $y);
-                        $pdf->Cell($textWidth, 10, $textWatermark, 0, 0, 'C');
+                        // Set smaller font for cross watermarks
+                        $pdf->SetFont('Helvetica', '', 40); // Smaller font size
+                        $pdf->SetTextColor(220, 220, 220); // More visible
+                        
+                        $centerX = $size['width'] / 2;
+                        $centerY = $size['height'] / 2;
+                        
+                        // First diagonal (45 degrees)
+                        $angle1 = 45 * pi() / 180;
+                        $cos1 = cos($angle1);
+                        $sin1 = sin($angle1);
+                        $pdf->_out(sprintf('q %.5F %.5F %.5F %.5F %.2F %.2F cm', $cos1, $sin1, -$sin1, $cos1, $centerX, $centerY));
+                        $pdf->SetXY(-80, -8);
+                        $pdf->Cell(160, 16, $textWatermark, 0, 0, 'C');
+                        $pdf->_out('Q');
+                        
+                        // Second diagonal (-45 degrees)
+                        $angle2 = -45 * pi() / 180;
+                        $cos2 = cos($angle2);
+                        $sin2 = sin($angle2);
+                        $pdf->_out(sprintf('q %.5F %.5F %.5F %.5F %.2F %.2F cm', $cos2, $sin2, -$sin2, $cos2, $centerX, $centerY));
+                        $pdf->SetXY(-80, -8);
+                        $pdf->Cell(160, 16, $textWatermark, 0, 0, 'C');
+                        $pdf->_out('Q');
                     }
                 }
 

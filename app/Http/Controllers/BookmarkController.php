@@ -36,17 +36,25 @@ class BookmarkController extends Controller
             return DataTables::of($bookmarks)
                 ->addColumn('action', function ($item) {
                     $file = File::find($item['id']);
+                    $canView = $file && $file->checkAccess('Folder', 'file_view');
                     $canDownload = $file && $file->checkAccess('Folder', 'download');
+                    
+                    $viewBtn = $canView ? 
+                        '<form action="' . route('file.getview') . '" method="POST" style="display:inline;" target="_blank">
+                            ' . csrf_field() . '
+                            <input type="hidden" name="id" value="' . $item['id'] . '">
+                            <button type="submit" class="btn btn-sm btn-info">View</button>
+                        </form> ' : '';
                     
                     $downloadBtn = $canDownload ? 
                         '<form action="' . route('file.download') . '" method="POST" style="display:inline;">
                             ' . csrf_field() . '
                             <input type="hidden" name="id" value="' . $item['id'] . '">
                             <button type="submit" class="btn btn-sm btn-primary">Download</button>
-                        </form>' : 
-                        '<button class="btn btn-sm btn-secondary" disabled>No Access</button>';
+                        </form> ' : 
+                        '<button class="btn btn-sm btn-secondary" disabled>No Access</button> ';
                     
-                    return $downloadBtn . '
+                    return $viewBtn . $downloadBtn . '
                         <form action="' . route('bookmarks.remove') . '" method="POST" style="display:inline;" onsubmit="return confirm(\'Remove from bookmarks?\')">
                             ' . csrf_field() . '
                             <input type="hidden" name="file_id" value="' . $item['id'] . '">

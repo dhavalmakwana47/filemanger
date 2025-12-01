@@ -26,6 +26,12 @@
             overflow: hidden;
             text-overflow: ellipsis;
         }
+        
+        #user-logs-table td:nth-child(4) {
+            white-space: normal;
+            word-wrap: break-word;
+            max-width: 300px;
+        }
 
         .dataTables_wrapper .dataTables_length select {
             width: auto;
@@ -136,7 +142,7 @@
                                             <th>ID</th>
                                             <th>Date & Time</th>
                                             <th>User Name</th>
-                                            <th width="5%">Action</th>
+                                            <th>Action</th>
                                             <th>IP Address</th>
                                         </tr>
                                     </thead>
@@ -196,8 +202,9 @@
                         targets: 2
                     }, // User Name column
                     {
-                        width: '50%',
-                        targets: 3
+                        width: '40%',
+                        targets: 3,
+                        className: 'text-wrap'
                     }, // Action column
                     {
                         width: '10%',

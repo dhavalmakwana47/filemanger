@@ -48,7 +48,12 @@ class SendResourcePermissionEmail extends Mailable
                         ]);
 
             // Log successful email sending
-            $successMessage = "Resource Permission Granted mail successfully sent to {$user->name}";
+            $fileCount = count($this->fileNames);
+            $fileNamesList = implode(', ', $this->fileNames);
+            $folderCount = count($this->folderNames);
+            $folderNamesList = implode(', ', $this->folderNames);
+            
+            $successMessage = "Email Notification: No. of Files: {$fileCount} | File Names: {$fileNamesList} | No. of Folders: {$folderCount} | Folder Names: {$folderNamesList} – Mail successfully sent to {$user->email}";
             $this->logAction($user, $successMessage);
 
             return $email;
