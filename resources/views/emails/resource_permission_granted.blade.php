@@ -65,7 +65,7 @@
             @endforeach
         </ol>
         
-        <p>• <strong>Login URL:</strong> <a href="{{ url('/') }}">{{ url('/') }}</a></p>
+        <p>• <strong>Login URL:</strong> <a href="https://www.datasafehub.in">https://www.datasafehub.in</a></p>
         
         <p>For any assistance or queries, please feel free to contact our support team.</p>
         

@@ -272,29 +272,18 @@ class FileController extends Controller
                         // Use the imported page
                         $pdf->useTemplate($templateId, 0, 0, $size['width'], $size['height'], true);
 
-                        // Set smaller font for cross watermarks
-                        $pdf->SetFont('Helvetica', '', 40); // Smaller font size
-                        $pdf->SetTextColor(220, 220, 220); // More visible
+                        // Set font and calculate text dimensions
+                        $pdf->SetFont('Helvetica', '', 24);
+                        $pdf->SetTextColor(150, 150, 150);
                         
-                        $centerX = $size['width'] / 2;
-                        $centerY = $size['height'] / 2;
+                        // Calculate diagonal length and angle
+                        $diagonal = sqrt($size['width'] * $size['width'] + $size['height'] * $size['height']);
+                        $angle = atan2($size['height'], $size['width']);
                         
-                        // First diagonal (45 degrees)
-                        $angle1 = 45 * pi() / 180;
-                        $cos1 = cos($angle1);
-                        $sin1 = sin($angle1);
-                        $pdf->_out(sprintf('q %.5F %.5F %.5F %.5F %.2F %.2F cm', $cos1, $sin1, -$sin1, $cos1, $centerX, $centerY));
-                        $pdf->SetXY(-80, -8);
-                        $pdf->Cell(160, 16, $textWatermark, 0, 0, 'C');
-                        $pdf->_out('Q');
-                        
-                        // Second diagonal (-45 degrees)
-                        $angle2 = -45 * pi() / 180;
-                        $cos2 = cos($angle2);
-                        $sin2 = sin($angle2);
-                        $pdf->_out(sprintf('q %.5F %.5F %.5F %.5F %.2F %.2F cm', $cos2, $sin2, -$sin2, $cos2, $centerX, $centerY));
-                        $pdf->SetXY(-80, -8);
-                        $pdf->Cell(160, 16, $textWatermark, 0, 0, 'C');
+                        // Position at bottom-left corner and rotate
+                        $pdf->_out(sprintf('q %.5F %.5F %.5F %.5F %.2F %.2F cm', cos($angle), sin($angle), -sin($angle), cos($angle), 0, $size['height']));
+                        $pdf->SetXY(0, -8);
+                        $pdf->Cell($diagonal, 16, $textWatermark, 0, 0, 'C');
                         $pdf->_out('Q');
                     }
                 }
