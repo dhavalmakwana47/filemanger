@@ -9,6 +9,8 @@ use App\Models\File;
 use App\Models\Folder;
 use App\Models\RoleFilePermission;
 use App\Models\RoleFolderPermission;
+use App\Services\FileStorageService;
+use App\Services\FolderService;
 use Illuminate\Http\Request;
 use Illuminate\Routing\Controllers\HasMiddleware;
 use Illuminate\Routing\Controllers\Middleware;
@@ -24,6 +26,9 @@ use Illuminate\Support\HtmlString;
 
 class FolderController extends Controller implements HasMiddleware
 {
+    protected $fileStorage;
+    protected $folderService;
+
     public static function middleware(): array
     {
         return [
@@ -34,6 +39,12 @@ class FolderController extends Controller implements HasMiddleware
             new Middleware('permission_check:Company Role,create', only: ['trashData']),
 
         ];
+    }
+
+    public function __construct(FileStorageService $fileStorage,FolderService $folderService)
+    {
+        $this->fileStorage = $fileStorage;
+        $this->folderService = $folderService;
     }
 
     /**
@@ -585,7 +596,7 @@ class FolderController extends Controller implements HasMiddleware
                     })->filter()->join(', '),
                     'permissions' => $this->formatPermissions($file, $defaultAccess, false),
                     'index' => $file->item_index,
-                    'isBookmarked' =>$file->isBookmarkedByCurrentUser(),
+                    'isBookmarked' => $file->isBookmarkedByCurrentUser(),
                 ];
             })
             ->values()
@@ -789,20 +800,30 @@ class FolderController extends Controller implements HasMiddleware
             'user_id' => Auth::id(),
             'action' => "Folder {$folder->name} permanently deleted"
         ]);
-        $folder->forceDelete(); // Permanently delete
+        $this->folderService->delete($folder);
         return redirect()->route('filemanager.trash.data')->with('success', 'Folder permanently deleted.');
     }
 
     // Permanently delete a file
     public function forceDeleteFile($id)
     {
-        $file = File::onlyTrashed()->findOrFail($id);
-        addUserAction([
-            'user_id' => Auth::id(),
-            'action' => "File {$file->name} permanently deleted"
-        ]);
-        $file->forceDelete(); // Permanently delete
-        return redirect()->route('filemanager.trash.data')->with('success', 'File permanently deleted.');
+        try {
+            DB::beginTransaction();
+            $file = File::onlyTrashed()->findOrFail($id);
+            $path = "uploads/company_{$file->company_id}/{$file->name}";
+
+            $this->fileStorage->delete($path, 's3');
+            addUserAction([
+                'user_id' => Auth::id(),
+                'action' => "File {$file->name} permanently deleted"
+            ]);
+            $file->forceDelete(); // Permanently delete
+            DB::commit();
+            return redirect()->route('filemanager.trash.data')->with('success', 'File permanently deleted.');
+        } catch (\Exception $e) {
+            DB::rollBack();
+            return redirect()->route('filemanager.trash.data')->with('error', 'File permanently deleted.');
+        }
     }
 
     public function trashData(Request $request)
@@ -822,7 +843,7 @@ class FolderController extends Controller implements HasMiddleware
                 }));
 
                 return DataTables::of($data)
-                ->addIndexColumn()
+                    ->addIndexColumn()
                     ->addColumn('type', function ($item) {
                         return $item->type;
                     })
@@ -904,9 +925,15 @@ class FolderController extends Controller implements HasMiddleware
 
             foreach ($items as $item) {
                 if ($item['type'] === 'Folder') {
-                    Folder::onlyTrashed()->where('id', $item['id'])->forceDelete();
+                    $folder = Folder::onlyTrashed()->where('id', $item['id'])->first();
+                    $this->folderService->delete($folder);
                 } else {
-                    File::onlyTrashed()->where('id', $item['id'])->forceDelete();
+                    $file = File::onlyTrashed()->where('id', $item['id'])->first();
+                    if ($file) {
+                        $path = "uploads/company_{$file->company_id}/{$file->name}";
+                        $this->fileStorage->delete($path, 's3');
+                        $file->forceDelete();
+                    }
                 }
             }
 
@@ -1064,7 +1091,7 @@ class FolderController extends Controller implements HasMiddleware
                 $extension = $file->getClientOriginalExtension();
                 $uniqueFileName = $originalName . '_' . time() . '_' . $index . '.' . $extension; // Ensure unique filename
                 $filePath = "uploads/company_{$company_id}";
-                $file->storeAs($filePath, $uniqueFileName, 'public');
+                $this->fileStorage->store($file,$filePath,$uniqueFileName);
                 $sizeKb = $file->getSize();
 
                 $fileRecord = File::create([

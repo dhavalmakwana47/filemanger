@@ -8,25 +8,25 @@ use App\Models\File;
 use App\Models\Folder;
 use App\Models\RoleFilePermission;
 use App\Models\Setting;
+use App\Services\FileStorageService;
 use App\Services\FileViewer;
+use App\Services\ZipExtarctService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Storage;
-use ZipArchive;
 use Illuminate\Support\Facades\Log;
-use Intervention\Image\Image;
-use setasign\Fpdi\Fpdi;
-use setasign\Fpdi\PdfParser\StreamReader;
 use Intervention\Image\ImageManager;
-use Intervention\Image\Drivers\Gd\Driver; // or Imagick\Driver
-use PhpOffice\PhpWord\IOFactory as WordIO;
-use PhpOffice\PhpSpreadsheet\IOFactory as SpreadsheetIO;
-use PhpOffice\PhpSpreadsheet\Writer\Xlsx as XlsxWriter;
-use PhpOffice\PhpSpreadsheet\Worksheet\Drawing;
-use PhpOffice\PhpWord\SimpleType\Jc;
+use Intervention\Image\Drivers\Gd\Driver;
 
 class FileController extends Controller
 {
+    protected $fileStorage;
+    private $zipExtarctService;
+    public function __construct(FileStorageService $fileStorage, ZipExtarctService $zipExtarctService)
+    {
+        $this->fileStorage = $fileStorage;
+        $this->zipExtarctService = $zipExtarctService;
+    }
     /**
      * Display a listing of the resource.
      */
@@ -88,7 +88,8 @@ class FileController extends Controller
                     $sizeKb = $file->getSize();
 
                     // Store the file in the storage/app/uploads/company_{$company_id} directory
-                    $file->storeAs($filePath, $fileName, 'public');
+                    // $file->storeAs($filePath, $fileName, 'public');
+                    $this->fileStorage->store($file, $filePath, $fileName);
 
                     // Save file info in the database
                     $folder = File::create([
@@ -219,7 +220,7 @@ class FileController extends Controller
                 $width = $image->width();
                 $height = $image->height();
                 $fontSize = min($width, $height) / 3; // Much bigger font size
-                
+
                 // First diagonal (top-left to bottom-right)
                 $image->text($textWatermark, $width / 2, $height / 2, function ($font) use ($fontSize) {
                     $font->size($fontSize);
@@ -228,7 +229,7 @@ class FileController extends Controller
                     $font->valign('middle');
                     $font->angle(45);
                 });
-                
+
                 // Second diagonal (top-right to bottom-left)
                 $image->text($textWatermark, $width / 2, $height / 2, function ($font) use ($fontSize) {
                     $font->size($fontSize);
@@ -275,11 +276,11 @@ class FileController extends Controller
                         // Set font and calculate text dimensions
                         $pdf->SetFont('Helvetica', '', 24);
                         $pdf->SetTextColor(150, 150, 150);
-                        
+
                         // Calculate diagonal length and angle
                         $diagonal = sqrt($size['width'] * $size['width'] + $size['height'] * $size['height']);
                         $angle = atan2($size['height'], $size['width']);
-                        
+
                         // Position at bottom-left corner and rotate
                         $pdf->_out(sprintf('q %.5F %.5F %.5F %.5F %.2F %.2F cm', cos($angle), sin($angle), -sin($angle), cos($angle), 0, $size['height']));
                         $pdf->SetXY(0, -8);
@@ -458,11 +459,6 @@ class FileController extends Controller
 
     public function extractUploadedZip(Request $request)
     {
-        // Validate the request
-        // $request->validate([
-        //     'zip_file_name' => 'required|string', // Name of the uploaded zip file
-        //     'parent_id' => 'nullable|exists:folders,id', // Optional parent folder ID
-        // ]);
         $file = File::find($request->id);
 
         if (!$file) {
@@ -471,237 +467,18 @@ class FileController extends Controller
                 'message' => 'File not found'
             ], 404);
         }
-        $parentId = $file->folder_id ?? null;
 
-        // Get active company ID
         $company_id = get_active_company();
         if (!$company_id) {
             return response()->json(['error' => 'Active company not found'], 400);
         }
 
         try {
-            // Construct the zip file path
-            $zipFileName = $file->name;
-            $zipPath = "uploads/company_{$company_id}/{$zipFileName}";
-            $zipFullPath = Storage::disk('public')->path($zipPath);
-
-            // Check if the zip file exists
-            if (!Storage::disk('public')->exists($zipPath)) {
-                return response()->json(['error' => 'Zip file not found'], 404);
-            }
-
-            // Open the zip file
-            $zip = new ZipArchive();
-            if ($zip->open($zipFullPath) !== true) {
-                return response()->json(['error' => 'Could not open zip file'], 500);
-            }
-
-            // Process each entry in the zip
-            $this->processZipEntries($zip, $company_id, $parentId);
-
-            // Close the zip file
-            $zip->close();
-
-            // Delete the original zip file
-            Storage::disk('public')->delete($zipPath);
-            $file->forceDelete();
-
-            // Log the action
-            addUserAction([
-                'user_id' => Auth::id(),
-                'action' => "Zip file {$zipFileName} extracted and deleted for company {$company_id}"
-            ]);
-
-            return redirect()->back()->with('success', 'Zip file extracted and deleted successfully.');
-        } catch (\Exception $e) {
-            return response()->json(['error' => 'Error extracting zip file', 'details' => $e->getMessage()], 500);
+            \App\Jobs\ExtractZipJob::dispatch($file->id, auth()->id(), $company_id);
+            return redirect()->back()->with('success', 'Zip extraction job queued successfully.');
+        } catch (\Throwable $th) {
+            Log::error("ExtractZipJob failed: " . $th->getMessage());
+            return redirect()->back()->with('error', 'Error queuing zip extraction job: ' . $th->getMessage());
         }
-    }
-
-    private function processZipEntries(ZipArchive $zip, string $company_id, ?int $parent_id = null): void
-    {
-
-        // Track created folders to avoid duplicates
-        $folderCache = [];
-
-        for ($i = 0; $i < $zip->numFiles; $i++) {
-            $entry = $zip->getNameIndex($i);
-            if (substr($entry, -1) === '/') {
-                // Handle directory
-                $this->createFolderFromZip($entry, $company_id, $parent_id, $folderCache);
-            } else {
-                // Handle file
-                $this->createFileFromZip($entry, $zip, $company_id, $parent_id, $folderCache);
-            }
-        }
-    }
-
-    private function createFolderFromZip(string $entry, string $company_id, ?int $parent_id, array &$folderCache): void
-    {
-        // Remove trailing slash and normalize path
-        $entry = rtrim($entry, '/');
-        if (empty($entry)) {
-            return;
-        }
-
-        // Split path into segments
-        $pathSegments = explode('/', $entry);
-        $currentParentId = $parent_id;
-        $currentPath = '';
-
-        // Build folder hierarchy
-        foreach ($pathSegments as $index => $segment) {
-            $currentPath .= $segment;
-            $cacheKey = $currentPath;
-
-            // Check if folder already processed
-            if (isset($folderCache[$cacheKey])) {
-                $currentParentId = $folderCache[$cacheKey];
-                $currentPath .= '/';
-                continue;
-            }
-
-            // Create folder in database
-            $folder = Folder::create([
-                'name' => $segment,
-                'parent_id' => $currentParentId,
-                'company_id' => $company_id,
-                'created_by' => Auth::id(),
-            ]);
-
-            // Store folder ID in cache
-            $folderCache[$cacheKey] = $folder->id;
-            $currentParentId = $folder->id;
-
-            // Assign default permissions
-            $this->syncPermissions($folder->id, request()->input('permissions', []));
-
-            // Log folder creation
-            addUserAction([
-                'user_id' => Auth::id(),
-                'action' => "Folder {$folder->name} created"
-            ]);
-
-            $currentPath .= '/';
-        }
-    }
-
-    private function createFileFromZip(string $entry, ZipArchive $zip, string $company_id, ?int $parent_id, array &$folderCache): void
-    {
-        // Allowed MIME types
-        $allowedMimeTypes = [
-            // Original MIME types
-            'image/png',
-            'image/jpeg',
-            'image/gif',
-            'application/pdf',
-            'application/msword',
-            'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
-            'application/zip',
-            'application/x-zip-compressed',
-            'text/csv',
-            'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
-            'text/plain',
-            'application/x-rar-compressed',
-            'application/vnd.rar',
-
-            // Additional MIME types
-            'image/tiff',
-            'image/tif',
-            'application/rtf',
-            'application/vnd.ms-excel',
-            'application/vnd.ms-powerpoint',
-            'application/vnd.openxmlformats-officedocument.presentationml.presentation',
-            'video/mp4',
-            'video/quicktime',
-            'video/x-ms-wmv',
-            'video/x-matroska',
-            'video/mpeg',
-            'audio/mpeg',
-            'audio/wav',
-            'audio/aac',
-            'audio/mp4',
-            'audio/x-m4a',
-            'application/acad',
-            'application/x-acad',
-            'application/autocad_dwg',
-            'application/dwg',
-            'application/x-dwg',
-            'application/x-autocad',
-            'drawing/dwg',
-            'image/vnd.dwg',
-            'image/x-dwg',
-            'application/x-7z-compressed'
-        ];
-
-        // Get parent folder ID for the file
-        $pathSegments = explode('/', $entry);
-        $fileName = array_pop($pathSegments); // Last segment is the file name
-        $parentPath = implode('/', $pathSegments);
-
-        $parentFolderId = $parent_id;
-        if (!empty($parentPath)) {
-            // Check if parent folder is in cache
-            if (isset($folderCache[$parentPath])) {
-                $parentFolderId = $folderCache[$parentPath];
-            } else {
-                // Create parent folders if they don’t exist
-                $this->createFolderFromZip($parentPath . '/', $company_id, $parent_id, $folderCache);
-                $parentFolderId = $folderCache[$parentPath] ?? $parent_id;
-            }
-        }
-
-        // Extract file from zip
-        $fileStream = $zip->getStream($entry);
-        if ($fileStream === false) {
-            \Log::warning("Could not read file from zip: {$entry}");
-            return;
-        }
-        // Check MIME type
-        $tmpPath = storage_path('app/tmp_' . uniqid());
-        $tmpHandle = fopen($tmpPath, 'w');
-        stream_copy_to_stream($fileStream, $tmpHandle);
-        fclose($fileStream);
-        fclose($tmpHandle);
-        $mimeType = \Illuminate\Support\Facades\File::mimeType($tmpPath);
-        if (!in_array($mimeType, $allowedMimeTypes)) {
-            \Log::info("Skipped file from zip (not allowed MIME): {$entry} ({$mimeType})");
-            unlink($tmpPath);
-            return;
-        }
-        // Generate new filename with timestamp
-        $originalName = pathinfo($fileName, PATHINFO_FILENAME);
-        $extension = pathinfo($fileName, PATHINFO_EXTENSION);
-        $newFileName = $originalName . '_' . time() . '.' . $extension;
-        $filePath = "uploads/company_{$company_id}/{$newFileName}";
-
-        // Store file in storage
-        Storage::disk('public')->put($filePath, fopen($tmpPath, 'r'));
-        unlink($tmpPath);
-
-        // Check if file exists and get size, default to 0 if not found
-        $sizeKb = 0;
-        if (Storage::disk('public')->exists($filePath)) {
-            $sizeKb = Storage::disk('public')->size($filePath); // Convert bytes to KB
-        }
-        // Save file metadata in database
-        $file = File::create([
-            'name' => $newFileName,
-            'file_name' => $fileName,
-            'folder_id' => $parentFolderId,
-            'company_id' => $company_id,
-            'file_path' => $filePath,
-            'size_kb' => $sizeKb,
-            'created_by' => Auth::id(),
-        ]);
-
-        // Assign default permissions
-        $this->syncPermissions($file->id, request()->input('permissions', []));
-
-        // Log file creation
-        addUserAction([
-            'user_id' => Auth::id(),
-            'action' => "File {$file->name} created"
-        ]);
     }
 }
