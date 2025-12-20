@@ -41,7 +41,7 @@ class FolderController extends Controller implements HasMiddleware
         ];
     }
 
-    public function __construct(FileStorageService $fileStorage,FolderService $folderService)
+    public function __construct(FileStorageService $fileStorage, FolderService $folderService)
     {
         $this->fileStorage = $fileStorage;
         $this->folderService = $folderService;
@@ -170,14 +170,13 @@ class FolderController extends Controller implements HasMiddleware
             $this->updatePermissions($request, $id); // Assuming this is a custom method
 
             // Sync permissions for associated files
-            $fileNames = $folder->files->pluck('name')->toArray();
             foreach ($folder->files as $file) {
                 $this->syncFilePermissions($file->id, $request->input('permissions', []));
             }
 
             // Send emails with folder and file names if toggle is enabled
             if (isset($request->send_email)) {
-                $this->sendPermissionEmails([$folder->name], $fileNames, $selectedRoles, $company_id);
+                $this->sendPermissionEmails([$folder->name], [], $selectedRoles, $company_id);
             }
 
             addUserAction([
@@ -244,9 +243,6 @@ class FolderController extends Controller implements HasMiddleware
                         // Sync roles to all files inside folder
                         foreach ($folder->files as $file) {
                             $this->syncFilePermissions($file->id, $roles);
-                            if (!in_array($file->name, $fileNames)) {
-                                $fileNames[] = $file->name;
-                            }
                         }
 
                         // Log action
@@ -708,9 +704,13 @@ class FolderController extends Controller implements HasMiddleware
     {
         // Validate and decode the dataItem
         $dataItem = json_decode($request->input('dataItem'), true);
-        $company_id = get_active_company(); // Assuming company_id is passed in the request
+        $company_id = get_active_company();
 
         if (!$dataItem || empty($dataItem['name']) || !$company_id) {
+            \Log::error('Invalid input', [
+                'dataItem' => $request->input('dataItem'),
+                'company_id' => $company_id,
+            ]);
             return response()->json(['error' => 'Invalid data item or company ID'], 400);
         }
 
@@ -719,11 +719,19 @@ class FolderController extends Controller implements HasMiddleware
         $zipFileName = tempnam(sys_get_temp_dir(), 'zip_');
 
         if ($zip->open($zipFileName, ZipArchive::CREATE | ZipArchive::OVERWRITE) !== true) {
+            \Log::error('Failed to create zip file', ['zipFileName' => $zipFileName]);
             return response()->json(['error' => 'Could not create zip file'], 500);
         }
 
         // Add files and folders to the zip
-        $this->addToZip($dataItem, '', $zip, $company_id);
+        try {
+            $this->addToZip($dataItem, '', $zip, $company_id);
+        } catch (\Exception $e) {
+            \Log::error('Error adding files to zip', ['exception' => $e->getMessage()]);
+            $zip->close();
+            return response()->json(['error' => 'Failed to add files to zip'], 500);
+        }
+
         addUserAction([
             'user_id' => Auth::id(),
             'action' => "Folder/File {$dataItem['name']} downloaded as ZIP"
@@ -732,38 +740,72 @@ class FolderController extends Controller implements HasMiddleware
         // Close the zip file
         $zip->close();
 
-        // Return the zip file as a download response
+        // Verify zip file has content
+        if (filesize($zipFileName) < 100) { // Arbitrary small size to detect empty zips
+            \Log::warning('Zip file is empty or nearly empty', ['size' => filesize($zipFileName)]);
+            return response()->json(['error' => 'No files were added to the zip'], 500);
+        }
+
         return response()->download($zipFileName, $dataItem['name'] . '.zip', ['Content-Type' => 'application/zip'])
             ->deleteFileAfterSend(true);
     }
 
     private function addToZip(array $item, string $relativePath, ZipArchive $zip, string $company_id): void
     {
-        $name = $item['name'] ?? '';
+        $name = $item['name'] ?? 'unknown';
         $entryName = $relativePath . $name;
         $isDir = !empty($item['isDirectory']);
 
+        \Log::debug('Processing item', [
+            'name' => $name,
+            'entryName' => $entryName,
+            'isDir' => $isDir,
+        ]);
+
         if ($isDir) {
-            // Add directory to zip (skip empty root directory name if applicable)
             if ($entryName !== '') {
-                $zip->addEmptyDir($entryName);
+                $zip->addEmptyDir($entryName . '/');
+                \Log::debug('Added directory to zip', ['entryName' => $entryName]);
             }
-            // Recursively add sub-items
-            foreach ($item['items'] ?? [] as $subItem) {
+
+            // Process sub-items
+            $subItems = $item['items'] ?? [];
+            if (empty($subItems)) {
+                \Log::warning('Directory has no sub-items', ['entryName' => $entryName]);
+            }
+            foreach ($subItems as $subItem) {
                 $this->addToZip($subItem, $entryName . '/', $zip, $company_id);
             }
         } else {
-            $file_name = $item['file_name'] ?? '';
-            // Construct the physical file path based on your storage logic
-            $filePath = "uploads/company_{$company_id}/{$file_name}";
-            $physicalPath = Storage::path($filePath);
+            $file_name = $item['file_name'] ?? null;
+            if (empty($file_name)) {
+                \Log::warning('Missing file_name for item', ['item' => $item]);
+                return;
+            }
 
-            // Check if the file exists and add it to the zip
-            if (Storage::exists($filePath)) {
-                $zip->addFile($physicalPath, $entryName);
-            } else {
-                // Optionally log missing files or handle the error
-                \Log::warning("File not found: {$filePath}");
+            // Construct S3 key (adjust prefix if needed, e.g., 'uploads/')
+            $s3Key = "uploads/company_{$company_id}/{$file_name}"; // Or "uploads/company_{$company_id}/{$file_name}"
+
+            \Log::debug('Checking S3 file', ['s3Key' => $s3Key]);
+
+            // Check if file exists on S3
+            try {
+                if (Storage::disk('s3')->exists($s3Key)) {
+                    $content = Storage::disk('s3')->get($s3Key);
+                    if ($content === null) {
+                        \Log::warning('S3 file content is null', ['s3Key' => $s3Key]);
+                        return;
+                    }
+                    $zip->addFromString($entryName, $content);
+                    \Log::info('Added file to zip', ['s3Key' => $s3Key, 'entryName' => $entryName]);
+                } else {
+                    \Log::warning('S3 file does not exist', ['s3Key' => $s3Key]);
+                }
+            } catch (\Exception $e) {
+                \Log::error('Error accessing S3 file', [
+                    's3Key' => $s3Key,
+                    'exception' => $e->getMessage(),
+                ]);
             }
         }
     }
@@ -1091,7 +1133,7 @@ class FolderController extends Controller implements HasMiddleware
                 $extension = $file->getClientOriginalExtension();
                 $uniqueFileName = $originalName . '_' . time() . '_' . $index . '.' . $extension; // Ensure unique filename
                 $filePath = "uploads/company_{$company_id}";
-                $this->fileStorage->store($file,$filePath,$uniqueFileName);
+                $this->fileStorage->store($file, $filePath, $uniqueFileName);
                 $sizeKb = $file->getSize();
 
                 $fileRecord = File::create([

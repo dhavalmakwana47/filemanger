@@ -31,19 +31,32 @@ class ZipExtarctService
             $zipFileName = $file->name;
             $zipPath = "uploads/company_{$company_id}/{$zipFileName}";
 
-            // Check if zip exists
-            if (!$disk->exists($zipPath)) {
-                return response()->json(['error' => 'Zip file not found'], 404);
+            // Check if zip exists with better error handling
+            try {
+                if (!$disk->exists($zipPath)) {
+                    throw new \Exception("Zip file not found at path: {$zipPath}");
+                }
+            } catch (\Exception $e) {
+                Log::error("Error checking zip file existence: " . $e->getMessage());
+                throw new \Exception("Unable to access zip file: " . $e->getMessage());
             }
 
             // For S3, download to temp file; for public, use direct path
             if ($this->disk === 's3') {
-                $zipContent = $disk->get($zipPath);
-                $tempZipPath = tempnam(sys_get_temp_dir(), 'zip_') . '.zip';
-                file_put_contents($tempZipPath, $zipContent);
-                $zipFullPath = $tempZipPath;
+                try {
+                    $zipContent = $disk->get($zipPath);
+                    $tempZipPath = tempnam(sys_get_temp_dir(), 'zip_') . '.zip';
+                    file_put_contents($tempZipPath, $zipContent);
+                    $zipFullPath = $tempZipPath;
+                } catch (\Exception $e) {
+                    Log::error("Error downloading zip from S3: " . $e->getMessage());
+                    throw new \Exception("Failed to download zip file: " . $e->getMessage());
+                }
             } else {
                 $zipFullPath = $disk->path($zipPath);
+                if (!file_exists($zipFullPath)) {
+                    throw new \Exception("Zip file does not exist at local path: {$zipFullPath}");
+                }
             }
 
             // Open the zip file
@@ -58,10 +71,24 @@ class ZipExtarctService
 
             // Close and clean up
             $zip->close();
-            if ($this->disk === 's3' && isset($tempZipPath)) unlink($tempZipPath);
+            if ($this->disk === 's3' && isset($tempZipPath)) {
+                // Add small delay to ensure file handle is released
+                usleep(100000); // 0.1 second
+                if (file_exists($tempZipPath)) {
+                    try {
+                        unlink($tempZipPath);
+                    } catch (\Exception $e) {
+                        Log::warning("Could not delete temp zip file: " . $e->getMessage());
+                    }
+                }
+            }
 
             // Delete original zip and database record
-            $disk->delete($zipPath);
+            try {
+                $disk->delete($zipPath);
+            } catch (\Exception $e) {
+                Log::warning("Could not delete original zip file: " . $e->getMessage());
+            }
             $file->forceDelete();
             $this->deleteRootFolder();
 
