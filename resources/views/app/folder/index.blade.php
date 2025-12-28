@@ -15,7 +15,6 @@
     </script>
 
     <style>
-        
         .modal-content {
             border-radius: 8px;
             box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
@@ -99,119 +98,119 @@
             text-align: center;
         }
 
-       /* ==========================================================
-   CUSTOM CHECKBOX DESIGN FOR DEVEXTREME FILEMANAGER
-   FULLY FIXED + REFRESH SAFE + CLEAN VERSION
-   ========================================================== */
+        /* ==========================================================
+       CUSTOM CHECKBOX DESIGN FOR DEVEXTREME FILEMANAGER
+       FULLY FIXED + REFRESH SAFE + CLEAN VERSION
+       ========================================================== */
 
-/* Ensure checkbox column has proper space */
-.dx-filemanager .dx-datagrid .dx-command-select {
-    width: 40px !important;
-    min-width: 40px !important;
-    max-width: 40px !important;
-    padding: 0 !important;
-    overflow: visible !important;
-    text-align: center !important;
-}
+        /* Ensure checkbox column has proper space */
+        .dx-filemanager .dx-datagrid .dx-command-select {
+            width: 40px !important;
+            min-width: 40px !important;
+            max-width: 40px !important;
+            padding: 0 !important;
+            overflow: visible !important;
+            text-align: center !important;
+        }
 
-/* Center checkbox inside the cell */
-.dx-filemanager .dx-datagrid .dx-command-select .dx-select-checkbox {
-    display: flex !important;
-    align-items: center !important;
-    justify-content: center !important;
-    width: 24px !important;
-    height: 24px !important;
-    margin: auto !important;
-    cursor: pointer !important;
-    transition: all 0.2s ease-in-out !important;
-    user-select: none !important;
-}
+        /* Center checkbox inside the cell */
+        .dx-filemanager .dx-datagrid .dx-command-select .dx-select-checkbox {
+            display: flex !important;
+            align-items: center !important;
+            justify-content: center !important;
+            width: 24px !important;
+            height: 24px !important;
+            margin: auto !important;
+            cursor: pointer !important;
+            transition: all 0.2s ease-in-out !important;
+            user-select: none !important;
+        }
 
-/* Checkbox base look */
-.dx-filemanager .dx-select-checkbox .dx-checkbox-icon {
-    width: 18px !important;
-    height: 18px !important;
-    border-radius: 6px !important;
-    border: 2px solid #0078d4 !important;
-    background-color: #ffffff !important;
-    box-shadow: 0 1px 2px rgba(0, 0, 0, 0.1);
-    transition: all 0.25s ease-in-out !important;
-}
+        /* Checkbox base look */
+        .dx-filemanager .dx-select-checkbox .dx-checkbox-icon {
+            width: 18px !important;
+            height: 18px !important;
+            border-radius: 6px !important;
+            border: 2px solid #0078d4 !important;
+            background-color: #ffffff !important;
+            box-shadow: 0 1px 2px rgba(0, 0, 0, 0.1);
+            transition: all 0.25s ease-in-out !important;
+        }
 
-/* Hover effect */
-.dx-filemanager .dx-select-checkbox:hover .dx-checkbox-icon {
-    border-color: #005a9e !important;
-    background-color: #f3f9ff !important;
-}
+        /* Hover effect */
+        .dx-filemanager .dx-select-checkbox:hover .dx-checkbox-icon {
+            border-color: #005a9e !important;
+            background-color: #f3f9ff !important;
+        }
 
-/* Checked state */
-.dx-filemanager .dx-select-checkbox.dx-checkbox-checked .dx-checkbox-icon {
-    background-color: #0078d4 !important;
-    border-color: #0078d4 !important;
-    box-shadow: 0 0 4px rgba(0, 120, 212, 0.6);
-    position: relative;
-}
+        /* Checked state */
+        .dx-filemanager .dx-select-checkbox.dx-checkbox-checked .dx-checkbox-icon {
+            background-color: #0078d4 !important;
+            border-color: #0078d4 !important;
+            box-shadow: 0 0 4px rgba(0, 120, 212, 0.6);
+            position: relative;
+        }
 
-/* Checkmark animation */
-.dx-filemanager .dx-select-checkbox.dx-checkbox-checked .dx-checkbox-icon::after {
-    content: "";
-    position: absolute;
-    width: 6px;
-    height: 12px;
-    border: solid white;
-    border-width: 0 2px 2px 0;
-    transform: rotate(45deg);
-    top: 0px;
-    left: 5px;
-    animation: checkmarkAppear 0.2s ease forwards;
-}
+        /* Checkmark animation */
+        .dx-filemanager .dx-select-checkbox.dx-checkbox-checked .dx-checkbox-icon::after {
+            content: "";
+            position: absolute;
+            width: 6px;
+            height: 12px;
+            border: solid white;
+            border-width: 0 2px 2px 0;
+            transform: rotate(45deg);
+            top: 0px;
+            left: 5px;
+            animation: checkmarkAppear 0.2s ease forwards;
+        }
 
-/* Row highlighting */
-.dx-filemanager .dx-data-row.dx-selection {
-    background-color: #eaf4ff !important;
-    transition: background 0.2s ease;
-}
+        /* Row highlighting */
+        .dx-filemanager .dx-data-row.dx-selection {
+            background-color: #eaf4ff !important;
+            transition: background 0.2s ease;
+        }
 
-.dx-filemanager .dx-data-row:hover {
-    background-color: #f7fbff !important;
-}
+        .dx-filemanager .dx-data-row:hover {
+            background-color: #f7fbff !important;
+        }
 
-/* Checkmark animation keyframes */
-@keyframes checkmarkAppear {
-    from {
-        opacity: 0;
-        transform: scale(0.8) rotate(45deg);
-    }
-    to {
-        opacity: 1;
-        transform: scale(1) rotate(45deg);
-    }
-}
+        /* Checkmark animation keyframes */
+        @keyframes checkmarkAppear {
+            from {
+                opacity: 0;
+                transform: scale(0.8) rotate(45deg);
+            }
 
-/* ==========================================================
-   DARK MODE SUPPORT
-   ========================================================== */
-@media (prefers-color-scheme: dark) {
+            to {
+                opacity: 1;
+                transform: scale(1) rotate(45deg);
+            }
+        }
 
-    .dx-filemanager .dx-select-checkbox .dx-checkbox-icon {
-        background-color: #222 !important;
-        border-color: #3399ff !important;
-    }
+        /* ==========================================================
+       DARK MODE SUPPORT
+       ========================================================== */
+        @media (prefers-color-scheme: dark) {
 
-    .dx-filemanager .dx-select-checkbox.dx-checkbox-checked .dx-checkbox-icon {
-        background-color: #3399ff !important;
-        border-color: #3399ff !important;
-    }
+            .dx-filemanager .dx-select-checkbox .dx-checkbox-icon {
+                background-color: #222 !important;
+                border-color: #3399ff !important;
+            }
 
-    .dx-filemanager .dx-data-row.dx-selection {
-        background-color: #2d3748 !important;
-    }
+            .dx-filemanager .dx-select-checkbox.dx-checkbox-checked .dx-checkbox-icon {
+                background-color: #3399ff !important;
+                border-color: #3399ff !important;
+            }
 
-    .dx-filemanager .dx-data-row:hover {
-        background-color: #1f2733 !important;
-    }
-}
+            .dx-filemanager .dx-data-row.dx-selection {
+                background-color: #2d3748 !important;
+            }
 
+            .dx-filemanager .dx-data-row:hover {
+                background-color: #1f2733 !important;
+            }
+        }
     </style>
 @endpush
 
@@ -274,7 +273,8 @@
                                 </div>
                                 <div class="mb-3">
                                     <div class="form-check form-switch">
-                                        <input class="form-check-input" type="checkbox" id="send_email" name="send_email" value="1">
+                                        <input class="form-check-input" type="checkbox" id="send_email" name="send_email"
+                                            value="1">
                                         <label class="form-check-label" for="send_email">Send Email Notification</label>
                                     </div>
                                 </div>
@@ -314,8 +314,10 @@
                                 </div>
                                 <div class="mb-3">
                                     <div class="form-check form-switch">
-                                        <input class="form-check-input" type="checkbox" id="folder_send_email" name="send_email" value="1">
-                                        <label class="form-check-label" for="folder_send_email">Send Email Notification</label>
+                                        <input class="form-check-input" type="checkbox" id="folder_send_email"
+                                            name="send_email" value="1">
+                                        <label class="form-check-label" for="folder_send_email">Send Email
+                                            Notification</label>
                                     </div>
                                 </div>
                             </div>
@@ -356,8 +358,10 @@
                                 </div>
                                 <div class="mb-3">
                                     <div class="form-check form-switch">
-                                        <input class="form-check-input" type="checkbox" id="assign_send_email" name="send_email" value="1">
-                                        <label class="form-check-label" for="assign_send_email">Send Email Notification</label>
+                                        <input class="form-check-input" type="checkbox" id="assign_send_email"
+                                            name="send_email" value="1">
+                                        <label class="form-check-label" for="assign_send_email">Send Email
+                                            Notification</label>
                                     </div>
                                 </div>
                             </div>
@@ -404,7 +408,7 @@
                                     <label>Destination Folder:</label>
                                     <select class="form-control" id="destination_folder">
                                         <option value="">Root</option>
-                                        @foreach($allFolderArr as $folder)
+                                        @foreach ($allFolderArr as $folder)
                                             <option value="{{ $folder->id }}">{{ $folder->getFullPath() }}</option>
                                         @endforeach
                                     </select>
@@ -445,6 +449,7 @@
         let updateFolderPermission = "{{ current_user()->hasPermission('Folder', 'update') }}"
         let isMultiSelect = '{{ $multiSelect ?? 'false' }}' === '1' ? true : false;
 
+
         $('#fileModal').on('shown.bs.modal', function() {
             $(this).find('.select2').select2({
                 dropdownParent: $('#fileModal'),
@@ -477,6 +482,10 @@
                 allowClear: true,
                 width: '100%'
             });
+        });
+
+        $('document').ready(function() {
+            document.getElementById('sidebar-toggle-btn').click();
         });
     </script>
     <script src="{{ asset('app/js/folders.js') }}"></script>

@@ -81,6 +81,11 @@ class SettingController extends Controller implements HasMiddleware
 
         $setting->update($data);
 
+        addUserAction([ 
+            'user_id' => auth()->id(),
+            'action' => 'Settings updated by “' . auth()->user()->email . '”: Watermark → ' . ($data['enable_watermark'] ? 'Yes' : 'No') . ' | NDA Content → ' . ($data['nda_content_enable'] ? 'Yes' : 'No') . ' | IP Address Logging → ' . ($data['ip_restriction'] ? 'Yes' : 'No') . ' | Update Successful',
+        ]);
+
         return back()->with('success', 'Settings saved!');
     }
 

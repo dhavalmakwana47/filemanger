@@ -28,7 +28,205 @@
     <!-- Include SweetAlert CSS & JS (if not already included) -->
     <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
 
+<style>
+    /* Modern Company Selector Styles */
+.company-selector {
+    margin: 0 15px;
+}
 
+.company-form {
+    margin: 0;
+}
+
+.company-dropdown-wrapper {
+    position: relative;
+    display: flex;
+    align-items: center;
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    border-radius: 25px;
+    padding: 8px 16px;
+    box-shadow: 0 4px 15px rgba(102, 126, 234, 0.3);
+    transition: all 0.3s ease;
+    min-width: 200px;
+}
+
+.company-dropdown-wrapper:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 6px 20px rgba(102, 126, 234, 0.4);
+}
+
+.company-icon {
+    color: white;
+    font-size: 16px;
+    margin-right: 8px;
+    opacity: 0.9;
+}
+
+.company-select {
+    background: transparent;
+    border: none;
+    color: white;
+    font-weight: 500;
+    font-size: 14px;
+    flex: 1;
+    outline: none;
+    cursor: pointer;
+    appearance: none;
+    -webkit-appearance: none;
+    -moz-appearance: none;
+}
+
+.company-select option {
+    background: #fff;
+    color: #333;
+    padding: 10px;
+}
+
+.company-select option:checked {
+    background: #667eea;
+    color: white;
+}
+
+.dropdown-arrow {
+    color: white;
+    font-size: 12px;
+    margin-left: 8px;
+    opacity: 0.8;
+    transition: transform 0.3s ease;
+}
+
+.company-dropdown-wrapper:hover .dropdown-arrow {
+    transform: rotate(180deg);
+}
+
+/* Responsive adjustments */
+@media (max-width: 768px) {
+    .company-dropdown-wrapper {
+        min-width: 150px;
+        padding: 6px 12px;
+    }
+    
+    .company-select {
+        font-size: 13px;
+    }
+}
+
+/* Focus states */
+.company-select:focus {
+    outline: 2px solid rgba(255, 255, 255, 0.3);
+    outline-offset: 2px;
+}
+
+/* Animation for selection change */
+.company-dropdown-wrapper.changing {
+    animation: pulse 0.6s ease-in-out;
+}
+
+@keyframes pulse {
+    0% { transform: scale(1); }
+    50% { transform: scale(1.05); }
+    100% { transform: scale(1); }
+}
+
+/* Custom Dropdown Styles */
+.custom-company-dropdown {
+    position: relative;
+    display: inline-block;
+}
+
+.custom-dropdown-selected {
+    display: flex;
+    align-items: center;
+    background: #28a745;
+    border-radius: 8px;
+    padding: 10px 20px;
+    margin: 0 10px;
+    box-shadow: 0 2px 4px rgba(40,167,69,0.2);
+    transition: all 0.3s ease;
+    cursor: pointer;
+    min-width: 250px;
+    color: white;
+    font-size: 16px;
+    font-weight: 500;
+}
+
+.custom-dropdown-selected:hover {
+    background: #218838;
+    transform: translateY(-1px);
+    box-shadow: 0 4px 8px rgba(40,167,69,0.3);
+}
+
+.custom-dropdown-selected i {
+    color: white;
+    font-size: 14px;
+    margin-right: 8px;
+}
+
+.custom-dropdown-options {
+    position: absolute;
+    top: 100%;
+    left: 0;
+    right: 0;
+    background: white;
+    border: 1px solid #28a745;
+    border-radius: 8px;
+    box-shadow: 0 4px 12px rgba(40,167,69,0.3);
+    z-index: 1000;
+    max-height: 200px;
+    overflow-y: auto;
+    display: none;
+    scrollbar-width: thin;
+    scrollbar-color: #28a745 #f1f1f1;
+}
+
+.custom-dropdown-options::-webkit-scrollbar {
+    width: 6px;
+}
+
+.custom-dropdown-options::-webkit-scrollbar-track {
+    background: #f1f1f1;
+    border-radius: 3px;
+}
+
+.custom-dropdown-options::-webkit-scrollbar-thumb {
+    background: #28a745;
+    border-radius: 3px;
+}
+
+.custom-dropdown-options::-webkit-scrollbar-thumb:hover {
+    background: #218838;
+}
+
+.custom-dropdown-option {
+    padding: 12px 20px;
+    cursor: pointer;
+    transition: background 0.2s ease, color 0.2s ease;
+    border-bottom: 1px solid #e8f5e8;
+    background: linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%);
+    color: #155724;
+    font-size: 15px;
+}
+
+.custom-dropdown-option:hover {
+    background: linear-gradient(135deg, #28a745 0%, #20c997 100%);
+    color: white;
+}
+
+.custom-dropdown-option:last-child {
+    border-bottom: none;
+    border-radius: 0 0 8px 8px;
+}
+
+.custom-dropdown-option:first-child {
+    border-radius: 8px 8px 0 0;
+}
+
+.custom-dropdown-option.selected {
+    background: linear-gradient(135deg, #28a745 0%, #20c997 100%);
+    color: white;
+    font-weight: 600;
+}
+</style>
 
     @stack('styles')
 </head>
@@ -100,6 +298,36 @@
                     return false;
                 }
             });
+        });
+    </script>
+
+    <script>
+        function toggleDropdown() {
+            const options = document.getElementById('company-options');
+            options.style.display = options.style.display === 'block' ? 'none' : 'block';
+        }
+
+        function selectCompany(companyId, companyName) {
+            document.getElementById('selected-company').textContent = companyName;
+            document.getElementById('hidden-company-select').value = companyId;
+            document.getElementById('company-options').style.display = 'none';
+            
+            // Update selected state
+            document.querySelectorAll('.custom-dropdown-option').forEach(option => {
+                option.classList.remove('selected');
+            });
+            event.target.classList.add('selected');
+            
+            // Submit form
+            document.getElementById('company-form').submit();
+        }
+
+        // Close dropdown when clicking outside
+        document.addEventListener('click', function(event) {
+            const dropdown = document.querySelector('.custom-company-dropdown');
+            if (!dropdown.contains(event.target)) {
+                document.getElementById('company-options').style.display = 'none';
+            }
         });
     </script>
 </body>

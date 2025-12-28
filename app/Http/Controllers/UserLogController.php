@@ -192,7 +192,7 @@ class UserLogController extends Controller
                 'isRemoteEnabled'   => true,
                 'isHtml5ParserEnabled' => true,
                 'isPhpEnabled'      => false,
-                'dpi'               => 96,
+                'dpi'               => 72,
                 'margin_top'        => 10,
                 'margin_right'      => 10,
                 'margin_bottom'     => 15,

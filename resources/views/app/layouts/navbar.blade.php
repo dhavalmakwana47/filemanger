@@ -1,7 +1,7 @@
 <nav class="app-header navbar navbar-expand bg-body">
     <div class="container-fluid"> <!--begin::Start Navbar Links-->
         <ul class="navbar-nav">
-            <li class="nav-item"> <a class="nav-link" data-lte-toggle="sidebar" href="#" role="button">
+            <li class="nav-item"> <a id="sidebar-toggle-btn"  class="nav-link" data-lte-toggle="sidebar" href="#" role="button">
                     <i class="bi bi-list"></i> </a> </li>
             <li class="nav-item d-none d-md-block"> <a href="{{ route('dashboard') }}" class="nav-link">Home</a> </li>
         </ul> <!--end::Start Navbar Links--> <!--begin::End Navbar Links-->
@@ -10,21 +10,30 @@
                     <i class="bi bi-search"></i> </a>
             </li>
             <li class="nav-item">
-                <form action="{{ route('change_company') }}" method="post" id="company-form">
+                <form action="{{ route('change_company') }}" method="post" id="company-form" class="d-flex align-items-center">
                     @csrf
-                    <select class="form-select" aria-label="Default select example mr-2" name="company_id"
-                        onchange="document.getElementById('company-form').submit();">
-                        <option value=""></option>
-
-                        @foreach (fetch_company() as $company)
-                            <option value="{{ $company->id }}"
-                                {{ get_active_company() == $company->id ? 'selected' : '' }}>{{ $company->name }}
-                            </option>
-                        @endforeach
-                    </select>
+                    <div class="custom-company-dropdown">
+                        <div class="custom-dropdown-selected" onclick="toggleDropdown()">
+                            <i class="bi bi-building me-2"></i>
+                            <span id="selected-company">{{ get_active_company() ? fetch_company()->where('id', get_active_company())->first()->name ?? 'Select Company' : 'Select Company' }}</span>
+                            <i class="bi bi-chevron-down ms-auto"></i>
+                        </div>
+                        <div class="custom-dropdown-options" id="company-options">
+                            @foreach (fetch_company() as $company)
+                                <div class="custom-dropdown-option {{ get_active_company() == $company->id ? 'selected' : '' }}" 
+                                     onclick="selectCompany('{{ $company->id }}', '{{ $company->name }}')">
+                                    {{ $company->name }}
+                                </div>
+                            @endforeach
+                        </div>
+                        <select name="company_id" id="hidden-company-select" style="display: none;">
+                            @foreach (fetch_company() as $company)
+                                <option value="{{ $company->id }}" {{ get_active_company() == $company->id ? 'selected' : '' }}>{{ $company->name }}</option>
+                            @endforeach
+                        </select>
+                    </div>
                     <input type="hidden" value="{{ Route::currentRouteName() }}" name="route">
                 </form>
-
             </li>
 
             <!--begin::Messages Dropdown Menu-->

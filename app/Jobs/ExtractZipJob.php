@@ -40,8 +40,8 @@ class ExtractZipJob implements ShouldQueue
                 return;
             }
 
-            session(['active_company' => $this->companyId]);
-            auth()->loginUsingId($this->userId);
+            // session(['active_company' => $this->companyId]);
+            // auth()->loginUsingId($this->userId);
             
             $zipService->extractUploadedZip($file);
         } catch (\Exception $e) {

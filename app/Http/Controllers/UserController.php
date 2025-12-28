@@ -136,6 +136,10 @@ class UserController extends Controller implements HasMiddleware
                 ]);
 
                 $isNewUser = true;
+            }else{
+                $user->update([
+                    'name' => $request->input('user_name'),
+                ]);
             }
 
             CompanyUser::updateOrCreate(
@@ -285,6 +289,16 @@ class UserController extends Controller implements HasMiddleware
 
         session(['active_company' => $request->company_id]);
         session()->forget('nda_agreement');
+        $company = Company::find($request->company_id);
+        if (!$company) {
+            return redirect()->back()->with('error', 'Company not found.');
+        }
+        $companyName = $company->name;
+
+        addUserAction([
+            'user_id' => Auth::id(),
+            'action' => "User (" . auth()->user()->email . ") Changed Company to " . $companyName
+        ]);
         return redirect()->route('dashboard');
     }
 

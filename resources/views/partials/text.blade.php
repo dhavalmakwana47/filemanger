@@ -1,1 +1,1 @@
-<pre class="p-3 bg-light border">{{ Storage::disk('public')->get($value) }}</pre>
+<pre class="p-3 bg-light border">{{ Storage::disk('s3')->get($value) }}</pre>

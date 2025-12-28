@@ -110,7 +110,7 @@ class FileController extends Controller
                     // Log the file upload action
                     addUserAction([
                         'user_id' => Auth::id(),
-                        'action' => "File {$folder->name} created with Role Assigned: " . implode(', ', $roles)
+                        'action' => "File {$folder->file_name} Uploaded Successfully with Role Assigned: " . (count($roles) ? implode(', ', $roles) : "'-'")
                     ]);
 
                     // Sync permissions for each file
@@ -156,7 +156,7 @@ class FileController extends Controller
         // Log the file viewing action
         addUserAction([
             'user_id' => Auth::id(),
-            'action' => "File {$file->name} viewed"
+            'action' => "File {$file->file_name} viewed"
         ]);
         return  FileViewer::viewFile($value);
     }
@@ -413,7 +413,7 @@ class FileController extends Controller
 
             addUserAction([
                 'user_id' => Auth::id(),
-                'action' => "File {$file->name} updated with Role Assigned: " . implode(', ', $roles)
+                'action' => "File {$file->file_name} updated with Role Assigned: " . implode(', ', $roles)
             ]);
 
             return $this->successResponse('File updated successfully!', $file);

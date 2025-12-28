@@ -93,7 +93,7 @@ class FolderController extends Controller implements HasMiddleware
                     'item_index' => $request->item_index ?? 0,
                     'created_by' => current_user()->id
                 ]);
-                $fileNamesCreated[] = $file->name;
+                $fileNamesCreated[] = $file->file_name;
             }
 
             $selectedRoles = $request->input('roles', []);
@@ -117,7 +117,7 @@ class FolderController extends Controller implements HasMiddleware
             $resourceNames = array_merge([$folder->name], $fileNamesCreated);
             addUserAction([
                 'user_id' => Auth::id(),
-                'action' => "Folder " . implode(', ', $resourceNames) . " created with Role Assigned: " . implode(', ', $roles)
+                'action' => "Folder " . implode(', ', $resourceNames) . " created with Role Assigned: " . (count($roles) ? implode(', ', $roles) : "'-'")
             ]);
 
             return $this->successResponse('Folder created successfully!', $folder);
@@ -458,6 +458,11 @@ class FolderController extends Controller implements HasMiddleware
             $canvas->page_text(50, 570, "Generated on " . now()->format('M d, Y \a\t h:i A'), null, 9, [0.5, 0.5, 0.5]);
             $canvas->page_text(720, 570, "Page {PAGE_NUM} of {PAGE_COUNT}", null, 10, [0.3, 0.3, 0.3]);
 
+            addUserAction([
+                'user_id' => Auth::id(),
+                'action' => "User (" . auth()->user()->email . ") Directory-Structure Successfully Downloaded"
+            ]);
+
             return response($dompdf->output(), 200, [
                 'Content-Type' => 'application/pdf',
                 'Content-Disposition' => 'attachment; filename="Directory-Structure-' . now()->format('Y-m-d') . '.pdf"',
@@ -734,7 +739,7 @@ class FolderController extends Controller implements HasMiddleware
 
         addUserAction([
             'user_id' => Auth::id(),
-            'action' => "Folder/File {$dataItem['name']} downloaded as ZIP"
+            'action' => "Folder/File {$dataItem['name']} Successfully Downloaded"
         ]);
 
         // Close the zip file
@@ -1148,7 +1153,7 @@ class FolderController extends Controller implements HasMiddleware
                     'size_kb' => $sizeKb,
                 ]);
 
-                $fileNamesCreated[] = $fileRecord->name;
+                $fileNamesCreated[] = $fileRecord->file_name;
                 $validFilesProcessed = true;
 
                 // Sync permissions for file
@@ -1170,9 +1175,10 @@ class FolderController extends Controller implements HasMiddleware
             // Log action
             $resourceNames = array_merge($folderNamesCreated, $fileNamesCreated);
             $roles = CompanyRole::whereIn('id', $selectedRoles)->pluck('role_name')->toArray();
+            
             addUserAction([
                 'user_id' => Auth::id(),
-                'action' => "Folders " . implode(', ', $resourceNames) . " created with Role Assigned: " . implode(', ', $roles)
+                'action' => "Folders " . implode(', ', $resourceNames) . " Uploaded Successfully with Role Assigned: " . (count($roles) ? implode(', ', $roles) : "'-'")
             ]);
 
             return $this->successResponse('Folder structure uploaded successfully!', []);

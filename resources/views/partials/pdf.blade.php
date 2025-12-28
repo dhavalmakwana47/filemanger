@@ -1,5 +1,18 @@
 <!-- PDF Viewer Container -->
 <div class="pdf-viewer-container position-relative p-3 bg-white rounded-3 shadow-sm">
+    <!-- Password Modal -->
+    <div id="password-modal" style="display:none;position:fixed;top:0;left:0;width:100vw;height:100vh;background:rgba(0,0,0,0.85);z-index:9999;align-items:center;justify-content:center;">
+        <div class="bg-white p-4 rounded-3 shadow" style="max-width:400px;width:90%;">
+            <h5 class="mb-3">Password Required</h5>
+            <p class="mb-3">This PDF is password protected. Please enter the password:</p>
+            <div id="password-error" class="alert alert-danger" style="display:none;">Incorrect password. Please try again.</div>
+            <input type="password" id="pdf-password" class="form-control mb-3" placeholder="Enter password">
+            <div class="d-flex gap-2">
+                <button id="submit-password" class="btn btn-primary">Submit</button>
+                <button id="cancel-password" class="btn btn-secondary">Cancel</button>
+            </div>
+        </div>
+    </div>
     <!-- Print Warning Overlay -->
     <div id="print-warning" style="display:none;position:fixed;top:0;left:0;width:100vw;height:100vh;background:rgba(0,0,0,0.85);z-index:9999;color:#fff;align-items:center;justify-content:center;font-size:2rem;text-align:center;">
         Printing is disabled for this document.<br>Please contact the administrator for access.
@@ -36,72 +49,134 @@
 <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/2.10.377/pdf.min.js"></script>
 <!-- PDF.js Script -->
 <script>
-    const url = "{{ route($routeName, ['id' => $id]) }}";
+    let url = "{{ route($routeName, ['id' => $id]) }}";
     let currentPage = 1;
     let pdfDoc = null;
     const scale = 1.4;
     const loader = document.getElementById('pdf-loader');
+    let navigationSetup = false;
+    
     function showLoader() { if (loader) loader.style.display = 'flex'; }
     function hideLoader() { if (loader) loader.style.display = 'none'; }
     showLoader();
 
-    pdfjsLib.getDocument(url).promise.then(pdf => {
-        pdfDoc = pdf;
-        const numPages = pdf.numPages;
-        updatePageInfo();
-        renderPage(currentPage);
+    let passwordAttempted = false;
+    
+    function loadPDF(pdfUrl) {
+        pdfjsLib.getDocument({
+            url: pdfUrl,
+            password: window.pdfPassword || ''
+        }).promise.then(pdf => {
+            pdfDoc = pdf;
+            updatePageInfo();
+            renderPage(currentPage);
+            if (!navigationSetup) {
+                setupNavigation();
+                navigationSetup = true;
+            }
+            hideLoader();
+        }).catch(error => {
+            console.error('PDF load error:', error);
+            if (error.name === 'PasswordException' || error.message.includes('password')) {
+                if (window.pdfPassword) {
+                    // Wrong password
+                    document.getElementById('password-error').style.display = 'block';
+                    showPasswordModal();
+                } else {
+                    // First time password request
+                    passwordAttempted = true;
+                    showPasswordModal();
+                }
+            } else {
+                document.body.innerHTML += '<div class="alert alert-danger mt-3">Error loading PDF: ' + error.message + '</div>';
+            }
+            hideLoader();
+        });
+    }
 
-        document.getElementById('next-page').addEventListener('click', () => {
-            if (currentPage < numPages) {
+    function setupNavigation() {
+        document.getElementById('next-page').onclick = () => {
+            if (currentPage < pdfDoc.numPages) {
                 currentPage++;
                 renderPage(currentPage);
                 updatePageInfo();
             }
-        });
+        };
 
-        document.getElementById('prev-page').addEventListener('click', () => {
+        document.getElementById('prev-page').onclick = () => {
             if (currentPage > 1) {
                 currentPage--;
                 renderPage(currentPage);
                 updatePageInfo();
             }
-        });
+        };
+    }
 
-        function renderPage(pageNum) {
-            showLoader();
-            const prevBtn = document.getElementById('prev-page');
-            const nextBtn = document.getElementById('next-page');
-            prevBtn.disabled = true;
-            nextBtn.disabled = true;
-            pdfDoc.getPage(pageNum).then(page => {
-                const canvas = document.getElementById('pdf-canvas');
-                const context = canvas.getContext('2d');
-                const viewport = page.getViewport({
-                    scale: scale
-                });
-                canvas.height = viewport.height;
-                canvas.width = viewport.width;
+    function renderPage(pageNum) {
+        showLoader();
+        const prevBtn = document.getElementById('prev-page');
+        const nextBtn = document.getElementById('next-page');
+        prevBtn.disabled = true;
+        nextBtn.disabled = true;
+        
+        pdfDoc.getPage(pageNum).then(page => {
+            const canvas = document.getElementById('pdf-canvas');
+            const context = canvas.getContext('2d');
+            const viewport = page.getViewport({ scale: scale });
+            canvas.height = viewport.height;
+            canvas.width = viewport.width;
 
-                const renderTask = page.render({
-                    canvasContext: context,
-                    viewport: viewport
-                });
-                renderTask.promise.then(() => {
-                    prevBtn.disabled = pageNum === 1;
-                    nextBtn.disabled = pageNum === numPages;
-                    hideLoader();
-                });
+            page.render({
+                canvasContext: context,
+                viewport: viewport
+            }).promise.then(() => {
+                prevBtn.disabled = pageNum === 1;
+                nextBtn.disabled = pageNum === pdfDoc.numPages;
+                hideLoader();
             });
-        }
+        });
+    }
 
-        function updatePageInfo() {
-            document.getElementById('page-info').textContent = `Page ${currentPage} of ${pdfDoc.numPages}`;
+    function updatePageInfo() {
+        document.getElementById('page-info').textContent = `Page ${currentPage} of ${pdfDoc.numPages}`;
+    }
+
+    function showPasswordModal() {
+        document.getElementById('password-modal').style.display = 'flex';
+        document.getElementById('pdf-password').focus();
+    }
+
+    function hidePasswordModal() {
+        document.getElementById('password-modal').style.display = 'none';
+        document.getElementById('password-error').style.display = 'none';
+        document.getElementById('pdf-password').value = '';
+    }
+
+    // Password modal event listeners
+    document.getElementById('submit-password').onclick = () => {
+        const password = document.getElementById('pdf-password').value;
+        if (password) {
+            window.pdfPassword = password;
+            hidePasswordModal();
+            showLoader();
+            passwordAttempted = false;
+            loadPDF(url);
         }
-    }).catch(error => {
-        console.error('PDF load error:', error);
-        document.body.innerHTML += `<div class="alert alert-danger mt-3">Error: ${error.message}</div>`;
-        hideLoader();
-    });
+    };
+
+    document.getElementById('cancel-password').onclick = () => {
+        hidePasswordModal();
+        document.body.innerHTML += '<div class="alert alert-warning mt-3">PDF viewing cancelled - password required.</div>';
+    };
+
+    document.getElementById('pdf-password').onkeypress = (e) => {
+        if (e.key === 'Enter') {
+            document.getElementById('submit-password').click();
+        }
+    };
+
+    // Initial load
+    loadPDF(url);
 
     // Prevent right-click, F12, Ctrl+Shift+I, Ctrl+U, Ctrl+P, and context menu
     document.addEventListener('contextmenu', e => {

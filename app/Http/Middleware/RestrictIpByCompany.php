@@ -43,6 +43,9 @@ class RestrictIpByCompany
 
         // Check if IP restriction is enabled for the company
         $setting = Setting::where('company_id', $companyId)->first();
+        if (!isset($setting)) {
+            return $next($request); // No setting found, skip check
+        }
 
         if (!$setting->ip_restriction) {
             return $next($request); // IP restriction disabled

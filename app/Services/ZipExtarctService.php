@@ -10,6 +10,7 @@ use Illuminate\Http\Request;
 use ZipArchive;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Facades\Process;
 
 class ZipExtarctService
 {
@@ -23,6 +24,17 @@ class ZipExtarctService
 
     public function extractUploadedZip(File $file)
     {
+        $fileExtension = strtolower(pathinfo($file->name, PATHINFO_EXTENSION));
+        Log::info("Starting extraction for file: {$file->name} with extension: {$fileExtension}");
+        if ($fileExtension === 'rar') {
+            return $this->extractRarFile($file);
+        } else {
+            return $this->extractZipFile($file);
+        }
+    }
+
+    private function extractZipFile(File $file)
+    {
         try {
             $disk = Storage::disk($this->disk);
             $company_id = get_active_company();
@@ -31,91 +43,105 @@ class ZipExtarctService
             $zipFileName = $file->name;
             $zipPath = "uploads/company_{$company_id}/{$zipFileName}";
 
-            // Check if zip exists with better error handling
-            try {
-                if (!$disk->exists($zipPath)) {
-                    throw new \Exception("Zip file not found at path: {$zipPath}");
-                }
-            } catch (\Exception $e) {
-                Log::error("Error checking zip file existence: " . $e->getMessage());
-                throw new \Exception("Unable to access zip file: " . $e->getMessage());
+            if (!$disk->exists($zipPath)) {
+                throw new \Exception("Archive file not found at path: {$zipPath}");
             }
 
-            // For S3, download to temp file; for public, use direct path
             if ($this->disk === 's3') {
-                try {
-                    $zipContent = $disk->get($zipPath);
-                    $tempZipPath = tempnam(sys_get_temp_dir(), 'zip_') . '.zip';
-                    file_put_contents($tempZipPath, $zipContent);
-                    $zipFullPath = $tempZipPath;
-                } catch (\Exception $e) {
-                    Log::error("Error downloading zip from S3: " . $e->getMessage());
-                    throw new \Exception("Failed to download zip file: " . $e->getMessage());
-                }
+                $zipContent = $disk->get($zipPath);
+                $tempZipPath = tempnam(sys_get_temp_dir(), 'zip_') . '.zip';
+                file_put_contents($tempZipPath, $zipContent);
+                $zipFullPath = $tempZipPath;
             } else {
                 $zipFullPath = $disk->path($zipPath);
-                if (!file_exists($zipFullPath)) {
-                    throw new \Exception("Zip file does not exist at local path: {$zipFullPath}");
-                }
             }
 
-            // Open the zip file
             $zip = new ZipArchive();
             if ($zip->open($zipFullPath) !== true) {
                 if ($this->disk === 's3' && isset($tempZipPath)) unlink($tempZipPath);
-                return response()->json(['error' => 'Could not open zip file'], 500);
+                throw new \Exception('Could not open zip file');
             }
 
-            // Process entries
             $this->processZipEntries($zip, $company_id, $parentId);
-
-            // Close and clean up
             $zip->close();
+
             if ($this->disk === 's3' && isset($tempZipPath)) {
-                // Add small delay to ensure file handle is released
-                usleep(100000); // 0.1 second
-                if (file_exists($tempZipPath)) {
-                    try {
-                        unlink($tempZipPath);
-                    } catch (\Exception $e) {
-                        Log::warning("Could not delete temp zip file: " . $e->getMessage());
-                    }
-                }
+                usleep(100000);
+                if (file_exists($tempZipPath)) unlink($tempZipPath);
             }
 
-            // Delete original zip and database record
-            try {
-                $disk->delete($zipPath);
-            } catch (\Exception $e) {
-                Log::warning("Could not delete original zip file: " . $e->getMessage());
-            }
+            $disk->delete($zipPath);
             $file->forceDelete();
             $this->deleteRootFolder();
 
-
-            // Log the action
             addUserAction([
                 'user_id' => Auth::id(),
-                'action' => "Zip file {$zipFileName} extracted and deleted for company {$company_id}"
+                'action' => "Archive file {$zipFileName} extracted and deleted for company {$company_id}"
             ]);
         } catch (\Exception $e) {
             if ($this->disk === 's3' && isset($tempZipPath) && file_exists($tempZipPath)) {
                 unlink($tempZipPath);
             }
+            throw $e;
+        }
+    }
 
-            // Log error action
+    private function extractRarFile(File $file)
+    {
+        try {
+            $disk = Storage::disk($this->disk);
+            $company_id = get_active_company();
+            $parentId = $file->folder_id ?? null;
+
+            $rarFileName = $file->name;
+            $rarPath = "uploads/company_{$company_id}/{$rarFileName}";
+
+            if (!$disk->exists($rarPath)) {
+                throw new \Exception("RAR file not found at path: {$rarPath}");
+            }
+
+            // Create temp directory for extraction
+            $tempDir = sys_get_temp_dir() . '/rar_extract_' . uniqid();
+            mkdir($tempDir, 0755, true);
+
+            if ($this->disk === 's3') {
+                $rarContent = $disk->get($rarPath);
+                $tempRarPath = $tempDir . '/' . $rarFileName;
+                file_put_contents($tempRarPath, $rarContent);
+            } else {
+                $tempRarPath = $disk->path($rarPath);
+            }
+
+            // Extract using unrar command
+            $command = "unrar x -o+ \"$tempRarPath\" \"$tempDir/\"";
+            $result = shell_exec($command . ' 2>&1');
+            
+            if ($result === null || strpos($result, 'All OK') === false) {
+                throw new \Exception('Could not extract RAR file: ' . $result);
+            }
+
+            $this->processExtractedFiles($tempDir, $company_id, $parentId);
+
+            // Clean up
+            $this->deleteDirectory($tempDir);
+            $disk->delete($rarPath);
+            $file->forceDelete();
+            $this->deleteRootFolder();
+
             addUserAction([
                 'user_id' => Auth::id(),
-                'action' => "Error extracting zip file {$zipFileName}: " . $e->getMessage()
+                'action' => "RAR file {$rarFileName} extracted and deleted for company {$company_id}"
             ]);
-
+        } catch (\Exception $e) {
+            if (isset($tempDir) && is_dir($tempDir)) {
+                $this->deleteDirectory($tempDir);
+            }
             throw $e;
         }
     }
 
     private function processZipEntries(ZipArchive $zip, string $company_id, ?int $parent_id = null): void
     {
-        // Track created folders to avoid duplicates
         $folderCache = [];
         $disk = Storage::disk($this->disk);
         $basePath = "uploads/company_{$company_id}/";
@@ -123,33 +149,57 @@ class ZipExtarctService
         for ($i = 0; $i < $zip->numFiles; $i++) {
             $entry = $zip->getNameIndex($i);
 
-            // Skip Mac junk
             if (str_starts_with($entry, '__MACOSX/') || str_ends_with($entry, '.DS_Store')) {
                 continue;
             }
 
             if (substr($entry, -1) === '/') {
-                // Directory → create in database only (your existing method)
                 $this->createFolderFromZip($entry, $company_id, $parent_id, $folderCache);
             } else {
-                // File → extract content and save to S3, then create DB record
                 $stream = $zip->getStream($entry);
-
                 if ($stream) {
-                    // Upload directly to S3 from stream (efficient)
-                    $fullS3Path = $basePath . $entry; // preserves folder structure
-
+                    $fullS3Path = $basePath . $entry;
                     $disk->put($fullS3Path, $stream);
-
-                    // DO NOT fclose($stream) — ZipArchive closes it automatically
-
-                    // Now create the File record in DB using your existing method
-                    // It should use the same $entry path and $folderCache to set correct folder_id
                     $this->createFileFromZip($entry, $zip, $company_id, $parent_id, $folderCache);
                 }
-                // If stream fails, skip silently (corrupted entry)
             }
         }
+    }
+
+    private function processExtractedFiles(string $tempDir, string $company_id, ?int $parent_id = null): void
+    {
+        $folderCache = [];
+        $iterator = new \RecursiveIteratorIterator(
+            new \RecursiveDirectoryIterator($tempDir, \RecursiveDirectoryIterator::SKIP_DOTS)
+        );
+
+        foreach ($iterator as $file) {
+            $relativePath = str_replace($tempDir . DIRECTORY_SEPARATOR, '', $file->getPathname());
+            $relativePath = str_replace('\\', '/', $relativePath);
+
+            if ($file->isDir()) {
+                $this->createFolderFromZip($relativePath . '/', $company_id, $parent_id, $folderCache);
+            } else {
+                // Upload file to storage
+                $disk = Storage::disk($this->disk);
+                $storagePath = "uploads/company_{$company_id}/{$relativePath}";
+                $disk->put($storagePath, file_get_contents($file->getPathname()));
+                
+                $this->createFileFromZip($relativePath, null, $company_id, $parent_id, $folderCache);
+            }
+        }
+    }
+
+    private function deleteDirectory(string $dir): void
+    {
+        if (!is_dir($dir)) return;
+        
+        $files = array_diff(scandir($dir), ['.', '..']);
+        foreach ($files as $file) {
+            $path = $dir . DIRECTORY_SEPARATOR . $file;
+            is_dir($path) ? $this->deleteDirectory($path) : unlink($path);
+        }
+        rmdir($dir);
     }
 
     private function createFolderFromZip(string $entry, string $company_id, ?int $parent_id, array &$folderCache): void
@@ -205,11 +255,10 @@ class ZipExtarctService
         }
     }
 
-    private function createFileFromZip(string $entry, ZipArchive $zip, string $company_id, ?int $parent_id, array &$folderCache): void
+    private function createFileFromZip(string $entry, ?ZipArchive $zip, string $company_id, ?int $parent_id, array &$folderCache): void
     {
         // Allowed MIME types
         $allowedMimeTypes = [
-            // Original MIME types
             'image/png',
             'image/jpeg',
             'image/gif',
@@ -223,8 +272,6 @@ class ZipExtarctService
             'text/plain',
             'application/x-rar-compressed',
             'application/vnd.rar',
-
-            // Additional MIME types
             'image/tiff',
             'image/tif',
             'application/rtf',
@@ -255,62 +302,53 @@ class ZipExtarctService
 
         // Get parent folder ID for the file
         $pathSegments = explode('/', $entry);
-        $fileName = array_pop($pathSegments); // Last segment is the file name
+        $fileName = array_pop($pathSegments);
         $parentPath = implode('/', $pathSegments);
 
         $parentFolderId = $parent_id;
         if (!empty($parentPath)) {
-            // Check if parent folder is in cache
             if (isset($folderCache[$parentPath])) {
                 $parentFolderId = $folderCache[$parentPath];
             } else {
-                // Create parent folders if they don’t exist
                 $this->createFolderFromZip($parentPath . '/', $company_id, $parent_id, $folderCache);
                 $parentFolderId = $folderCache[$parentPath] ?? $parent_id;
             }
         }
 
-        // Extract file from zip
-        $fileStream = $zip->getStream($entry);
-        if ($fileStream === false) {
-            Log::warning("Could not read file from zip: {$entry}");
+        // Get file info for validation
+        $disk = Storage::disk($this->disk);
+        $filePath = "uploads/company_{$company_id}/{$entry}";
+        
+        if (!$disk->exists($filePath)) {
+            Log::warning("File not found in storage: {$entry}");
             return;
         }
-        // Check MIME type
-        $tmpPath = storage_path('app/tmp_' . uniqid());
-        $tmpHandle = fopen($tmpPath, 'w');
-        stream_copy_to_stream($fileStream, $tmpHandle);
-        fclose($fileStream);
-        fclose($tmpHandle);
-        $mimeType = \Illuminate\Support\Facades\File::mimeType($tmpPath);
+        
+        $mimeType = $disk->mimeType($filePath) ?? 'application/octet-stream';
+        
         if (!in_array($mimeType, $allowedMimeTypes)) {
-            Log::info("Skipped file from zip (not allowed MIME): {$entry} ({$mimeType})");
-            unlink($tmpPath);
+            Log::info("Skipped file from archive (not allowed MIME): {$entry} ({$mimeType})");
+            $disk->delete($filePath);
             return;
         }
+        
         // Generate new filename with timestamp
         $originalName = pathinfo($fileName, PATHINFO_FILENAME);
         $extension = pathinfo($fileName, PATHINFO_EXTENSION);
         $newFileName = $originalName . '_' . time() . '.' . $extension;
-        $filePath = "uploads/company_{$company_id}/{$newFileName}";
+        $newFilePath = "uploads/company_{$company_id}/{$newFileName}";
+        
+        // Move file to new location with timestamp
+        $disk->move($filePath, $newFilePath);
+        $sizeKb = $disk->size($newFilePath);
 
-        // Store file in storage
-        $disk = Storage::disk($this->disk);
-        $disk->put($filePath, fopen($tmpPath, 'r'));
-        unlink($tmpPath);
-
-        // Check if file exists and get size, default to 0 if not found
-        $sizeKb = 0;
-        if ($disk->exists($filePath)) {
-            $sizeKb = $disk->size($filePath);
-        }
         // Save file metadata in database
         $file = File::create([
             'name' => $newFileName,
             'file_name' => $fileName,
             'folder_id' => $parentFolderId,
             'company_id' => $company_id,
-            'file_path' => $filePath,
+            'file_path' => $newFilePath,
             'size_kb' => $sizeKb,
             'created_by' => Auth::id(),
         ]);
