@@ -6,6 +6,7 @@ use App\Http\Controllers\CompanyController;
 use App\Http\Controllers\CompanyRoleController;
 use App\Http\Controllers\CompanyRolePermissionController;
 use App\Http\Controllers\DashboardController;
+use App\Http\Controllers\DownloadController;
 use App\Http\Controllers\FileController;
 use App\Http\Controllers\FolderController;
 use App\Http\Controllers\ProfileController;
@@ -95,6 +96,8 @@ Route::middleware(['auth', 'restrict_ip_by_company'])->group(function () {
     Route::get('file/view-file/{id}', [FileController::class, 'viewFile'])->name('file.view');
     Route::post('file/download', [FileController::class, 'downloadFile'])->name('file.download');
     Route::post('folder-zip', [FolderController::class, 'folderZip'])->name('folder.zip');
+    Route::get('zip-status/{id}', [FolderController::class, 'checkZipStatus'])->name('folder.zip-status');
+    Route::get('download-zip/{id}', [FolderController::class, 'downloadZip'])->name('folder.download-zip');
     Route::post('extract-zip', [FileController::class, 'extractUploadedZip'])->name('folder.extractzip');
     Route::post('assign-roles', [FolderController::class, 'assignRoles'])->name('folder.multiassignroles');
     Route::post('get-properties', [FolderController::class, 'getProperties'])->name('folder.getproperties');
@@ -128,6 +131,11 @@ Route::middleware(['auth', 'restrict_ip_by_company'])->group(function () {
       Route::post('/bookmarks/toggle', [BookmarkController::class, 'toggleBookmark'])->name('bookmarks.toggle');
     Route::get('/bookmarks', [BookmarkController::class, 'index'])->name('bookmarks.index');
     Route::post('/bookmarks/remove', [BookmarkController::class, 'remove'])->name('bookmarks.remove');
+    
+    //downloads
+    Route::get('/downloads', [DownloadController::class, 'index'])->name('downloads.index');
+    Route::get('/downloads/{id}/download', [DownloadController::class, 'download'])->name('downloads.download');
+    Route::delete('/downloads/{id}', [DownloadController::class, 'destroy'])->name('downloads.destroy');
 });
 
 require __DIR__ . '/auth.php';

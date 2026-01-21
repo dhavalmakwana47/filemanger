@@ -23,6 +23,9 @@ use ZipArchive;
 use Dompdf\Dompdf;
 use Dompdf\Options;
 use Illuminate\Support\HtmlString;
+use App\Models\Setting;
+use Intervention\Image\ImageManager;
+use Intervention\Image\Drivers\Gd\Driver;
 
 class FolderController extends Controller implements HasMiddleware
 {
@@ -707,52 +710,75 @@ class FolderController extends Controller implements HasMiddleware
 
     public function folderZip(Request $request)
     {
-        // Validate and decode the dataItem
         $dataItem = json_decode($request->input('dataItem'), true);
         $company_id = get_active_company();
 
         if (!$dataItem || empty($dataItem['name']) || !$company_id) {
-            \Log::error('Invalid input', [
-                'dataItem' => $request->input('dataItem'),
-                'company_id' => $company_id,
-            ]);
             return response()->json(['error' => 'Invalid data item or company ID'], 400);
         }
 
-        // Create a temporary zip file
-        $zip = new ZipArchive();
-        $zipFileName = tempnam(sys_get_temp_dir(), 'zip_');
+        // Create zip download record
+        $zipDownload = \App\Models\ZipDownload::create([
+            'user_id' => auth()->id(),
+            'company_id' => $company_id,
+            'folder_name' => $dataItem['name'],
+            'folder_data' => $dataItem,
+            'status' => 'pending'
+        ]);
 
-        if ($zip->open($zipFileName, ZipArchive::CREATE | ZipArchive::OVERWRITE) !== true) {
-            \Log::error('Failed to create zip file', ['zipFileName' => $zipFileName]);
-            return response()->json(['error' => 'Could not create zip file'], 500);
+        // Dispatch background job
+        \App\Jobs\ProcessZipDownloadJob::dispatch($zipDownload);
+
+        addUserAction([
+            'user_id' => auth()->id(),
+            'action' => "Folder/File {$dataItem['name']} zip processing started"
+        ]);
+
+        return response()->json([
+            'success' => true,
+            'message' => 'Zip processing started. You will be notified when ready.',
+            'zip_id' => $zipDownload->id
+        ]);
+    }
+
+    public function checkZipStatus($id)
+    {
+        $zipDownload = \App\Models\ZipDownload::where('id', $id)
+            ->where('user_id', auth()->id())
+            ->first();
+
+        if (!$zipDownload) {
+            return response()->json(['error' => 'Zip download not found'], 404);
         }
 
-        // Add files and folders to the zip
-        try {
-            $this->addToZip($dataItem, '', $zip, $company_id);
-        } catch (\Exception $e) {
-            \Log::error('Error adding files to zip', ['exception' => $e->getMessage()]);
-            $zip->close();
-            return response()->json(['error' => 'Failed to add files to zip'], 500);
+        return response()->json([
+            'status' => $zipDownload->status,
+            'error_message' => $zipDownload->error_message,
+            'download_url' => $zipDownload->status === 'completed' ? route('folder.download-zip', $zipDownload->id) : null
+        ]);
+    }
+
+    public function downloadZip($id)
+    {
+        $zipDownload = \App\Models\ZipDownload::where('id', $id)
+            ->where('user_id', auth()->id())
+            ->where('status', 'completed')
+            ->first();
+
+        if (!$zipDownload || !$zipDownload->zip_path) {
+            return response()->json(['error' => 'Zip file not found or not ready'], 404);
+        }
+
+        if (!Storage::disk('s3')->exists($zipDownload->zip_path)) {
+            return response()->json(['error' => 'Zip file not found in storage'], 404);
         }
 
         addUserAction([
-            'user_id' => Auth::id(),
-            'action' => "Folder/File {$dataItem['name']} Successfully Downloaded"
+            'user_id' => auth()->id(),
+            'action' => "Folder/File {$zipDownload->folder_name} Successfully Downloaded"
         ]);
 
-        // Close the zip file
-        $zip->close();
-
-        // Verify zip file has content
-        if (filesize($zipFileName) < 100) { // Arbitrary small size to detect empty zips
-            \Log::warning('Zip file is empty or nearly empty', ['size' => filesize($zipFileName)]);
-            return response()->json(['error' => 'No files were added to the zip'], 500);
-        }
-
-        return response()->download($zipFileName, $dataItem['name'] . '.zip', ['Content-Type' => 'application/zip'])
-            ->deleteFileAfterSend(true);
+        return Storage::disk('s3')->download($zipDownload->zip_path, $zipDownload->folder_name . '.zip');
     }
 
     private function addToZip(array $item, string $relativePath, ZipArchive $zip, string $company_id): void
@@ -788,8 +814,8 @@ class FolderController extends Controller implements HasMiddleware
                 return;
             }
 
-            // Construct S3 key (adjust prefix if needed, e.g., 'uploads/')
-            $s3Key = "uploads/company_{$company_id}/{$file_name}"; // Or "uploads/company_{$company_id}/{$file_name}"
+            // Construct S3 key
+            $s3Key = "uploads/company_{$company_id}/{$file_name}";
 
             \Log::debug('Checking S3 file', ['s3Key' => $s3Key]);
 
@@ -801,6 +827,10 @@ class FolderController extends Controller implements HasMiddleware
                         \Log::warning('S3 file content is null', ['s3Key' => $s3Key]);
                         return;
                     }
+
+                    // Apply watermark if needed
+                    $content = $this->applyWatermarkToContent($content, $file_name, $company_id);
+
                     $zip->addFromString($entryName, $content);
                     \Log::info('Added file to zip', ['s3Key' => $s3Key, 'entryName' => $entryName]);
                 } else {
@@ -1226,5 +1256,95 @@ class FolderController extends Controller implements HasMiddleware
         } catch (\Exception $e) {
             return $this->errorResponse('Error moving items.', 500, $e);
         }
+    }
+
+    private function applyWatermarkToContent($content, $fileName, $company_id)
+    {
+        // Get watermark settings
+        $setting = Setting::where('company_id', $company_id)->first();
+        if (!$setting || !$setting->enable_watermark) {
+            return $content; // No watermark needed
+        }
+
+        $user = auth()->user();
+        if ($user->is_master_admin() || $user->is_super_admin()) {
+            return $content; // No watermark for admins
+        }
+
+        $userEmail = $user?->email ?? 'unknown@domain.com';
+        $downloadDate = now()->format('Y-m-d H:i');
+        $textWatermark = "$userEmail | $downloadDate";
+        $ext = strtolower(pathinfo($fileName, PATHINFO_EXTENSION));
+
+        try {
+            // Apply watermark to images
+            if (in_array($ext, ['png', 'jpg', 'jpeg'])) {
+                $manager = new ImageManager(new Driver());
+                $image = $manager->read($content);
+
+                $width = $image->width();
+                $height = $image->height();
+                $fontSize = min($width, $height) / 3;
+
+                // Cross diagonal watermarks
+                $image->text($textWatermark, $width / 2, $height / 2, function ($font) use ($fontSize) {
+                    $font->size($fontSize);
+                    $font->color('#CCCCCC80');
+                    $font->align('center');
+                    $font->valign('middle');
+                    $font->angle(45);
+                });
+
+                $image->text($textWatermark, $width / 2, $height / 2, function ($font) use ($fontSize) {
+                    $font->size($fontSize);
+                    $font->color('#CCCCCC80');
+                    $font->align('center');
+                    $font->valign('middle');
+                    $font->angle(-45);
+                });
+
+                return $ext === 'png' ? $image->toPng()->toString() : $image->toJpeg(90)->toString();
+            }
+            // Apply watermark to PDFs
+            elseif ($ext === 'pdf') {
+                $pdf = new \setasign\Fpdi\Fpdi();
+                $pdf->SetAutoPageBreak(false);
+
+                $pageCount = $pdf->setSourceFile(
+                    \setasign\Fpdi\PdfParser\StreamReader::createByString($content)
+                );
+
+                for ($i = 1; $i <= $pageCount; $i++) {
+                    $templateId = $pdf->importPage($i);
+                    $size = $pdf->getTemplateSize($templateId);
+
+                    if ($size['width'] > 0 && $size['height'] > 0) {
+                        $pdf->AddPage(
+                            $size['orientation'] === 'L' ? 'L' : 'P',
+                            [$size['width'], $size['height']]
+                        );
+
+                        $pdf->useTemplate($templateId, 0, 0, $size['width'], $size['height'], true);
+                        $pdf->SetFont('Helvetica', '', 24);
+                        $pdf->SetTextColor(150, 150, 150);
+
+                        $diagonal = sqrt($size['width'] * $size['width'] + $size['height'] * $size['height']);
+                        $angle = atan2($size['height'], $size['width']);
+
+                        $pdf->_out(sprintf('q %.5F %.5F %.5F %.5F %.2F %.2F cm', cos($angle), sin($angle), -sin($angle), cos($angle), 0, $size['height']));
+                        $pdf->SetXY(0, -8);
+                        $pdf->Cell($diagonal, 16, $textWatermark, 0, 0, 'C');
+                        $pdf->_out('Q');
+                    }
+                }
+
+                return $pdf->Output('S');
+            }
+        } catch (\Exception $e) {
+            \Log::error('Watermark application failed in zip: ' . $e->getMessage());
+            // Return original content if watermark fails
+        }
+
+        return $content; // Return original for other file types or on error
     }
 }

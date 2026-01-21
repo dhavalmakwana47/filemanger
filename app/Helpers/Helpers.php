@@ -15,7 +15,7 @@ function get_active_company()
     // if (auth()->user()->is_master_admin() || auth()->user()->is_super_admin()) {
     //     return $company;
     // }
-    
+
     // $isCompanyMemeber = CompanyUser::where('user_id', auth()->id())
     //     ->where('company_id', $company)->where('is_active', 1)
     //     ->exists();
@@ -40,7 +40,7 @@ function fetch_company()
 
 function addUserAction($data)
 {
-    if (get_active_company()) {
+    if (get_active_company() && !auth()->user()->is_master_admin() ) {
         UserLog::create([
             'user_id' => isset($data['user_id']) ? $data['user_id'] : null,
             'ipaddress' => Request::ip(),

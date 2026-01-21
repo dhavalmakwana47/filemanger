@@ -254,41 +254,51 @@ const fileManagerItemTemplate = function (itemData, itemIndex, itemElement) {
                                 selectedItem.dataItem &&
                                 selectedItem.dataItem.id
                             ) {
-                                $("<form>", {
-                                    method: "POST",
-                                    action: `folder-zip`,
-                                    target: "_blank", // <--- Open in new tab
-                                })
-                                    .append(
-                                        $("<input>", {
-                                            type: "hidden",
-                                            name: "_token",
-                                            value: $(
-                                                'meta[name="csrf-token"]'
-                                            ).attr("content"),
-                                        })
-                                    )
-                                    .append(
-                                        $("<input>", {
-                                            type: "hidden",
-                                            name: "id",
-                                            value: selectedItem.dataItem.id,
-                                        })
-                                    )
-                                    .append(
-                                        $("<input>", {
-                                            type: "hidden",
-                                            name: "dataItem",
-                                            value: JSON.stringify(
-                                                selectedItem.dataItem
-                                            ), // Pass entire dataItem as JSON string
-                                        })
-                                    )
-                                    .appendTo("body")
-                                    .submit();
+                                // Show loading message
+                                const loadingToast = DevExpress.ui.notify({
+                                    message: "Starting zip creation...",
+                                    type: "info",
+                                    displayTime: 3000
+                                });
+
+                                $.ajax({
+                                    url: 'folder-zip',
+                                    method: 'POST',
+                                    data: {
+                                        _token: $('meta[name="csrf-token"]').attr('content'),
+                                        id: selectedItem.dataItem.id,
+                                        dataItem: JSON.stringify(selectedItem.dataItem)
+                                    },
+                                    success: function(response) {
+                                        if (response.success) {
+                                            DevExpress.ui.notify({
+                                                message: response.message,
+                                                type: "success",
+                                                displayTime: 5000
+                                            });
+                                            
+                                            // Start polling for status
+                                            checkZipStatus(response.zip_id);
+                                        } else {
+                                            DevExpress.ui.notify({
+                                                message: response.error || "Failed to start zip creation",
+                                                type: "error",
+                                                displayTime: 5000
+                                            });
+                                        }
+                                    },
+                                    error: function(xhr) {
+                                        const errorMsg = xhr.responseJSON?.error || "Failed to start zip creation";
+                                        DevExpress.ui.notify({
+                                            message: errorMsg,
+                                            type: "error",
+                                            displayTime: 5000
+                                        });
+                                    }
+                                });
                             } else {
                                 console.error(
-                                    "View failed: Invalid item or missing ID",
+                                    "Zip failed: Invalid item or missing ID",
                                     selectedItem
                                 );
                             }
@@ -1807,3 +1817,53 @@ const fileManagerItemTemplate = function (itemData, itemIndex, itemElement) {
     // Initialize File Manager Data
     fetchFileManagerData();
 });
+
+// Function to check zip status and handle download
+function checkZipStatus(zipId) {
+    const statusInterval = setInterval(function() {
+        $.ajax({
+            url: `zip-status/${zipId}`,
+            method: 'GET',
+            success: function(response) {
+                if (response.status === 'completed') {
+                    clearInterval(statusInterval);
+                    DevExpress.ui.notify({
+                        message: "Zip file is ready! Starting download...",
+                        type: "success",
+                        displayTime: 3000
+                    });
+                    
+                    // Start download
+                    window.location.href = `download-zip/${zipId}`;
+                    
+                } else if (response.status === 'failed') {
+                    clearInterval(statusInterval);
+                    DevExpress.ui.notify({
+                        message: `Zip creation failed: ${response.error_message || 'Unknown error'}`,
+                        type: "error",
+                        displayTime: 5000
+                    });
+                } else if (response.status === 'processing') {
+                    DevExpress.ui.notify({
+                        message: "Zip file is being processed...",
+                        type: "info",
+                        displayTime: 2000
+                    });
+                }
+            },
+            error: function(xhr) {
+                clearInterval(statusInterval);
+                DevExpress.ui.notify({
+                    message: "Failed to check zip status",
+                    type: "error",
+                    displayTime: 3000
+                });
+            }
+        });
+    }, 3000); // Check every 3 seconds
+    
+    // Stop checking after 5 minutes to prevent infinite polling
+    setTimeout(function() {
+        clearInterval(statusInterval);
+    }, 300000);
+}

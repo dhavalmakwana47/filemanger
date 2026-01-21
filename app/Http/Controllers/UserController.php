@@ -136,7 +136,7 @@ class UserController extends Controller implements HasMiddleware
                 ]);
 
                 $isNewUser = true;
-            }else{
+            } else {
                 $user->update([
                     'name' => $request->input('user_name'),
                 ]);
@@ -151,9 +151,7 @@ class UserController extends Controller implements HasMiddleware
             );
 
             // Clear existing roles for the user in the active company
-        if ($request->filled('role')) {
-
-                // Fix: Use $role instead of $request->role inside the loop
+            if ($request->filled('role')) {
                 foreach ($request->role as $role) {
                     CompanyUserRole::create([
                         'user_id' => $user->id,
@@ -195,8 +193,7 @@ class UserController extends Controller implements HasMiddleware
             return redirect()->back()->withErrors('Failed to create user. Please try again.');
         }
     }
-
-
+    
     public function edit(User $user)
     {
         if ($this->admin_check($user)) {
@@ -254,6 +251,7 @@ class UserController extends Controller implements HasMiddleware
                 ]);
             }
         }
+
         $roles = CompanyRole::whereIn('id', $request->role ?? [])->pluck('role_name')->toArray();
         $roleNames = implode(', ', $roles);
 
@@ -286,18 +284,19 @@ class UserController extends Controller implements HasMiddleware
 
     public function change_company(Request $request)
     {
-
         session(['active_company' => $request->company_id]);
         session()->forget('nda_agreement');
         $company = Company::find($request->company_id);
+
         if (!$company) {
             return redirect()->back()->with('error', 'Company not found.');
         }
+
         $companyName = $company->name;
 
         addUserAction([
             'user_id' => Auth::id(),
-            'action' => "User (" . auth()->user()->email . ") Changed Company to " . $companyName
+            'action' => "User (" . auth()->user()->email . ") Switch to \"" . $companyName . "\" Successfully"
         ]);
         return redirect()->route('dashboard');
     }
@@ -336,10 +335,7 @@ class UserController extends Controller implements HasMiddleware
 
     public function resendPassword($id)
     {
-
-
         $user = User::findOrFail($id);
-
         $activeCompanyId = get_active_company();
         $company = Company::find($activeCompanyId);
         $companyName = $company ? $company->name : 'Our Company';
@@ -370,9 +366,8 @@ class UserController extends Controller implements HasMiddleware
         $data['user'] = Auth::user();
         $company = Company::find(get_active_company());
         if (isset($company) && (auth()->user()->is_master_admin() || auth()->user()->is_super_admin())) {
-            # code...
             $remainingSpace = getTotalUsedSpace();
-            $usedSpaceMb = round((File::where('company_id', $company->id)->sum('size_kb') / 1024)/1024, 2);
+            $usedSpaceMb = round((File::where('company_id', $company->id)->sum('size_kb') / 1024) / 1024, 2);
 
             // Initialize spaceDetails as an array
             $spaceDetails = [
@@ -388,6 +383,7 @@ class UserController extends Controller implements HasMiddleware
 
         return view('app.users.profile', $data);
     }
+
     public function updateProfile(Request $request)
     {
         $user = Auth::user();
@@ -396,7 +392,7 @@ class UserController extends Controller implements HasMiddleware
         $rules = [
             'name' => 'required|string|max:255',
             'email' => 'required|email|max:255|unique:users,email,' . $user->id,
-            'password' => 'nullable|min:8|confirmed',
+            'password' => 'nullable|min:8|confirmed'
         ];
 
         // Validate the request
@@ -460,7 +456,7 @@ class UserController extends Controller implements HasMiddleware
             $user = User::find($userId);
             if ($this->admin_check($user)) {
                 return response()->json([
-                    'status' => 'error', 
+                    'status' => 'error',
                     'message' => 'Cannot update status for admin users.'
                 ], 403);
             }
@@ -480,7 +476,7 @@ class UserController extends Controller implements HasMiddleware
         ]);
 
         return response()->json([
-            'status' => 'success', 
+            'status' => 'success',
             'message' => "{$count} user(s) status updated successfully."
         ]);
     }
@@ -501,12 +497,12 @@ class UserController extends Controller implements HasMiddleware
         // Update 2FA status for all selected users in the active company
         foreach ($userIds as $userId) {
             $user = User::find($userId);
-            
+
             // Check if user exists in the active company
             $companyUser = CompanyUser::where('user_id', $userId)
                 ->where('company_id', $activeCompanyId)
                 ->first();
-                
+
             if ($companyUser) {
                 // Update the user's 2FA status
                 $user->two_factor_enabled = $enable;
@@ -516,7 +512,7 @@ class UserController extends Controller implements HasMiddleware
         }
 
         $action = $enable ? 'enabled' : 'disabled';
-        
+
         // Log the action
         addUserAction([
             'user_id' => Auth::id(),
@@ -533,7 +529,7 @@ class UserController extends Controller implements HasMiddleware
     {
         $request->validate([
             'user_ids' => 'required|array',
-            'user_ids.*' => 'exists:users,id',
+            'user_ids.*' => 'exists:users,id'
         ]);
 
         $activeCompanyId = get_active_company();

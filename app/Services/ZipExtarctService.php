@@ -76,7 +76,7 @@ class ZipExtarctService
 
             addUserAction([
                 'user_id' => Auth::id(),
-                'action' => "Archive file {$zipFileName} extracted and deleted for company {$company_id}"
+                'action' => "Archive file {$zipFileName} extracted and RAR/Zip File deleted Successfully"
             ]);
         } catch (\Exception $e) {
             if ($this->disk === 's3' && isset($tempZipPath) && file_exists($tempZipPath)) {
@@ -130,7 +130,7 @@ class ZipExtarctService
 
             addUserAction([
                 'user_id' => Auth::id(),
-                'action' => "RAR file {$rarFileName} extracted and deleted for company {$company_id}"
+                'action' => "RAR file {$rarFileName} extracted and RAR/Zip File deleted Successfully"
             ]);
         } catch (\Exception $e) {
             if (isset($tempDir) && is_dir($tempDir)) {
@@ -359,7 +359,7 @@ class ZipExtarctService
         // Log file creation
         addUserAction([
             'user_id' => Auth::id(),
-            'action' => "File {$file->name} created"
+            'action' => "File {$file->name} Uploaded Successfully"
         ]);
     }
 

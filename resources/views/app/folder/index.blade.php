@@ -273,8 +273,7 @@
                                 </div>
                                 <div class="mb-3">
                                     <div class="form-check form-switch">
-                                        <input class="form-check-input" type="checkbox" id="send_email" name="send_email"
-                                            value="1">
+                                        <input class="form-check-input" type="checkbox" id="send_email" name="send_email">
                                         <label class="form-check-label" for="send_email">Send Email Notification</label>
                                     </div>
                                 </div>
@@ -315,7 +314,7 @@
                                 <div class="mb-3">
                                     <div class="form-check form-switch">
                                         <input class="form-check-input" type="checkbox" id="folder_send_email"
-                                            name="send_email" value="1">
+                                            name="send_email" >
                                         <label class="form-check-label" for="folder_send_email">Send Email
                                             Notification</label>
                                     </div>
@@ -359,7 +358,7 @@
                                 <div class="mb-3">
                                     <div class="form-check form-switch">
                                         <input class="form-check-input" type="checkbox" id="assign_send_email"
-                                            name="send_email" value="1">
+                                            name="send_email" >
                                         <label class="form-check-label" for="assign_send_email">Send Email
                                             Notification</label>
                                     </div>
