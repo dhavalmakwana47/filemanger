@@ -273,7 +273,7 @@
                                 </div>
                                 <div class="mb-3">
                                     <div class="form-check form-switch">
-                                        <input class="form-check-input" type="checkbox" id="send_email" name="send_email">
+                                        <input class="form-check-input" type="checkbox" id="send_email" >
                                         <label class="form-check-label" for="send_email">Send Email Notification</label>
                                     </div>
                                 </div>

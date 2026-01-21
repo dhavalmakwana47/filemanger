@@ -3,45 +3,45 @@ $(function () {
     let searchTimeout = null; // For debouncing search input
     let currentSearchValue = ""; // Track current search value
     // Add this before the fileManager initialization
-const fileManagerItemTemplate = function (itemData, itemIndex, itemElement) {
-    const $item = $("<div>").addClass("dx-filemanager-item");
+    const fileManagerItemTemplate = function (itemData, itemIndex, itemElement) {
+        const $item = $("<div>").addClass("dx-filemanager-item");
 
-    // Only add star if bookmarked and is file
-    if (itemData.isBookmarked && !itemData.isDirectory) {
-        $item.append(
-            $('<i>')
-                .addClass('dx-icon dx-icon-favorites')
-                .css({
-                    'color': 'gold',
-                    'margin-right': '5px',
-                    'cursor': 'pointer'
-                })
-                .on("click", function (e) {
-                    e.stopPropagation();
-                    $.ajax({
-                        url: '/bookmarks/toggle',
-                        type: 'POST',
-                        data: {
-                            _token: $('meta[name="csrf-token"]').attr('content'),
-                            type: 'file',
-                            id: itemData.id
-                        },
-                        success: function (response) {
-                            fetchFileManagerData();
-                        }
-                    });
-                })
-        );
-    } else {
-        // Add empty space to maintain alignment
-        $item.append($('<span>').css('margin-right', '24px').html('&nbsp;'));
-    }
+        // Only add star if bookmarked and is file
+        if (itemData.isBookmarked && !itemData.isDirectory) {
+            $item.append(
+                $('<i>')
+                    .addClass('dx-icon dx-icon-favorites')
+                    .css({
+                        'color': 'gold',
+                        'margin-right': '5px',
+                        'cursor': 'pointer'
+                    })
+                    .on("click", function (e) {
+                        e.stopPropagation();
+                        $.ajax({
+                            url: '/bookmarks/toggle',
+                            type: 'POST',
+                            data: {
+                                _token: $('meta[name="csrf-token"]').attr('content'),
+                                type: 'file',
+                                id: itemData.id
+                            },
+                            success: function (response) {
+                                fetchFileManagerData();
+                            }
+                        });
+                    })
+            );
+        } else {
+            // Add empty space to maintain alignment
+            $item.append($('<span>').css('margin-right', '24px').html('&nbsp;'));
+        }
 
-    // Add the item name
-    $item.append($("<span>").text(itemData.name));
+        // Add the item name
+        $item.append($("<span>").text(itemData.name));
 
-    return $item;
-};
+        return $item;
+    };
 
     const fileManager = $("#file-manager")
         .dxFileManager({
@@ -269,14 +269,14 @@ const fileManagerItemTemplate = function (itemData, itemIndex, itemElement) {
                                         id: selectedItem.dataItem.id,
                                         dataItem: JSON.stringify(selectedItem.dataItem)
                                     },
-                                    success: function(response) {
+                                    success: function (response) {
                                         if (response.success) {
                                             DevExpress.ui.notify({
                                                 message: response.message,
                                                 type: "success",
                                                 displayTime: 5000
                                             });
-                                            
+
                                             // Start polling for status
                                             checkZipStatus(response.zip_id);
                                         } else {
@@ -287,7 +287,7 @@ const fileManagerItemTemplate = function (itemData, itemIndex, itemElement) {
                                             });
                                         }
                                     },
-                                    error: function(xhr) {
+                                    error: function (xhr) {
                                         const errorMsg = xhr.responseJSON?.error || "Failed to start zip creation";
                                         DevExpress.ui.notify({
                                             message: errorMsg,
@@ -355,10 +355,10 @@ const fileManagerItemTemplate = function (itemData, itemIndex, itemElement) {
                         onClick: function (e) {
                             const selectedItems = fileManager.getSelectedItems();
                             if (selectedItems.length === 0) return;
-                            
+
                             let fileIds = selectedItems.filter(i => !i.dataItem.isDirectory).map(i => i.dataItem.id);
                             let folderIds = selectedItems.filter(i => i.dataItem.isDirectory).map(i => i.dataItem.id);
-                            
+
                             $("#move_file_ids").val(JSON.stringify(fileIds));
                             $("#move_folder_ids").val(JSON.stringify(folderIds));
                             $("#moveModal").modal("show");
@@ -794,10 +794,10 @@ const fileManagerItemTemplate = function (itemData, itemIndex, itemElement) {
                                 DevExpress.ui.notify("No items selected", "warning", 2000);
                                 return;
                             }
-                            
+
                             let fileIds = selectedItems.filter(i => !i.dataItem.isDirectory).map(i => i.dataItem.id);
                             let folderIds = selectedItems.filter(i => i.dataItem.isDirectory).map(i => i.dataItem.id);
-                            
+
                             $("#move_file_ids").val(JSON.stringify(fileIds));
                             $("#move_folder_ids").val(JSON.stringify(folderIds));
                             $("#moveModal").modal("show");
@@ -920,7 +920,7 @@ const fileManagerItemTemplate = function (itemData, itemIndex, itemElement) {
                 fileManager.option("contextMenu.items[3].visible", canView);
                 fileManager.option("contextMenu.items[4].visible", canZip);
                 fileManager.option("contextMenu.items[5].visible", canExtract);
-                
+
                 let canMove = selectedItems.length > 0 &&
                     selectedItems.every(item =>
                         item.dataItem.permissions &&
@@ -965,12 +965,12 @@ const fileManagerItemTemplate = function (itemData, itemIndex, itemElement) {
                         canDeleteSelected && selectedItems.length > 0
                     );
                 }
-                
+
                 let canMoveSelected = selectedItems.length > 0 &&
                     selectedItems.every(item =>
                         item.dataItem?.permissions?.update === true
                     );
-                
+
                 const moveSelectedIndex = fileManager.option("toolbar.fileSelectionItems").findIndex(
                     item => item.name === "move-selected"
                 );
@@ -1461,9 +1461,9 @@ const fileManagerItemTemplate = function (itemData, itemIndex, itemElement) {
             headers: {
                 "X-CSRF-TOKEN": $('meta[name="csrf-token"]').attr("content"),
             },
-            xhr: function() {
+            xhr: function () {
                 const xhr = new window.XMLHttpRequest();
-                xhr.upload.addEventListener('progress', function(e) {
+                xhr.upload.addEventListener('progress', function (e) {
                     if (e.lengthComputable) {
                         const percentComplete = Math.round((e.loaded / e.total) * 100);
                         const progressBar = document.getElementById('folderUploadProgress');
@@ -1563,6 +1563,8 @@ const fileManagerItemTemplate = function (itemData, itemIndex, itemElement) {
             const form = e.target;
             const formData = new FormData();
 
+
+
             // Append folder_id manually (if applicable)
             formData.append(
                 "folder_id",
@@ -1580,7 +1582,7 @@ const fileManagerItemTemplate = function (itemData, itemIndex, itemElement) {
                 "input, select, textarea"
             );
             otherFields.forEach((field) => {
-                if (field.name !== "file[]") {
+                if (field.name !== "file[]" || field.name !== "send_email") {
                     formData.append(field.name, field.value);
                 }
             });
@@ -1645,11 +1647,14 @@ const fileManagerItemTemplate = function (itemData, itemIndex, itemElement) {
                 allowOutsideClick: false,
                 showConfirmButton: false
             });
+            if ($("#send_email").is(":checked")) {
+                   formData.append("send_email",1);        
+            }
 
             // Submit via XMLHttpRequest for progress tracking
             const xhr = new XMLHttpRequest();
-            
-            xhr.upload.addEventListener('progress', function(e) {
+
+            xhr.upload.addEventListener('progress', function (e) {
                 if (e.lengthComputable) {
                     const percentComplete = Math.round((e.loaded / e.total) * 100);
                     const progressBar = document.getElementById('uploadProgress');
@@ -1659,34 +1664,34 @@ const fileManagerItemTemplate = function (itemData, itemIndex, itemElement) {
                     }
                 }
             });
-            
-            xhr.onload = function() {
+
+            xhr.onload = function () {
                 const data = JSON.parse(xhr.responseText);
 
-                    Swal.close(); // Close loader
+                Swal.close(); // Close loader
 
-                    if (data.success) {
-                        Swal.fire({
-                            icon: "success",
-                            title: "Uploaded!",
-                            text: "Files uploaded successfully.",
-                            timer: 2000,
-                            showConfirmButton: false,
-                        });
+                if (data.success) {
+                    Swal.fire({
+                        icon: "success",
+                        title: "Uploaded!",
+                        text: "Files uploaded successfully.",
+                        timer: 2000,
+                        showConfirmButton: false,
+                    });
 
-                        $("#fileModal").modal("hide");
-                        fetchFileManagerData(); // Assuming this refreshes your file manager
-                        pond.removeFiles();
-                    } else {
-                        Swal.fire({
-                            icon: "error",
-                            title: "Upload Failed",
-                            text: data.message || "Unknown error occurred.",
-                        });
-                    }
+                    $("#fileModal").modal("hide");
+                    fetchFileManagerData(); // Assuming this refreshes your file manager
+                    pond.removeFiles();
+                } else {
+                    Swal.fire({
+                        icon: "error",
+                        title: "Upload Failed",
+                        text: data.message || "Unknown error occurred.",
+                    });
+                }
             };
-            
-            xhr.onerror = function() {
+
+            xhr.onerror = function () {
                 Swal.close();
                 Swal.fire({
                     icon: "error",
@@ -1694,7 +1699,7 @@ const fileManagerItemTemplate = function (itemData, itemIndex, itemElement) {
                     text: "An unexpected error occurred. Please try again.",
                 });
             };
-            
+
             xhr.open('POST', form.action);
             xhr.setRequestHeader('X-CSRF-TOKEN', document.querySelector('input[name="_token"]').value);
             xhr.send(formData);
@@ -1783,13 +1788,13 @@ const fileManagerItemTemplate = function (itemData, itemIndex, itemElement) {
     // Move form submission
     $("#moveForm").on("submit", function (e) {
         e.preventDefault();
-        
+
         let formData = {
             file_ids: JSON.parse($("#move_file_ids").val()),
             folder_ids: JSON.parse($("#move_folder_ids").val()),
             destination_folder_id: $("#destination_folder").val() || null,
         };
-        
+
         $.ajax({
             url: moveItemsRoute,
             method: "POST",
@@ -1820,11 +1825,11 @@ const fileManagerItemTemplate = function (itemData, itemIndex, itemElement) {
 
 // Function to check zip status and handle download
 function checkZipStatus(zipId) {
-    const statusInterval = setInterval(function() {
+    const statusInterval = setInterval(function () {
         $.ajax({
             url: `zip-status/${zipId}`,
             method: 'GET',
-            success: function(response) {
+            success: function (response) {
                 if (response.status === 'completed') {
                     clearInterval(statusInterval);
                     DevExpress.ui.notify({
@@ -1832,10 +1837,10 @@ function checkZipStatus(zipId) {
                         type: "success",
                         displayTime: 3000
                     });
-                    
+
                     // Start download
                     window.location.href = `download-zip/${zipId}`;
-                    
+
                 } else if (response.status === 'failed') {
                     clearInterval(statusInterval);
                     DevExpress.ui.notify({
@@ -1851,7 +1856,7 @@ function checkZipStatus(zipId) {
                     });
                 }
             },
-            error: function(xhr) {
+            error: function (xhr) {
                 clearInterval(statusInterval);
                 DevExpress.ui.notify({
                     message: "Failed to check zip status",
@@ -1861,9 +1866,9 @@ function checkZipStatus(zipId) {
             }
         });
     }, 3000); // Check every 3 seconds
-    
+
     // Stop checking after 5 minutes to prevent infinite polling
-    setTimeout(function() {
+    setTimeout(function () {
         clearInterval(statusInterval);
     }, 300000);
 }
