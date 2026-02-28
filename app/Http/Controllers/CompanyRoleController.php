@@ -42,6 +42,10 @@ class CompanyRoleController extends Controller implements HasMiddleware
                 ->editColumn('created_at', function ($item) {
                     return $item->created_at->format('Y-m-d H:i:s');
                 })
+                ->addColumn('assign_users', function ($role) {
+                    $count = CompanyUserRole::where('company_role_id', $role->id)->count();
+                    return '<span class="badge bg-primary">' . $count . ' Users</span>';
+                })
                 ->addColumn('action', function ($role) use ($currentUser) {
                     $actionButtons = '';
 
@@ -69,7 +73,7 @@ class CompanyRoleController extends Controller implements HasMiddleware
                         return $permission->module_name . ' - ' . $permission->name;
                     })->implode(', ');
                 })
-
+                ->rawColumns(['assign_users', 'action'])
                 ->make(true);
         }
 
@@ -216,47 +220,64 @@ class CompanyRoleController extends Controller implements HasMiddleware
             return redirect()->route('login');
         }
 
+        if (request()->ajax()) {
+            $assignedUserIds = CompanyUserRole::where('company_role_id', $id)->pluck('user_id')->toArray();
+            
+            $users = User::with('companies', 'companyRoles')
+                ->select(['id', 'name', 'email'])
+                ->whereHas('companies', function ($query) {
+                    $query->where('company_id', get_active_company());
+                })
+                ->where(function ($query) {
+                    $query->whereDoesntHave('companyRoles')
+                        ->orWhereHas('companyRoles', function ($q) {
+                            $q->where('role_name', '!=', 'Super Admin');
+                        });
+                });
+
+            return DataTables::of($users)->make(true);
+        }
+
         $assignedUserIds = CompanyUserRole::where('company_role_id', $id)->pluck('user_id')->toArray();
-        $users = User::with('companies', 'companyRoles')
-            ->select(['id', 'name', 'email', 'created_at'])
-            ->whereHas('companies', function ($query) {
-                $query->where('company_id', get_active_company());
-            })
-            ->where(function ($query) {
-                $query->whereDoesntHave('companyRoles')
-                    ->orWhereHas('companyRoles', function ($q) {
-                        $q->where('role_name', '!=', 'Super Admin');
-                    });
-            })
-            ->get();
 
         return view('app.role.user-assign', [
             'role' => $role,
-            'users' => $users,
             'assignedUserIds' => $assignedUserIds,
         ]);
     }
 
+    public function getAllUserIds($id)
+    {
+        $userIds = User::whereHas('companies', function ($query) {
+            $query->where('company_id', get_active_company());
+        })
+        ->where(function ($query) {
+            $query->whereDoesntHave('companyRoles')
+                ->orWhereHas('companyRoles', function ($q) {
+                    $q->where('role_name', '!=', 'Super Admin');
+                });
+        })
+        ->pluck('id')->toArray();
+
+        return response()->json(['user_ids' => $userIds]);
+    }
+
     public function userAssignStore(Request $request)
     {
-
         $request->validate([
             'role_id' => 'required|exists:company_roles,id',
-            'users' => 'nullable|array',
-            'users.*' => 'exists:users,id',
+            'users' => 'nullable|string',
         ]);
 
-
         $roleId = $request->input('role_id');
-        $userIds = $request->input('users');
+        $userIds = json_decode($request->input('users'), true) ?? [];
 
-        // Remove existing role assignments for the specified users
         CompanyUserRole::where('company_role_id', $roleId)->delete();
 
-        // Assign the new role to the specified users
         if (empty($userIds)) {
             return redirect()->route('companyrole.index')->with('success', 'Users unassigned from role successfully.');
         }
+
         $assignments = [];
         foreach ($userIds as $userId) {
             $assignments[] = [

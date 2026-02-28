@@ -28,7 +28,7 @@ class File extends Model
     protected static function booted()
     {
         static::addGlobalScope('item_index', function ($query) {
-            $query->orderBy('item_index', 'desc');
+            $query->orderBy('item_index', 'desc')->orderBy('file_name', 'asc');
         });
     }
 

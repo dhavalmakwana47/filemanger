@@ -221,7 +221,13 @@
     ]" />
 
     <div class="app-content">
-        <div class="d-flex justify-content-end mb-3">
+        <div class="d-flex justify-content-between align-items-center m-3">
+            <div class="text-muted">
+                @if (current_user()->is_master_admin() || current_user()->is_super_admin())
+                    <i class="fas fa-hdd me-2"></i>
+                    <strong>Space:</strong> {{ $totalSpace}} MB / <strong>Used:</strong> {{ $usedSpace }} MB
+                @endif
+            </div>
             <a href="{{ route('filemanger.data', ['is_download' => true]) }}" class="btn btn-primary" id="downloadTreeBtn">
                 <i class="fas fa-download me-2"></i>Download Tree
             </a>

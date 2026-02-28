@@ -24,6 +24,7 @@ use Illuminate\Support\Str;
 use Maatwebsite\Excel\Facades\Excel;
 use Illuminate\Support\Facades\Validator;
 use Illuminate\Support\Facades\Hash;
+use Maatwebsite\Excel\HeadingRowImport;
 
 class UserController extends Controller implements HasMiddleware
 {
@@ -43,8 +44,7 @@ class UserController extends Controller implements HasMiddleware
         $currentUser = current_user();
         if (request()->ajax()) {
 
-            // If the user is not a master admin, select users associated with the active company
-            $users = User::with('companies', 'companyRoles', 'companyUser')
+            $query = User::with('companies', 'companyRoles', 'companyUser')
                 ->select(['id', 'name', 'email', 'created_at', 'is_active'])
                 ->whereHas('companies', function ($query) {
                     $query->where('company_id', get_active_company());
@@ -54,8 +54,15 @@ class UserController extends Controller implements HasMiddleware
                         ->orWhereHas('companyRoles', function ($q) {
                             $q->where('role_name', '!=', 'Super Admin');
                         });
-                })
-                ->get();
+                });
+
+            if ($request->filled('status')) {
+                $query->whereHas('companyUser', function($q) use ($request) {
+                    $q->where('is_active', $request->status);
+                });
+            }
+
+            $users = $query->get();
 
 
             return DataTables::of($users)
@@ -186,10 +193,26 @@ class UserController extends Controller implements HasMiddleware
                 \Log::error('Failed to send registration email: ' . $e->getMessage());
             }
 
+            // Check if request is AJAX
+            if ($request->ajax()) {
+                return response()->json([
+                    'status' => 'success',
+                    'message' => 'User created successfully.'
+                ]);
+            }
+
             return redirect()->route('users.index')->with('success', 'User created successfully.');
         } catch (\Exception $e) {
             DB::rollBack();
             \Log::error('Failed to create user: ' . $e->getMessage());
+            
+            if ($request->ajax()) {
+                return response()->json([
+                    'status' => 'error',
+                    'message' => 'Failed to create user. Please try again.'
+                ], 500);
+            }
+            
             return redirect()->back()->withErrors('Failed to create user. Please try again.');
         }
     }
@@ -308,25 +331,32 @@ class UserController extends Controller implements HasMiddleware
             'file' => 'required|mimes:csv,txt|max:2048',
         ]);
 
+        set_time_limit(300); // 5 minutes
+        ini_set('memory_limit', '512M');
+
         try {
-            // Get uploaded file instance
             $uploadedFile = $request->file('file');
             $fileName = $uploadedFile->getClientOriginalName();
+            $import = new UserImport($request);
 
-            // Import the CSV file using Laravel Excel
-            Excel::import(new UserImport($request), $uploadedFile);
+            Excel::import($import, $uploadedFile);
 
-            // Fetch role names
             $roles = CompanyRole::whereIn('id', $request->role ?? [])->pluck('role_name')->toArray();
             $roleNames = !empty($roles) ? implode(', ', $roles) : 'No Roles Assigned';
 
-            // Log user action
             addUserAction([
                 'user_id' => Auth::id(),
                 'action'  => "Import file '{$fileName}' successfully uploaded. Users assigned with roles: {$roleNames}"
             ]);
 
-            return redirect()->back()->with('success', 'Users imported successfully.');
+            $skippedEmails = $import->getSkippedEmails();
+            $message = 'Users imported successfully.';
+            
+            if (!empty($skippedEmails)) {
+                $message .= ' Skipped emails (already exist): ' . implode(', ', $skippedEmails);
+            }
+
+            return redirect()->back()->with('success', $message);
         } catch (\Exception $e) {
             return redirect()->back()->with('error', 'Error importing users: ' . $e->getMessage());
         }
@@ -563,6 +593,44 @@ class UserController extends Controller implements HasMiddleware
         return response()->json([
             'status' => 'success',
             'message' => count($userIds) . ' user(s) deleted from this company successfully.'
+        ]);
+    }
+
+    public function activateAll()
+    {
+        $activeCompanyId = get_active_company();
+        
+        $count = CompanyUser::where('company_id', $activeCompanyId)
+            ->where('is_active', 0)
+            ->update(['is_active' => 1]);
+
+        addUserAction([
+            'user_id' => Auth::id(),
+            'action' => "Activated all users: {$count} user(s) activated"
+        ]);
+
+        return response()->json([
+            'status' => 'success',
+            'message' => "{$count} user(s) activated successfully."
+        ]);
+    }
+
+    public function deactivateAll()
+    {
+        $activeCompanyId = get_active_company();
+        
+        $count = CompanyUser::where('company_id', $activeCompanyId)
+            ->where('is_active', 1)
+            ->update(['is_active' => 0]);
+
+        addUserAction([
+            'user_id' => Auth::id(),
+            'action' => "Deactivated all users: {$count} user(s) deactivated"
+        ]);
+
+        return response()->json([
+            'status' => 'success',
+            'message' => "{$count} user(s) deactivated successfully."
         ]);
     }
 }

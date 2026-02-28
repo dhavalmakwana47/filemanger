@@ -118,12 +118,13 @@ $(function () {
                             caption: "File/Folder",
                             with: 300,
                         },
-                        // {
-                        //     dataField: "dateModified",
-                        //     caption: "Date of Creation",
-                        //     dataType: "datetime",
-                        //     format: "dd/MM/yyyy HH:mm:ss",
-                        // },
+                        {
+                            dataField: "dateModified",
+                            caption: "Date & Time",
+                            dataType: "datetime",
+                            format: "dd/MM/yyyy HH:mm:ss",
+                            width: 150,
+                        },
                         // "size",
                         {
                             dataField: "owner", // your custom field
@@ -138,7 +139,7 @@ $(function () {
                     {
                         name: "rename-folder",
                         icon: "",
-                        html: "<i class='dx-icon dx-icon-rename'></i><span class='dx-button-rename'>Assign</span>",
+                        html: "<i class='dx-icon dx-icon-rename'></i><span class='dx-button-rename'>Assign & Edit</span>",
                         visible: true,
                         onClick: function (e) {
                             renameFolder(e);
@@ -1335,87 +1336,179 @@ $(function () {
     }
 
     FilePond.registerPlugin(FilePondPluginFileValidateType);
+    let invalidFiles = [];
+    let skippedFiles = [];
+    let validationTimeout = null;
+    let validationLoader = null;
+
     const folderPond = FilePond.create(
         document.querySelector("#folder-upload"),
         {
             allowMultiple: true,
             allowDirectoryDrop: true,
-            allowDrop: false, // Disable drag-and-drop
+            allowDrop: true,
             labelIdle: 'Select Folder <span class="filepond--label-action">Browse</span>',
-            fileValidateTypeDetectType: (source, type) => new Promise((resolve, reject) => {
-                if (source.size === 0) {
-                    reject(new Error('File is empty (0 KB)'));
-                    return;
-                }
-                resolve(type);
-            }),
-            acceptedFileTypes: [
-                "image/png",
-                "image/jpeg",
-                "image/gif",
-                "application/pdf",
-                "application/msword",
-                "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
-                "application/zip",
-                "application/x-zip-compressed",
-                "text/csv",
-                "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-                "text/plain",
-                "application/x-rar-compressed",
-                "application/vnd.rar",
-                "image/tiff",
-                "image/tif",
-                "application/rtf",
-                "application/vnd.ms-excel",
-                "application/vnd.ms-powerpoint",
-                "application/vnd.openxmlformats-officedocument.presentationml.presentation",
-                "video/mp4",
-                "video/quicktime",
-                "video/x-ms-wmv",
-                "video/x-matroska",
-                "video/mpeg",
-                "audio/mpeg",
-                "audio/wav",
-                "audio/aac",
-                "audio/mp4",
-                "audio/x-m4a",
-                "application/acad",
-                "application/x-acad",
-                "application/autocad_dwg",
-                "application/dwg",
-                "application/x-dwg",
-                "application/x-autocad",
-                "drawing/dwg",
-                "image/vnd.dwg",
-                "image/x-dwg",
-                "application/x-7z-compressed"
-            ],
+            allowFileTypeValidation: false,
             server: {
                 process: null,
             },
-            onaddfile: (error, file) => {
-                if (error) {
-                    console.warn("Skipped file:", file.filename, "Reason:", error.message);
+            onaddfilestart: (file) => {
+                console.log('File processing started:', file.file.name);
+                // Show loader immediately when files start being added
+                if (!validationLoader) {
+                    validationLoader = Swal.fire({
+                        title: "Processing Files...",
+                        text: "Please wait while we process your folder.",
+                        allowOutsideClick: false,
+                        showConfirmButton: false,
+                        didOpen: () => {
+                            Swal.showLoading();
+                        }
+                    });
+                }
+            },
+            onprocessfiles: () => {
+                console.log('All files processed');
+                if (validationLoader) {
+                    Swal.close();
+                    validationLoader = null;
+                }
+                if (invalidFiles.length > 0) {
+                    const fileList = invalidFiles.map(path => `• ${path}`).join('<br>');
                     Swal.fire({
                         icon: "warning",
-                        title: "Upload Error",
-                        text: `Skipped ${file.filename}: ${error.message || 'File type not allowed or empty file'}`,
+                        title: "Invalid File Types",
+                        html: `<div style="text-align: left;"><p>The following <strong>${invalidFiles.length}</strong> file(s) have invalid types and will be skipped:</p><div style="max-height: 400px; overflow-y: auto; margin: 10px 0; padding: 10px; background: #f8f9fa; border-radius: 5px; font-family: monospace; font-size: 12px;">${fileList}</div></div>`,
                         confirmButtonText: "OK",
                         confirmButtonColor: "#3085d6",
+                        width: '700px'
                     });
-                    return;
+                    invalidFiles = [];
                 }
+            },
+            onaddfile: (error, file) => {
+                console.log('File added:', file.file.name, error ? 'with error' : 'successfully');
+                // Close loader after all files are processed
+                setTimeout(() => {
+                    if (validationLoader) {
+                        console.log('Closing validation loader after file processing');
+                        Swal.close();
+                        validationLoader = null;
+                    }
+                }, 500);
+            },
+            beforeAddFile: (item) => {
+                const fileName = item.file.name.toLowerCase();
+                const filePath = item.file.webkitRelativePath || item.file.name;
+                console.log('Processing file:', fileName, 'Path:', filePath);
+                
+                // Files to skip completely (don't show in invalid files list)
+                const skipFiles = [
+                    '.gitignore', '.git/', 'node_modules/', '.DS_Store', 'thumbs.db',
+                    '.vscode/', '.idea/', '*.tmp', '*.temp', '*.log', '*.cache'
+                ];
+                
+                // Check if file should be skipped
+                const shouldSkip = skipFiles.some(pattern => {
+                    if (pattern.endsWith('/')) {
+                        return filePath.includes(pattern);
+                    }
+                    if (pattern.startsWith('*')) {
+                        return fileName.endsWith(pattern.substring(1));
+                    }
+                    return fileName === pattern || filePath.endsWith('/' + pattern);
+                });
+                
+                if (shouldSkip) {
+                    console.log('Skipping file:', fileName);
+                    skippedFiles.push(filePath);
+                    // Close loader if all files are being skipped
+                    setTimeout(() => {
+                        if (validationLoader && folderPond.getFiles().length === 0) {
+                            console.log('All files skipped, closing loader');
+                            Swal.close();
+                            validationLoader = null;
+                            
+                            // Show skipped files alert
+                            if (skippedFiles.length > 0) {
+                                const fileList = skippedFiles.map(path => `• ${path}`).join('<br>');
+                                Swal.fire({
+                                    icon: "info",
+                                    title: "Files Skipped",
+                                    html: `<div style="text-align: left;"><p>The following <strong>${skippedFiles.length}</strong> file(s) were skipped (system files):</p><div style="max-height: 400px; overflow-y: auto; margin: 10px 0; padding: 10px; background: #f8f9fa; border-radius: 5px; font-family: monospace; font-size: 12px;">${fileList}</div></div>`,
+                                    confirmButtonText: "OK",
+                                    confirmButtonColor: "#3085d6",
+                                    width: '700px'
+                                });
+                                skippedFiles = [];
+                            }
+                        }
+                    }, 1000);
+                    return false; // Skip silently
+                }
+
+                const allowedTypes = [
+                    "image/png", "image/jpeg", "image/gif", "application/pdf", "application/msword",
+                    "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+                    "application/zip", "application/x-zip-compressed", "text/csv",
+                    "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+                    "text/plain", "application/x-rar-compressed", "application/vnd.rar",
+                    "image/tiff", "image/tif", "application/rtf", "application/vnd.ms-excel",
+                    "application/vnd.ms-powerpoint", "application/vnd.openxmlformats-officedocument.presentationml.presentation",
+                    "video/mp4", "video/quicktime", "video/x-ms-wmv", "video/x-matroska", "video/mpeg",
+                    "audio/mpeg", "audio/wav", "audio/aac", "audio/mp4", "audio/x-m4a",
+                    "application/acad", "application/x-acad", "application/autocad_dwg", "application/dwg",
+                    "application/x-dwg", "application/x-autocad", "drawing/dwg", "image/vnd.dwg",
+                    "image/x-dwg", "application/x-7z-compressed"
+                ];
+                
+                // Allow special config files
+                const allowedSpecialFiles = [];
+                
+                const isSpecialFile = allowedSpecialFiles.some(special => 
+                    fileName === special || fileName.endsWith(special)
+                );
+                
+                if (!allowedTypes.includes(item.file.type) && !isSpecialFile) {
+                    console.log('Invalid file type:', fileName, 'Type:', item.file.type);
+                    invalidFiles.push(filePath);
+                    
+                    clearTimeout(validationTimeout);
+                    validationTimeout = setTimeout(() => {
+                        if (invalidFiles.length > 0) {
+                            // Close validation loader
+                            if (validationLoader) {
+                                Swal.close();
+                                validationLoader = null;
+                            }
+                            
+                            const fileList = invalidFiles.map(path => `• ${path}`).join('<br>');
+                            
+                            Swal.fire({
+                                icon: "warning",
+                                title: "Invalid File Types",
+                                html: `<div style="text-align: left;"><p>The following <strong>${invalidFiles.length}</strong> file(s) have invalid types and will be skipped:</p><div style="max-height: 400px; overflow-y: auto; margin: 10px 0; padding: 10px; background: #f8f9fa; border-radius: 5px; font-family: monospace; font-size: 12px;">${fileList}</div></div>`,
+                                confirmButtonText: "OK",
+                                confirmButtonColor: "#3085d6",
+                                width: '700px'
+                            });
+                            invalidFiles = [];
+                        }
+                    }, 500);
+                    
+                    return false;
+                }
+                
+                console.log('Valid file accepted:', fileName);
+                return true;
             },
         }
     );
-    // Handle form submission
+    // Handle form submission with batch upload and live progress
     $("#folderuploadForm").on("submit", function (e) {
         e.preventDefault();
-        const $form = $(this);
-        const formData = new FormData($form[0]);
-
-        // Append FilePond files and paths
         const files = folderPond.getFiles();
+        
         if (files.length === 0) {
             Swal.fire({
                 icon: "warning",
@@ -1423,85 +1516,117 @@ $(function () {
                 text: "Please add files of allowed types.",
                 confirmButtonColor: "#3085d6",
             });
-            return;
+            return false;
         }
-        $.each(files, function (index, fileItem) {
-            formData.append(`files[${index}]`, fileItem.file);
-            formData.append(
-                `file_paths[${index}]`,
-                fileItem.file.webkitRelativePath || fileItem.filename
-            );
-        });
 
-        // Append folder_id
-        formData.append(
-            "folder_id",
-            fileManager.getCurrentDirectory().dataItem?.id || ""
-        );
-        // Show progress alert
+        const BATCH_SIZE = 15;
+        const batches = [];
+        
+        for (let i = 0; i < files.length; i += BATCH_SIZE) {
+            batches.push(files.slice(i, i + BATCH_SIZE));
+        }
+
         Swal.fire({
             title: "Uploading Folder...",
             html: `
-                <p>Please wait while your folder is being uploaded.</p>
+                <p>Uploading ${files.length} files in ${batches.length} batch(es)...</p>
                 <div class="progress mt-3">
                     <div class="progress-bar" role="progressbar" style="width: 0%" id="folderUploadProgress">0%</div>
                 </div>
-                <small class="mt-2 d-block">This may take a few minutes depending on your folder size and internet speed.</small>
+                <small class="mt-2 d-block" id="folderUploadStatus">Preparing upload...</small>
             `,
             allowOutsideClick: false,
             showConfirmButton: false
         });
-        // AJAX request with progress
-        $.ajax({
-            url: $form.attr("action"),
-            type: "POST",
-            data: formData,
-            processData: false,
-            contentType: false,
-            headers: {
-                "X-CSRF-TOKEN": $('meta[name="csrf-token"]').attr("content"),
-            },
-            xhr: function () {
-                const xhr = new window.XMLHttpRequest();
-                xhr.upload.addEventListener('progress', function (e) {
-                    if (e.lengthComputable) {
-                        const percentComplete = Math.round((e.loaded / e.total) * 100);
-                        const progressBar = document.getElementById('folderUploadProgress');
-                        if (progressBar) {
-                            progressBar.style.width = percentComplete + '%';
-                            progressBar.textContent = percentComplete + '%';
-                        }
+
+        let completedBatches = 0;
+        const uploadBatch = (batchIndex) => {
+            const batch = batches[batchIndex];
+            const formData = new FormData();
+            
+            batch.forEach((fileItem, index) => {
+                formData.append(`files[${index}]`, fileItem.file);
+                formData.append(`file_paths[${index}]`, fileItem.file.webkitRelativePath || fileItem.filename);
+            });
+            
+            formData.append("folder_id", fileManager.getCurrentDirectory().dataItem?.id || "");
+            formData.append("batch_index", batchIndex);
+            formData.append("total_batches", batches.length);
+
+            const xhr = new XMLHttpRequest();
+            
+            xhr.upload.addEventListener('progress', function(e) {
+                if (e.lengthComputable) {
+                    const batchProgress = Math.round((e.loaded / e.total) * 100);
+                    const overallProgress = Math.round(((completedBatches + (e.loaded / e.total)) / batches.length) * 100);
+                    const progressBar = document.getElementById('folderUploadProgress');
+                    const statusText = document.getElementById('folderUploadStatus');
+                    
+                    if (progressBar) {
+                        progressBar.style.width = overallProgress + '%';
+                        progressBar.textContent = overallProgress + '%';
                     }
-                });
-                return xhr;
-            },
-            success: function (response) {
-                Swal.fire({
-                    icon: "success",
-                    title: "Upload Successful!",
-                    text: response.message,
-                    confirmButtonColor: "#3085d6",
-                });
-                folderPond.removeFiles();
-                $("#folderUploadModalModal").modal("hide");
-                fetchFileManagerData();
-            },
-            error: function (xhr) {
-                console.error("Error uploading files:", xhr.responseText);
-                let errorMsg = "Upload failed. Please try again.";
-                if (xhr.responseJSON && xhr.responseJSON.errors) {
-                    errorMsg = Object.values(xhr.responseJSON.errors).join(
-                        "\n"
-                    );
+                    if (statusText) {
+                        statusText.textContent = `Batch ${batchIndex + 1}/${batches.length}: ${batchProgress}%`;
+                    }
                 }
+            });
+            
+            xhr.onload = function() {
+                const response = JSON.parse(xhr.responseText);
+                
+                if (response.success || xhr.status === 200) {
+                    completedBatches++;
+                    const progress = Math.round((completedBatches / batches.length) * 100);
+                    const progressBar = document.getElementById('folderUploadProgress');
+                    const statusText = document.getElementById('folderUploadStatus');
+                    
+                    if (progressBar) {
+                        progressBar.style.width = progress + '%';
+                        progressBar.textContent = progress + '%';
+                    }
+                    if (statusText) {
+                        statusText.textContent = `Completed batch ${completedBatches}/${batches.length}`;
+                    }
+                    
+                    if (completedBatches < batches.length) {
+                        uploadBatch(completedBatches);
+                    } else {
+                        Swal.fire({
+                            icon: "success",
+                            title: "Upload Successful!",
+                            text: "Folder uploaded successfully!",
+                            confirmButtonColor: "#3085d6",
+                        });
+                        folderPond.removeFiles();
+                        $("#folderUploadModalModal").modal("hide");
+                        fetchFileManagerData();
+                    }
+                } else {
+                    Swal.fire({
+                        icon: "error",
+                        title: "Upload Failed",
+                        text: "Upload failed at batch " + (batchIndex + 1) + ". Please try again.",
+                        confirmButtonColor: "#d33",
+                    });
+                }
+            };
+            
+            xhr.onerror = function() {
                 Swal.fire({
                     icon: "error",
                     title: "Upload Failed",
-                    text: errorMsg,
+                    text: "Upload failed at batch " + (batchIndex + 1) + ". Please try again.",
                     confirmButtonColor: "#d33",
                 });
-            },
-        });
+            };
+
+            xhr.open('POST', $("#folderuploadForm").attr("action"));
+            xhr.setRequestHeader('X-CSRF-TOKEN', $('meta[name="csrf-token"]').attr("content"));
+            xhr.send(formData);
+        };
+        
+        uploadBatch(0);
     });
 
     // Create FilePond instance
@@ -1554,41 +1679,15 @@ $(function () {
         },
     });
 
-    // Handle form submission with pre-upload validation
+    // Handle form submission with batch upload for files
     document
         .querySelector("#fileForm")
         .addEventListener("submit", function (e) {
             e.preventDefault();
 
             const form = e.target;
-            const formData = new FormData();
-
-
-
-            // Append folder_id manually (if applicable)
-            formData.append(
-                "folder_id",
-                fileManager.getCurrentDirectory().dataItem?.id || ""
-            );
-
-            // Append CSRF token
-            formData.append(
-                "_token",
-                document.querySelector('input[name="_token"]').value
-            );
-
-            // Append other form fields (e.g., permissions from filepermissions partial)
-            const otherFields = form.querySelectorAll(
-                "input, select, textarea"
-            );
-            otherFields.forEach((field) => {
-                if (field.name !== "file[]" || field.name !== "send_email") {
-                    formData.append(field.name, field.value);
-                }
-            });
-
-            // Pre-upload check: Ensure at least one valid file is selected
             const files = pond.getFiles();
+            
             if (files.length === 0) {
                 Swal.fire({
                     icon: "warning",
@@ -1598,23 +1697,17 @@ $(function () {
                 return;
             }
 
-            // Validate files before appending to formData
+            // Validate files before upload
             const allowedExtensions = [
-                // Images
                 ".png", ".jpg", ".jpeg", ".gif", ".tiff", ".tif",
-                // Documents
                 ".pdf", ".doc", ".docx", ".rtf",
                 ".xls", ".xlsx", ".csv",
                 ".ppt", ".pptx", ".txt",
-                // Video
                 ".mp4", ".mov", ".wmv", ".mkv", ".mpeg", ".mpg",
-                // Audio
                 ".mp3", ".wav", ".aac", ".m4a",
-                // CAD
-                ".dwg",
-                // Archives
-                ".zip", ".rar", ".7z"
+                ".dwg", ".zip", ".rar", ".7z"
             ];
+            
             const invalidFiles = files.filter((fileItem) => {
                 const fileName = fileItem.file.name.toLowerCase();
                 return !allowedExtensions.some((ext) => fileName.endsWith(ext));
@@ -1629,80 +1722,104 @@ $(function () {
                 return;
             }
 
-            // Append valid files to formData
-            files.forEach((fileItem) => {
-                formData.append("file[]", fileItem.file);
-            });
+            const BATCH_SIZE = 15; // Safe limit under PHP's default max_file_uploads=20
+            const batches = [];
+            
+            // Split files into batches
+            for (let i = 0; i < files.length; i += BATCH_SIZE) {
+                batches.push(files.slice(i, i + BATCH_SIZE));
+            }
 
-            // Show progress alert
             Swal.fire({
-                title: "Uploading...",
+                title: "Uploading Files...",
                 html: `
-                    <p>Please wait while your files are being uploaded.</p>
+                    <p>Uploading ${files.length} files in ${batches.length} batch(es)...</p>
                     <div class="progress mt-3">
-                        <div class="progress-bar" role="progressbar" style="width: 0%" id="uploadProgress">0%</div>
+                        <div class="progress-bar" role="progressbar" style="width: 0%" id="fileUploadProgress">0%</div>
                     </div>
-                    <small class="mt-2 d-block">This may take a few minutes depending on your file size and internet speed.</small>
                 `,
                 allowOutsideClick: false,
                 showConfirmButton: false
             });
-            if ($("#send_email").is(":checked")) {
-                   formData.append("send_email",1);        
-            }
 
-            // Submit via XMLHttpRequest for progress tracking
-            const xhr = new XMLHttpRequest();
-
-            xhr.upload.addEventListener('progress', function (e) {
-                if (e.lengthComputable) {
-                    const percentComplete = Math.round((e.loaded / e.total) * 100);
-                    const progressBar = document.getElementById('uploadProgress');
-                    if (progressBar) {
-                        progressBar.style.width = percentComplete + '%';
-                        progressBar.textContent = percentComplete + '%';
+            let completedBatches = 0;
+            const uploadBatch = (batchIndex) => {
+                const batch = batches[batchIndex];
+                const formData = new FormData();
+                
+                // Append files
+                batch.forEach((fileItem, index) => {
+                    formData.append(`file[${index}]`, fileItem.file);
+                });
+                
+                // Append other form fields
+                formData.append("folder_id", fileManager.getCurrentDirectory().dataItem?.id || "");
+                formData.append("_token", document.querySelector('input[name="_token"]').value);
+                
+                const otherFields = form.querySelectorAll("input, select, textarea");
+                otherFields.forEach((field) => {
+                    if (field.name !== "file[]" && field.name !== "_token") {
+                        formData.append(field.name, field.value);
                     }
+                });
+                
+                if ($("#send_email").is(":checked")) {
+                    formData.append("send_email", 1);
                 }
-            });
+                
+                formData.append("batch_index", batchIndex);
+                formData.append("total_batches", batches.length);
 
-            xhr.onload = function () {
-                const data = JSON.parse(xhr.responseText);
-
-                Swal.close(); // Close loader
-
-                if (data.success) {
-                    Swal.fire({
-                        icon: "success",
-                        title: "Uploaded!",
-                        text: "Files uploaded successfully.",
-                        timer: 2000,
-                        showConfirmButton: false,
-                    });
-
-                    $("#fileModal").modal("hide");
-                    fetchFileManagerData(); // Assuming this refreshes your file manager
-                    pond.removeFiles();
-                } else {
+                const xhr = new XMLHttpRequest();
+                
+                xhr.onload = function () {
+                    const data = JSON.parse(xhr.responseText);
+                    
+                    if (data.success) {
+                        completedBatches++;
+                        const progress = Math.round((completedBatches / batches.length) * 100);
+                        const progressBar = document.getElementById('fileUploadProgress');
+                        if (progressBar) {
+                            progressBar.style.width = progress + '%';
+                            progressBar.textContent = progress + '%';
+                        }
+                        
+                        if (completedBatches < batches.length) {
+                            uploadBatch(completedBatches);
+                        } else {
+                            Swal.fire({
+                                icon: "success",
+                                title: "Upload Successful!",
+                                text: "Files uploaded successfully!",
+                                confirmButtonColor: "#3085d6",
+                            });
+                            $("#fileModal").modal("hide");
+                            fetchFileManagerData();
+                            pond.removeFiles();
+                        }
+                    } else {
+                        Swal.fire({
+                            icon: "error",
+                            title: "Upload Failed",
+                            text: data.message || "Upload failed at batch " + (batchIndex + 1),
+                        });
+                    }
+                };
+                
+                xhr.onerror = function () {
                     Swal.fire({
                         icon: "error",
                         title: "Upload Failed",
-                        text: data.message || "Unknown error occurred.",
+                        text: "Upload failed at batch " + (batchIndex + 1) + ". Please try again.",
                     });
-                }
-            };
+                };
 
-            xhr.onerror = function () {
-                Swal.close();
-                Swal.fire({
-                    icon: "error",
-                    title: "Unexpected Error",
-                    text: "An unexpected error occurred. Please try again.",
-                });
+                xhr.open('POST', form.action);
+                xhr.setRequestHeader('X-CSRF-TOKEN', document.querySelector('input[name="_token"]').value);
+                xhr.send(formData);
             };
-
-            xhr.open('POST', form.action);
-            xhr.setRequestHeader('X-CSRF-TOKEN', document.querySelector('input[name="_token"]').value);
-            xhr.send(formData);
+            
+            uploadBatch(0);
         });
     $("#createFolderForm").on("submit", function (e) {
         e.preventDefault();

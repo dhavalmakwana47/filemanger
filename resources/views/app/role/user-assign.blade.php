@@ -1,26 +1,16 @@
 @extends('app.layouts.layout')
 
 @push('styles')
-    <link rel="stylesheet" href="{{ asset('select2.min.css') }}">
-
+    <link rel="stylesheet" href="https://cdn.datatables.net/1.13.5/css/dataTables.bootstrap4.min.css" />
     <style>
-        /* Custom styles */
         .form-group {
             margin-bottom: 1.5rem;
-        }
-
-        .form-control {
-            width: 100%;
-        }
-
-        .text-danger {
-            font-size: 0.875rem;
         }
     </style>
 @endpush
 
 @section('content')
-    <x-app-breadcrumb title="Role" :breadcrumbs="[['name' => 'Home', 'url' => route('companyrole.index')], ['name' => 'Create']]" />
+    <x-app-breadcrumb title="Role" :breadcrumbs="[['name' => 'Home', 'url' => route('companyrole.index')], ['name' => 'Assign Users']]" />
     <div class="app-content">
         <div class="container-fluid">
             <div class="card">
@@ -28,44 +18,30 @@
                     <h4>Assign Users to Role - {{ $role->role_name }}</h4>
                 </div>
                 <div class="card-body">
-
-                    {{-- 🔴 Show errors on top --}}
-                    @if ($errors->any())
-                        <div class="alert alert-danger">
-                            <ul class="mb-0">
-                                @foreach ($errors->all() as $error)
-                                    <li>{{ $error }}</li>
-                                @endforeach
-                            </ul>
-                        </div>
-                    @endif
-
-                    <form action="{{ route('companyrole.usersassignstore') }}" method="POST">
+                    <form id="assignUsersForm" action="{{ route('companyrole.usersassignstore') }}" method="POST">
                         @csrf
                         <input type="hidden" name="role_id" value="{{ $role->id }}">
+                        <input type="hidden" name="users" id="selectedUsers" value="">
 
-                        <div class="form-group">
-                            <div class="d-flex justify-content-between align-items-center mb-2">
-                                <label for="users">Select Users</label>
-                                <div class="form-check">
-                                    <input type="checkbox" class="form-check-input" id="selectAllUsers">
-                                    <label class="form-check-label" for="selectAllUsers">Select All</label>
-                                </div>
-                            </div>
-                            <select name="users[]" id="users" class="form-control" multiple>
-                                @foreach ($users as $user)
-                                    <option value="{{ $user->id }}"
-                                        {{ in_array($user->id, $assignedUserIds) ? 'selected' : '' }}>
-                                        {{ $user->name }} ({{ $user->email }})
-                                    </option>
-                                @endforeach
-                            </select>
-
-                            @error('users')
-                                <span class="text-danger">{{ $message }}</span>
-                            @enderror
+                        <div class="mb-3">
+                            <button type="button" class="btn btn-sm btn-primary" id="selectAllBtn">Select All</button>
+                            <button type="button" class="btn btn-sm btn-secondary" id="deselectAllBtn">Deselect All</button>
+                            <span class="ms-3" id="selectedCount">0 users selected</span>
                         </div>
-                        <button type="submit" class="btn btn-primary">Assign Users</button>
+
+                        <table id="users-table" class="table table-bordered table-striped">
+                            <thead>
+                                <tr>
+                                    <th width="5%">
+                                        <input type="checkbox" id="selectAllCheckbox">
+                                    </th>
+                                    <th>Name</th>
+                                    <th>Email</th>
+                                </tr>
+                            </thead>
+                        </table>
+
+                        <button type="submit" class="btn btn-primary mt-3">Assign Users</button>
                     </form>
                 </div>
             </div>
@@ -74,47 +50,93 @@
 @endsection
 
 @push('scripts')
-    <script src="{{ asset('select2.full.min.js') }}"></script>
+    <script src="https://cdn.datatables.net/1.13.5/js/jquery.dataTables.min.js"></script>
+    <script src="https://cdn.datatables.net/1.13.5/js/dataTables.bootstrap4.min.js"></script>
 
     <script>
         $(document).ready(function() {
-            // Initialize Select2
-            const $usersSelect = $('#users');
-            $usersSelect.select2({
-                placeholder: "Search and select users...",
-                allowClear: true,
-                width: '100%',
-                closeOnSelect: false
-            });
+            const assignedUserIds = @json($assignedUserIds);
+            let selectedUsers = new Set(assignedUserIds);
 
-            // Handle Select All functionality
-            $('#selectAllUsers').on('change', function() {
-                if ($(this).is(':checked')) {
-                    $usersSelect.find('option').prop('selected', true);
-                } else {
-                    $usersSelect.val(null);
+            const table = $('#users-table').DataTable({
+                processing: true,
+                serverSide: true,
+                ajax: '{{ route('companyrole.usersassign', $role->id) }}',
+                columns: [
+                    {
+                        data: 'id',
+                        orderable: false,
+                        searchable: false,
+                        render: function(data) {
+                            const checked = selectedUsers.has(data) ? 'checked' : '';
+                            return `<input type="checkbox" class="user-checkbox" value="${data}" ${checked}>`;
+                        }
+                    },
+                    { data: 'name', name: 'name' },
+                    { data: 'email', name: 'email' }
+                ],
+                pageLength: 25,
+                drawCallback: function() {
+                    updateSelectedCount();
                 }
-                $usersSelect.trigger('change');
             });
 
-            // Update Select All checkbox when selection changes
-            $usersSelect.on('change', function() {
-                const allSelected = $usersSelect.find('option').length === $usersSelect.find('option:selected').length;
-                $('#selectAllUsers').prop('checked', allSelected);
+            // Handle individual checkbox
+            $(document).on('change', '.user-checkbox', function() {
+                const userId = parseInt($(this).val());
+                if ($(this).is(':checked')) {
+                    selectedUsers.add(userId);
+                } else {
+                    selectedUsers.delete(userId);
+                }
+                updateSelectedCount();
             });
+
+            // Select all on current page
+            $('#selectAllCheckbox').on('change', function() {
+                const isChecked = $(this).is(':checked');
+                $('.user-checkbox').each(function() {
+                    const userId = parseInt($(this).val());
+                    $(this).prop('checked', isChecked);
+                    if (isChecked) {
+                        selectedUsers.add(userId);
+                    } else {
+                        selectedUsers.delete(userId);
+                    }
+                });
+                updateSelectedCount();
+            });
+
+            // Select all users (all pages)
+            $('#selectAllBtn').on('click', function() {
+                $.ajax({
+                    url: '{{ route('companyrole.getalluserids', $role->id) }}',
+                    success: function(data) {
+                        selectedUsers = new Set(data.user_ids);
+                        table.draw(false);
+                        updateSelectedCount();
+                    }
+                });
+            });
+
+            // Deselect all
+            $('#deselectAllBtn').on('click', function() {
+                selectedUsers.clear();
+                table.draw(false);
+                updateSelectedCount();
+            });
+
+            // Update count
+            function updateSelectedCount() {
+                $('#selectedCount').text(selectedUsers.size + ' users selected');
+            }
+
+            // Form submission
+            $('#assignUsersForm').on('submit', function(e) {
+                $('#selectedUsers').val(JSON.stringify(Array.from(selectedUsers)));
+            });
+
+            updateSelectedCount();
         });
     </script>
-
-
-
-    {{-- 🔴 SweetAlert for Errors --}}
-    @if($errors->any())
-        <script>
-            Swal.fire({
-                icon: 'error',
-                title: 'Validation Error',
-                html: `{!! implode('<br>', $errors->all()) !!}`,
-            });
-        </script>
-    @endif
 @endpush

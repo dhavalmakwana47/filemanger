@@ -119,6 +119,17 @@
                     reverseButtons: true
                 }).then((result) => {
                     if (result.isConfirmed) {
+                        // Show loading
+                        Swal.fire({
+                            title: 'Deleting...',
+                            text: 'Please wait while items are being deleted.',
+                            allowOutsideClick: false,
+                            showConfirmButton: false,
+                            didOpen: () => {
+                                Swal.showLoading();
+                            }
+                        });
+                        
                         $.ajax({
                             url: '{{ route('filemanager.trash.bulkDelete') }}',
                             method: 'POST',
@@ -155,6 +166,16 @@
                     reverseButtons: true
                 }).then((result) => {
                     if (result.isConfirmed) {
+                        // Show loading
+                        Swal.fire({
+                            title: 'Deleting...',
+                            text: 'Please wait while the item is being deleted.',
+                            allowOutsideClick: false,
+                            showConfirmButton: false,
+                            didOpen: () => {
+                                Swal.showLoading();
+                            }
+                        });
                         form.submit();
                     }
                 });
@@ -173,6 +194,16 @@
                     reverseButtons: true
                 }).then((result) => {
                     if (result.isConfirmed) {
+                        // Show loading
+                        Swal.fire({
+                            title: 'Restoring...',
+                            text: 'Please wait while the item is being restored.',
+                            allowOutsideClick: false,
+                            showConfirmButton: false,
+                            didOpen: () => {
+                                Swal.showLoading();
+                            }
+                        });
                         form.submit();
                     }
                 });

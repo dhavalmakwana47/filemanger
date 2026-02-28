@@ -15,6 +15,18 @@
             width: auto;
             display: inline-block;
         }
+
+        .select2-container {
+            z-index: 10000 !important;
+        }
+
+        .select2-dropdown {
+            z-index: 10001 !important;
+        }
+
+        .select2-container.is-invalid .select2-selection {
+            border-color: #dc3545 !important;
+        }
     </style>
 @endpush
 
@@ -84,7 +96,7 @@
                             </div>
 
                             <div class="modal-footer bg-light">
-                                <button type="submit" class="btn btn-primary"><i class="fas fa-save"></i>Add</button>
+                                <button type="submit" class="btn btn-primary" id="importSubmitBtn"><i class="fas fa-save"></i> Add</button>
                             </div>
 
                         </form>
@@ -92,27 +104,44 @@
                 </div>
             </div>
             @if (current_user()->hasPermission('Users', 'create'))
-                <div class="d-flex justify-content-end gap-2 mb-3">
-                    <a href="{{ route('users.create') }}" class="btn btn-primary d-flex align-items-center">
-                        <i class="fas fa-user-plus me-2"></i> Create User
-                    </a>
-                    <a href="{{ route('users.export') }}" class="btn btn-warning d-flex align-items-center">
-                        <i class="fas fa-file-download me-2"></i> Export
-                    </a>
-                    <a href="{{ route('download.sample.csv') }}" class="btn btn-success d-flex align-items-center">
-                        <i class="fas fa-file-download me-2"></i> Sample CSV
-                    </a>
-                    <button type="button" class="btn btn-outline-primary d-flex align-items-center" data-bs-toggle="modal"
-                        data-bs-target="#UserImportModal">
-                        <i class="fas fa-file-upload me-2"></i> Import Users
-                    </button>
+                <div class="d-flex justify-content-between align-items-center mb-3">
+                    <div>
+                        <label class="me-2">Filter:</label>
+                        <select id="statusFilter" class="form-select form-select-sm d-inline-block" style="width: 150px;">
+                            <option value="">All Users</option>
+                            <option value="1">Active</option>
+                            <option value="0">Inactive</option>
+                        </select>
+                        <button type="button" class="btn btn-sm btn-success ms-2" id="activateAllBtn">
+                            <i class="fas fa-check-circle me-1"></i> Active All
+                        </button>
+                        <button type="button" class="btn btn-sm btn-warning ms-1" id="deactivateAllBtn">
+                            <i class="fas fa-times-circle me-1"></i> Inactive All
+                        </button>
+                    </div>
+                    <div class="d-flex gap-2">
+                        <button type="button" class="btn btn-primary d-flex align-items-center" data-bs-toggle="modal"
+                            data-bs-target="#createUserModal">
+                            <i class="fas fa-user-plus me-2"></i> Create User
+                        </button>
+                        <a href="{{ route('users.export') }}" class="btn btn-warning d-flex align-items-center">
+                            <i class="fas fa-file-download me-2"></i> Export
+                        </a>
+                        <a href="{{ route('download.sample.csv') }}" class="btn btn-success d-flex align-items-center">
+                            <i class="fas fa-file-download me-2"></i> Sample CSV
+                        </a>
+                        <button type="button" class="btn btn-outline-primary d-flex align-items-center" data-bs-toggle="modal"
+                            data-bs-target="#UserImportModal">
+                            <i class="fas fa-file-upload me-2"></i> Import Users
+                        </button>
+                    </div>
                 </div>
             @endif
 
             <!-- Bulk Action Buttons -->
             <div id="bulkActionButtons" class="d-none mb-3">
                 <button type="button" class="btn btn-success" id="enableSelectedBtn">
-                    <i class="fas fa-check-circle me-2"></i>  Active
+                    <i class="fas fa-check-circle me-2"></i> Active
                 </button>
                 <button type="button" class="btn btn-warning" id="disableSelectedBtn">
                     <i class="fas fa-times-circle me-2"></i> Inactive
@@ -129,9 +158,64 @@
                 <span class="ms-2" id="selectedCount">0 users selected</span>
             </div>
 
+            <!-- Create User Modal -->
+            <div class="modal fade" id="createUserModal" tabindex="-1" aria-labelledby="createUserModalLabel"
+                aria-hidden="true">
+                <div class="modal-dialog">
+                    <div class="modal-content">
+                        <form id="createUserForm">
+                            @csrf
+                            <div class="modal-header bg-primary text-white">
+                                <h5 class="modal-title" id="createUserModalLabel"><i class="fas fa-user-plus"></i> Create
+                                    User</h5>
+                                <button type="button" class="btn-close" data-bs-dismiss="modal"
+                                    aria-label="Close"></button>
+                            </div>
+                            <div class="modal-body">
+                                <div class="mb-3">
+                                    <label for="user_name" class="form-label">Name <span
+                                            class="text-danger">*</span></label>
+                                    <input type="text" class="form-control" id="user_name" name="user_name" required>
+                                    <span class="text-danger" id="error_user_name"></span>
+                                </div>
+                                <div class="mb-3">
+                                    <label for="user_email" class="form-label">Email <span
+                                            class="text-danger">*</span></label>
+                                    <input type="email" class="form-control" id="user_email" name="user_email"
+                                        required>
+                                    <span class="text-danger" id="error_user_email"></span>
+                                </div>
+                                <div class="mb-3">
+                                    <label for="role_select" class="form-label">Role</label>
+                                    <select class="form-control select2-modal" name="role[]" id="role_select" multiple
+                                        >
+                                        @foreach ($roleArr as $role)
+                                            <option value="{{ $role->id }}">{{ $role->role_name }}</option>
+                                        @endforeach
+                                    </select>
+                                    <span class="text-danger" id="error_role"></span>
+                                </div>
+                                <div class="m-3">
+                                    <div class="form-check form-switch">
+                                        <input class="form-check-input" type="checkbox" id="is_active" name="is_active"
+                                            value="1" checked>
+                                        <label class="form-check-label" for="is_active">Active</label>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="modal-footer">
+                                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                                <button type="submit" class="btn btn-primary"><i class="fas fa-save"></i>
+                                    Create</button>
+                            </div>
+                        </form>
+                    </div>
+                </div>
+            </div>
+
             @php
                 $columns = [
-                ['data' => 'select', 'title' => 'select', 'orderable' => false, 'searchable' => false],
+                    ['data' => 'select', 'title' => 'select', 'orderable' => false, 'searchable' => false],
                     ['data' => 'id', 'title' => 'ID'],
                     ['data' => 'name', 'title' => 'Name'],
                     ['data' => 'email', 'title' => 'Email'],
@@ -161,7 +245,161 @@
     <script src="{{ asset('select2.full.min.js') }}"></script>
 
     <script>
-        $(function() {
+        $(document).ready(function() {
+            // Handle import form submission with loader
+            $('#fileForm').on('submit', function() {
+                const submitBtn = $('#importSubmitBtn');
+                submitBtn.prop('disabled', true).html('<i class="fas fa-spinner fa-spin"></i> Importing...');
+                
+                Swal.fire({
+                    title: 'Importing Users',
+                    html: 'Please wait while we process your file...',
+                    allowOutsideClick: false,
+                    allowEscapeKey: false,
+                    didOpen: () => {
+                        Swal.showLoading();
+                    }
+                });
+            });
+
+            console.log('Roles available:', {{ count($roleArr) }});
+
+            // Initialize Select2 immediately
+            $('#role_select').select2({
+                placeholder: "Select roles",
+                allowClear: true,
+                width: '100%',
+                dropdownParent: $('#createUserModal')
+            });
+
+            $('#role').select2({
+                placeholder: "Select roles",
+                allowClear: true,
+                width: '100%',
+                dropdownParent: $('#UserImportModal')
+            });
+
+            // Handle create user form submission
+            $('#createUserForm').on('submit', function(e) {
+                e.preventDefault();
+                console.log('Form submitted');
+
+                // Clear previous errors
+                $('.text-danger').text('');
+                $('.form-control, .select2-modal').removeClass('is-invalid');
+                $('.select2-container').removeClass('is-invalid');
+
+                // Frontend validation
+                let hasError = false;
+
+                const userName = $('#user_name').val().trim();
+                const userEmail = $('#user_email').val().trim();
+                const roles = $('#role_select').val();
+
+                console.log('Validation:', {
+                    userName,
+                    userEmail,
+                    roles
+                });
+
+                if (!userName) {
+                    $('#error_user_name').text('Name is required');
+                    $('#user_name').addClass('is-invalid');
+                    hasError = true;
+                }
+
+                if (!userEmail) {
+                    $('#error_user_email').text('Email is required');
+                    $('#user_email').addClass('is-invalid');
+                    hasError = true;
+                } else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(userEmail)) {
+                    $('#error_user_email').text('Please enter a valid email address');
+                    $('#user_email').addClass('is-invalid');
+                    hasError = true;
+                }
+
+                if (hasError) {
+                    console.log('Validation failed');
+                    return false;
+                }
+
+                console.log('Validation passed, submitting...');
+
+                const formData = {
+                    _token: '{{ csrf_token() }}',
+                    user_name: userName,
+                    user_email: userEmail,
+                    role: roles,
+                    is_active: $('#is_active').is(':checked') ? 1 : 0
+                };
+
+                const submitBtn = $(this).find('button[type="submit"]');
+                submitBtn.prop('disabled', true).html('<i class="fas fa-spinner fa-spin"></i> Creating...');
+
+                $.ajax({
+                    url: '{{ route('users.store') }}',
+                    type: 'POST',
+                    data: formData,
+                    success: function(response) {
+                        $('#createUserModal').modal('hide');
+                        $('#createUserForm')[0].reset();
+                        $('#role_select').val(null).trigger('change');
+
+                        Swal.fire({
+                            icon: 'success',
+                            title: 'Success',
+                            text: 'User created successfully',
+                            timer: 2000,
+                            showConfirmButton: false
+                        });
+
+                        $('#users-table').DataTable().ajax.reload(null, false);
+                    },
+                    error: function(xhr) {
+                        if (xhr.status === 422) {
+                            const errors = xhr.responseJSON.errors;
+                            if (errors.user_name) {
+                                $('#error_user_name').text(errors.user_name[0]);
+                                $('#user_name').addClass('is-invalid');
+                            }
+                            if (errors.user_email) {
+                                $('#error_user_email').text(errors.user_email[0]);
+                                $('#user_email').addClass('is-invalid');
+                            }
+                            if (errors.role) {
+                                $('#error_role').text(errors.role[0]);
+                                $('#role_select').next('.select2-container').addClass(
+                                    'is-invalid');
+                            }
+                        } else {
+                            Swal.fire({
+                                icon: 'error',
+                                title: 'Error',
+                                text: xhr.responseJSON?.message || 'An error occurred'
+                            });
+                        }
+                    },
+                    complete: function() {
+                        submitBtn.prop('disabled', false).html(
+                            '<i class="fas fa-save"></i> Create');
+                    }
+                });
+            });
+
+            // Clear error on input
+            $('#user_name, #user_email').on('input', function() {
+                $(this).removeClass('is-invalid');
+                $(this).siblings('.text-danger').text('');
+            });
+
+            // Reset modal on close
+            $('#createUserModal').on('hidden.bs.modal', function() {
+                $('#createUserForm')[0].reset();
+                $('#role_select').val(null).trigger('change');
+                $('.text-danger').text('');
+                $('.form-control').removeClass('is-invalid');
+            });
+
             // Define the columns for the users table
             const columns = [{
                     data: 'select',
@@ -172,7 +410,8 @@
                 },
                 {
                     data: 'id',
-                    name: 'id'
+                    name: 'id',
+                    visible: false
                 },
                 {
                     data: 'name',
@@ -203,143 +442,288 @@
             ];
 
             // Call the common function to initialize the DataTable
-            initializeDataTable('users-table', '{{ route('users.index') }}', columns, {
+            const table = initializeDataTable('users-table', '{{ route('users.index') }}', columns, {
                 searchPlaceholder: "Search...",
-                dom: '<"row"<"col-md-6"l><"col-md-6"f>>rt<"row"<"col-md-6"i><"col-md-6"p>>'
+                dom: '<"row"<"col-md-6"l><"col-md-6"f>>rt<"row"<"col-md-6"i><"col-md-6"p>>',
+                order: [1, "desc"],
             });
 
-        // Handle enable 2FA for selected users
-        $('#enable2FABtn').on('click', function() {
-            const selectedIds = getSelectedUserIds();
-            if (!selectedIds.length) return;
-            
-            update2FAStatus(selectedIds, true);
-        });
-
-        // Handle disable 2FA for selected users
-        $('#disable2FABtn').on('click', function() {
-            const selectedIds = getSelectedUserIds();
-            if (!selectedIds.length) return;
-            
-            update2FAStatus(selectedIds, false);
-        });
-
-        // Handle delete selected button
-        $('#deleteSelectedBtn').on('click', function() {
-            var selectedIds = [];
-            $('.user-checkbox:checked').each(function() {
-                selectedIds.push($(this).val());
+            // Status filter
+            $('#statusFilter').on('change', function() {
+                const status = $(this).val();
+                $('#users-table').DataTable().ajax.url('{{ route('users.index') }}?status=' + status).load();
             });
 
-            if (selectedIds.length === 0) {
+            // Activate all users
+            $('#activateAllBtn').on('click', function() {
                 Swal.fire({
-                    icon: 'warning',
-                    title: 'No Selection',
-                    text: 'Please select at least one user.',
+                    title: 'Activate All Users?',
+                    text: 'This will activate all users in the system.',
+                    icon: 'question',
+                    showCancelButton: true,
+                    confirmButtonColor: '#28a745',
+                    cancelButtonColor: '#6c757d',
+                    confirmButtonText: 'Yes, activate all!'
+                }).then((result) => {
+                    if (result.isConfirmed) {
+                        $.ajax({
+                            url: "{{ route('users.activate_all') }}",
+                            type: 'POST',
+                            data: {
+                                _token: '{{ csrf_token() }}'
+                            },
+                            success: function(response) {
+                                Swal.fire({
+                                    icon: 'success',
+                                    title: 'Success',
+                                    text: response.message,
+                                    timer: 2000,
+                                    showConfirmButton: false
+                                });
+                                $('#users-table').DataTable().ajax.reload(null, false);
+                            },
+                            error: function(xhr) {
+                                Swal.fire({
+                                    icon: 'error',
+                                    title: 'Error',
+                                    text: xhr.responseJSON?.message || 'An error occurred.',
+                                });
+                            }
+                        });
+                    }
                 });
-                return;
-            }
+            });
 
-            Swal.fire({
-                title: 'Delete Users?',
-                text: 'This will remove the selected users from this company. Continue?',
-                icon: 'warning',
-                showCancelButton: true,
-                confirmButtonColor: '#dc3545',
-                cancelButtonColor: '#6c757d',
-                confirmButtonText: 'Yes, delete'
-            }).then((result) => {
-                if (result.isConfirmed) {
-                    $.ajax({
-                        url: "{{ route('users.bulk_delete') }}",
-                        type: 'POST',
-                        data: {
-                            _token: '{{ csrf_token() }}',
-                            user_ids: selectedIds
-                        },
-                        success: function(response) {
-                            Swal.fire({
-                                icon: 'success',
-                                title: 'Deleted',
-                                text: response.message,
-                                timer: 2000,
-                                showConfirmButton: false
-                            });
-                            // Reset checkboxes and reload table
-                            $('#select-all').prop('checked', false);
-                            $('#bulkActionButtons').addClass('d-none');
-                            $('#users-table').DataTable().ajax.reload(null, false);
-                        },
-                        error: function(xhr) {
-                            Swal.fire({
-                                icon: 'error',
-                                title: 'Error',
-                                text: xhr.responseJSON?.message || 'An error occurred while deleting users.',
-                            });
-                        }
+            // Deactivate all users
+            $('#deactivateAllBtn').on('click', function() {
+                Swal.fire({
+                    title: 'Deactivate All Users?',
+                    text: 'This will deactivate all users in the system.',
+                    icon: 'warning',
+                    showCancelButton: true,
+                    confirmButtonColor: '#dc3545',
+                    cancelButtonColor: '#6c757d',
+                    confirmButtonText: 'Yes, deactivate all!'
+                }).then((result) => {
+                    if (result.isConfirmed) {
+                        $.ajax({
+                            url: "{{ route('users.deactivate_all') }}",
+                            type: 'POST',
+                            data: {
+                                _token: '{{ csrf_token() }}'
+                            },
+                            success: function(response) {
+                                Swal.fire({
+                                    icon: 'success',
+                                    title: 'Success',
+                                    text: response.message,
+                                    timer: 2000,
+                                    showConfirmButton: false
+                                });
+                                $('#users-table').DataTable().ajax.reload(null, false);
+                            },
+                            error: function(xhr) {
+                                Swal.fire({
+                                    icon: 'error',
+                                    title: 'Error',
+                                    text: xhr.responseJSON?.message || 'An error occurred.',
+                                });
+                            }
+                        });
+                    }
+                });
+            });
+
+            // Handle status toggle
+            $(document).on('change', 'input[type="checkbox"][data-id]', function() {
+                var userId = $(this).data('id');
+                var isActive = $(this).is(':checked') ? 1 : 0;
+
+                $.ajax({
+                    url: "{{ route('users.change_status') }}",
+                    type: 'POST',
+                    data: {
+                        _token: '{{ csrf_token() }}',
+                        user_id: userId,
+                        is_active: isActive
+                    },
+                    success: function(response) {
+                        Swal.fire({
+                            icon: 'success',
+                            title: 'Success',
+                            text: response.message,
+                            timer: 2000,
+                            showConfirmButton: false
+                        });
+                        $('#users-table').DataTable().ajax.reload(null, false);
+                    },
+                    error: function(xhr) {
+                        Swal.fire({
+                            icon: 'error',
+                            title: 'Error',
+                            text: xhr.responseJSON.message ||
+                                'An error occurred while updating status.',
+                        });
+                    }
+                });
+            });
+
+            // Handle select all checkbox
+            $(document).on('change', '#select-all', function() {
+                $('.user-checkbox').prop('checked', $(this).is(':checked'));
+                updateBulkActionButtons();
+            });
+
+            // Handle individual checkbox change
+            $(document).on('change', '.user-checkbox', function() {
+                updateBulkActionButtons();
+
+                var totalCheckboxes = $('.user-checkbox').length;
+                var checkedCheckboxes = $('.user-checkbox:checked').length;
+                $('#select-all').prop('checked', totalCheckboxes === checkedCheckboxes);
+            });
+
+            // Handle enable selected button
+            $('#enableSelectedBtn').on('click', function() {
+                var selectedIds = [];
+                $('.user-checkbox:checked').each(function() {
+                    selectedIds.push($(this).val());
+                });
+
+                if (selectedIds.length === 0) {
+                    Swal.fire({
+                        icon: 'warning',
+                        title: 'No Selection',
+                        text: 'Please select at least one user.',
                     });
+                    return;
                 }
+
+                Swal.fire({
+                    title: 'Enable Users?',
+                    text: 'Are you sure you want to change status of ' + selectedIds.length +
+                        ' user(s)?',
+                    icon: 'question',
+                    showCancelButton: true,
+                    confirmButtonColor: '#28a745',
+                    cancelButtonColor: '#6c757d',
+                    confirmButtonText: 'Yes, active them!'
+                }).then((result) => {
+                    if (result.isConfirmed) {
+                        bulkUpdateStatus(selectedIds, 1);
+                    }
+                });
+            });
+
+            // Handle disable selected button
+            $('#disableSelectedBtn').on('click', function() {
+                var selectedIds = [];
+                $('.user-checkbox:checked').each(function() {
+                    selectedIds.push($(this).val());
+                });
+
+                if (selectedIds.length === 0) {
+                    Swal.fire({
+                        icon: 'warning',
+                        title: 'No Selection',
+                        text: 'Please select at least one user.',
+                    });
+                    return;
+                }
+
+                Swal.fire({
+                    title: 'Disable Users?',
+                    text: 'Are you sure you want to change status of ' + selectedIds.length +
+                        ' user(s)?',
+                    icon: 'warning',
+                    showCancelButton: true,
+                    confirmButtonColor: '#dc3545',
+                    cancelButtonColor: '#6c757d',
+                    confirmButtonText: 'Yes, inactive them!'
+                }).then((result) => {
+                    if (result.isConfirmed) {
+                        bulkUpdateStatus(selectedIds, 0);
+                    }
+                });
+            });
+
+            // Handle enable 2FA for selected users
+            $('#enable2FABtn').on('click', function() {
+                const selectedIds = getSelectedUserIds();
+                if (!selectedIds.length) return;
+
+                update2FAStatus(selectedIds, true);
+            });
+
+            // Handle disable 2FA for selected users
+            $('#disable2FABtn').on('click', function() {
+                const selectedIds = getSelectedUserIds();
+                if (!selectedIds.length) return;
+
+                update2FAStatus(selectedIds, false);
+            });
+
+            // Handle delete selected button
+            $('#deleteSelectedBtn').on('click', function() {
+                var selectedIds = [];
+                $('.user-checkbox:checked').each(function() {
+                    selectedIds.push($(this).val());
+                });
+
+                if (selectedIds.length === 0) {
+                    Swal.fire({
+                        icon: 'warning',
+                        title: 'No Selection',
+                        text: 'Please select at least one user.',
+                    });
+                    return;
+                }
+
+                Swal.fire({
+                    title: 'Delete Users?',
+                    text: 'This will remove the selected users from this company. Continue?',
+                    icon: 'warning',
+                    showCancelButton: true,
+                    confirmButtonColor: '#dc3545',
+                    cancelButtonColor: '#6c757d',
+                    confirmButtonText: 'Yes, delete'
+                }).then((result) => {
+                    if (result.isConfirmed) {
+                        $.ajax({
+                            url: "{{ route('users.bulk_delete') }}",
+                            type: 'POST',
+                            data: {
+                                _token: '{{ csrf_token() }}',
+                                user_ids: selectedIds
+                            },
+                            success: function(response) {
+                                Swal.fire({
+                                    icon: 'success',
+                                    title: 'Deleted',
+                                    text: response.message,
+                                    timer: 2000,
+                                    showConfirmButton: false
+                                });
+                                // Reset checkboxes and reload table
+                                $('#select-all').prop('checked', false);
+                                $('#bulkActionButtons').addClass('d-none');
+                                $('#users-table').DataTable().ajax.reload(null, false);
+                            },
+                            error: function(xhr) {
+                                Swal.fire({
+                                    icon: 'error',
+                                    title: 'Error',
+                                    text: xhr.responseJSON?.message ||
+                                        'An error occurred while deleting users.',
+                                });
+                            }
+                        });
+                    }
+                });
             });
         });
-        });
 
-        $('.select2').select2({
-            placeholder: "  Select roles",
-            allowClear: true,
-            width: '100%'
-        });
-
-        // Handle status toggle
-        $(document).on('change', 'input[type="checkbox"][data-id]', function() {
-            var userId = $(this).data('id');
-            var isActive = $(this).is(':checked') ? 1 : 0;
-
-            $.ajax({
-                url: "{{ route('users.change_status') }}",
-                type: 'POST',
-                data: {
-                    _token: '{{ csrf_token() }}',
-                    user_id: userId,
-                    is_active: isActive
-                },
-                success: function(response) {
-                    swal.fire({
-                        icon: 'success',
-                        title: 'Success',
-                        text: response.message,
-                        timer: 2000,
-                        showConfirmButton: false
-                    });
-                    $('#users-table').DataTable().ajax.reload(null, false); // Reload table data without resetting pagination
-                },
-                error: function(xhr) {
-                    swal.fire({
-                        icon: 'error',
-                        title: 'Error',
-                        text: xhr.responseJSON.message ||
-                            'An error occurred while updating status.',
-                    });
-                }
-            });
-        });
-
-        // Handle select all checkbox
-        $(document).on('change', '#select-all', function() {
-            $('.user-checkbox').prop('checked', $(this).is(':checked'));
-            updateBulkActionButtons();
-        });
-
-        // Handle individual checkbox change
-        $(document).on('change', '.user-checkbox', function() {
-            updateBulkActionButtons();
-            
-            // Update select all checkbox state
-            var totalCheckboxes = $('.user-checkbox').length;
-            var checkedCheckboxes = $('.user-checkbox:checked').length;
-            $('#select-all').prop('checked', totalCheckboxes === checkedCheckboxes);
-        });
-
-        // Update bulk action buttons visibility
+        // Update bulk action buttons visibility (outside document ready)
         function updateBulkActionButtons() {
             var checkedCount = $('.user-checkbox:checked').length;
             if (checkedCount > 0) {
@@ -350,69 +734,6 @@
             }
         }
 
-        // Handle enable selected button
-        $('#enableSelectedBtn').on('click', function() {
-            var selectedIds = [];
-            $('.user-checkbox:checked').each(function() {
-                selectedIds.push($(this).val());
-            });
-
-            if (selectedIds.length === 0) {
-                Swal.fire({
-                    icon: 'warning',
-                    title: 'No Selection',
-                    text: 'Please select at least one user.',
-                });
-                return;
-            }
-
-            Swal.fire({
-                title: 'Enable Users?',
-                text: 'Are you sure you want to change status of ' + selectedIds.length + ' user(s)?',
-                icon: 'question',
-                showCancelButton: true,
-                confirmButtonColor: '#28a745',
-                cancelButtonColor: '#6c757d',
-                confirmButtonText: 'Yes, active them!'
-            }).then((result) => {
-                if (result.isConfirmed) {
-                    bulkUpdateStatus(selectedIds, 1);
-                }
-            });
-        });
-
-        // Handle disable selected button
-        $('#disableSelectedBtn').on('click', function() {
-            var selectedIds = [];
-            $('.user-checkbox:checked').each(function() {
-                selectedIds.push($(this).val());
-            });
-
-            if (selectedIds.length === 0) {
-                Swal.fire({
-                    icon: 'warning',
-                    title: 'No Selection',
-                    text: 'Please select at least one user.',
-                });
-                return;
-            }
-
-            Swal.fire({
-                title: 'Disable Users?',
-                text: 'Are you sure you want to change status of ' + selectedIds.length + ' user(s)?',
-                icon: 'warning',
-                showCancelButton: true,
-                confirmButtonColor: '#dc3545',
-                cancelButtonColor: '#6c757d',
-                confirmButtonText: 'Yes, inactive them!'
-            }).then((result) => {
-                if (result.isConfirmed) {
-                    bulkUpdateStatus(selectedIds, 0);
-                }
-            });
-        });
-
-        // Bulk update status function
         // Function to get selected user IDs
         function getSelectedUserIds() {
             const selectedIds = [];
@@ -436,7 +757,7 @@
             if (!userIds.length) return;
 
             const action = enable ? 'enable' : 'disable';
-            
+
             Swal.fire({
                 title: `${action.charAt(0).toUpperCase() + action.slice(1)} 2FA`,
                 text: `Are you sure you want to ${action} two-factor authentication for ${userIds.length} selected user(s)?`,
@@ -464,7 +785,7 @@
                                 timer: 2000,
                                 showConfirmButton: false
                             });
-                            
+
                             // Reset checkboxes and reload table
                             $('#select-all').prop('checked', false);
                             $('#bulkActionButtons').addClass('d-none');
@@ -474,7 +795,8 @@
                             Swal.fire({
                                 icon: 'error',
                                 title: 'Error',
-                                text: xhr.responseJSON?.message || `Failed to ${action} 2FA for selected users.`,
+                                text: xhr.responseJSON?.message ||
+                                    `Failed to ${action} 2FA for selected users.`,
                             });
                         }
                     });
@@ -499,7 +821,7 @@
                         timer: 2000,
                         showConfirmButton: false
                     });
-                    
+
                     // Reset checkboxes and reload table
                     $('#select-all').prop('checked', false);
                     $('#bulkActionButtons').addClass('d-none');

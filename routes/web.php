@@ -77,6 +77,8 @@ Route::middleware(['auth', 'restrict_ip_by_company'])->group(function () {
     Route::post('/users/bulk-delete', [UserController::class, 'bulkDelete'])->name('users.bulk_delete');
     Route::post('/users/bulk-status', [UserController::class, 'bulkStatusUpdate'])->name('users.bulk_status');
     Route::post('/users/bulk-2fa-update', [UserController::class, 'bulk2FAUpdate'])->name('users.bulk_2fa_update');
+    Route::post('/users/activate-all', [UserController::class, 'activateAll'])->name('users.activate_all');
+    Route::post('/users/deactivate-all', [UserController::class, 'deactivateAll'])->name('users.deactivate_all');
 
     //company
     Route::resource('company', CompanyController::class);
@@ -84,6 +86,7 @@ Route::middleware(['auth', 'restrict_ip_by_company'])->group(function () {
     //company role
     Route::resource('companyrole', CompanyRoleController::class);
     Route::get('companyrole-users-assign/{id}', [CompanyRoleController::class, 'userAssign'])->name('companyrole.usersassign');
+    Route::get('companyrole-getalluserids/{id}', [CompanyRoleController::class, 'getAllUserIds'])->name('companyrole.getalluserids');
     Route::post('companyrole-users-assign', [CompanyRoleController::class, 'userAssignStore'])->name('companyrole.usersassignstore');
 
     //company role permission

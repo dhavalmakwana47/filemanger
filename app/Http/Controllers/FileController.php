@@ -202,7 +202,7 @@ class FileController extends Controller
                 'action'  => "File {$file->name} downloaded"
             ]);
 
-            return Storage::download($path, $file->name);
+            return Storage::download($path, $file->file_name);
         }
 
         // Load file info

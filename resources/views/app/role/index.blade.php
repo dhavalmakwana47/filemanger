@@ -37,6 +37,7 @@
                 $columns = [
                     ['data' => 'id', 'title' => 'ID'],
                     ['data' => 'name', 'title' => 'Name'],
+                    ['data' => 'assign_users', 'title' => 'Assigned Users'],
                     ['data' => 'rights', 'title' => 'rights'],
                     ['data' => 'created_at', 'title' => 'Created At'],
                 ];
@@ -65,12 +66,19 @@
             const columns = [{
                     data: 'id',
                     name: 'id',
-                    width: '10%'
+                    width: '10%',
+                    visible: false
                 },
                 {
                     data: 'role_name',
                     name: 'role_name',
                     width: '20%'
+                },
+                {
+                    data: 'assign_users',
+                    name: 'assign_users',
+                    width: '20%',
+                    orderable: false
                 },
                 {
                     data: 'rights',
@@ -98,7 +106,8 @@
             // Call the common function to initialize the DataTable
             initializeDataTable('companyrole-table', '{{ route('companyrole.index') }}', columns, {
                 searchPlaceholder: "Search...",
-                dom: '<"row"<"col-md-6"l><"col-md-6"f>>rt<"row"<"col-md-6"i><"col-md-6"p>>'
+                dom: '<"row"<"col-md-6"l><"col-md-6"f>>rt<"row"<"col-md-6"i><"col-md-6"p>>',
+                order: [[0, 'desc']]
             });
         });
     </script>

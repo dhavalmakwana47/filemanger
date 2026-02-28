@@ -55,6 +55,10 @@ class FolderController extends Controller implements HasMiddleware
      */
     public function index()
     {
+        $company = Company::find(get_active_company());
+        $totalSpace = $company->storage_size_mb ?? 100;
+        $usedSpaceMb = round((File::where('company_id', $company->id)->sum('size_kb') / 1024) / 1024, 2);
+
         return view('app.folder.index', [
             'title' => "Add Folder",
             'assignedPermissions' => [],
@@ -62,6 +66,8 @@ class FolderController extends Controller implements HasMiddleware
             'folderArr' => Folder::where('company_id', get_active_company())->whereNull('parent_id')->get(),
             'allFolderArr' => Folder::where('company_id', get_active_company())->get(),
             'roleArr' => CompanyRole::whereNot('role_name', 'Super Admin')->where('company_id', get_active_company())->get(),
+            'totalSpace' => $totalSpace,
+            'usedSpace' => $usedSpaceMb,
         ]);
     }
 
@@ -1073,7 +1079,6 @@ class FolderController extends Controller implements HasMiddleware
         ];
 
         $request->validate([
-            'files.*' => ['file', 'mimetypes:' . implode(',', $allowedMimeTypes)],
             'file_paths.*' => 'string',
             'item_index' => 'nullable|integer|min:0',
             'folder_id' => 'nullable|exists:folders,id',
@@ -1086,7 +1091,7 @@ class FolderController extends Controller implements HasMiddleware
             return $this->errorResponse('Active company not found.', 400);
         }
 
-        // try {
+        try {
         return DB::transaction(function () use ($request, $allowedMimeTypes, $company_id) {
             $files = $request->file('files');
             $file_paths = $request->input('file_paths');
@@ -1096,6 +1101,10 @@ class FolderController extends Controller implements HasMiddleware
             $selectedRoles = array_filter($request->input('roles', []), fn($value) => !empty($value));
 
             if (!$files || !$file_paths || count($files) !== count($file_paths)) {
+                Log::error('Invalid or mismatched files and paths', [
+                    'files_count' => count($files),
+                    'file_paths_count' => count($file_paths),
+                ]);
                 return $this->errorResponse('Invalid or mismatched files and paths.', 400);
             }
 
@@ -1115,6 +1124,12 @@ class FolderController extends Controller implements HasMiddleware
 
             foreach ($file_paths as $index => $relativePath) {
                 if (!isset($files[$index]) || !$files[$index]->isValid()) {
+                    continue;
+                }
+
+                // Skip files with invalid MIME types
+                $file = $files[$index];
+                if (!in_array($file->getMimeType(), $allowedMimeTypes)) {
                     continue;
                 }
 
@@ -1213,14 +1228,15 @@ class FolderController extends Controller implements HasMiddleware
 
             return $this->successResponse('Folder structure uploaded successfully!', []);
         });
-        // } catch (\Exception $e) {
-        //     // Log the error
-        //     addUserAction([
-        //         'user_id' => Auth::id(),
-        //         'action' => "Error creating folder structure: " . $e->getMessage()
-        //     ]);
-        //     return $this->errorResponse('There was an error uploading the folder structure.', 500, $e);
-        // }
+        } catch (\Exception $e) {
+            Log::error('Error creating folder structure: ' . $e->getMessage());
+            // Log the error
+            addUserAction([
+                'user_id' => Auth::id(),
+                'action' => "Error creating folder structure: " . $e->getMessage()
+            ]);
+            return $this->errorResponse('There was an error uploading the folder structure.', 500, $e);
+        }
     }
 
     public function moveItems(Request $request)

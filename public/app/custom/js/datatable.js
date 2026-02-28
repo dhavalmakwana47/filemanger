@@ -1,5 +1,6 @@
 // public/js/datatable.js
 function initializeDataTable(tableId, ajaxUrl, columns, extraOptions = {}) {
+    console.log(extraOptions);
     $(`#${tableId}`).DataTable({
         processing: true,
         serverSide: true,
