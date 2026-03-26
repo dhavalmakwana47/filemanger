@@ -104,7 +104,7 @@ class FileController extends Controller
                     ]);
 
                     $filesData[] = $folder;
-                    $fileNames[] = $folder->name;
+                    $fileNames[] = $folder->file_name;
 
                     $roles = CompanyRole::whereIn('id', $request->input('roles', []))->pluck('role_name')->toArray();
                     // Log the file upload action
@@ -199,10 +199,10 @@ class FileController extends Controller
         if (!$setting->enable_watermark || $user->is_master_admin() || $user->is_super_admin()) {
             addUserAction([
                 'user_id' => Auth::id(),
-                'action'  => "File {$file->name} downloaded"
+                'action'  => "File {$file->file_name} downloaded"
             ]);
 
-            return Storage::download($path, $file->file_name);
+            return Storage::download($path, $file->name);
         }
 
         // Load file info
@@ -408,7 +408,7 @@ class FileController extends Controller
 
             // Send emails if roles were assigned and email toggle is enabled
             if (!empty($selectedRoles) && isset($request->send_email)) {
-                $this->sendPermissionEmails([], [$file->name], $selectedRoles, $company_id);
+                $this->sendPermissionEmails([], [$file->file_name], $selectedRoles, $company_id);
             }
 
             addUserAction([

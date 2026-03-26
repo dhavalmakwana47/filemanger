@@ -226,12 +226,12 @@ class FolderController extends Controller implements HasMiddleware
                     if ($file) {
                         // Sync file permissions/roles
                         $this->syncFilePermissions($file->id, $roles);
-                        $fileNames[] = $file->name;
+                        $fileNames[] = $file->file_name;
 
                         // Log action
                         addUserAction([
                             'user_id' => $userId,
-                            'action' => "Roles [" . implode(', ', $roles) . "] assigned to File: {$file->name}"
+                            'action' => "Roles [" . implode(', ', $roles) . "] assigned to File: {$file->file_name}"
                         ]);
                     }
                 }
@@ -321,9 +321,9 @@ class FolderController extends Controller implements HasMiddleware
             $folderIds = (array) $request->folder_ids;
             $fileIds = (array) $request->file_ids;
             $folders = Folder::whereIn('id', $folderIds)->get(['id', 'name']);
-            $files = File::whereIn('id', $fileIds)->get(['id', 'name']);
+            $files = File::whereIn('id', $fileIds)->get(['id', 'name','file_name']);
             $folderNames = $folders->pluck('name')->toArray();
-            $fileNames = $files->pluck('name')->toArray();
+            $fileNames = $files->pluck('file_name')->toArray();
 
             $deletedNames = array_merge($folderNames, $fileNames);
             // RoleFolderPermission::whereIn('folder_id', $request->folder_ids)->delete();
@@ -870,7 +870,7 @@ class FolderController extends Controller implements HasMiddleware
         $file->restore(); // Restore from trash
         addUserAction([
             'user_id' => Auth::id(),
-            'action' => "File {$file->name} restored"
+            'action' => "File {$file->file_name} restored"
         ]);
         return redirect()->route('filemanager.trash.data')->with('success', 'File restored successfully.');
     }
@@ -898,7 +898,7 @@ class FolderController extends Controller implements HasMiddleware
             $this->fileStorage->delete($path, 's3');
             addUserAction([
                 'user_id' => Auth::id(),
-                'action' => "File {$file->name} permanently deleted"
+                'action' => "File {$file->file_name} permanently deleted"
             ]);
             $file->forceDelete(); // Permanently delete
             DB::commit();
@@ -922,6 +922,7 @@ class FolderController extends Controller implements HasMiddleware
                     return $folder;
                 })->merge($trashedFiles->get()->map(function ($file) {
                     $file->type = 'File';
+                    $file->name = $file->file_name;
                     return $file;
                 }));
 
@@ -1251,7 +1252,7 @@ class FolderController extends Controller implements HasMiddleware
             // Move files
             if (!empty($fileIds)) {
                 File::whereIn('id', $fileIds)->update(['folder_id' => $destinationFolderId]);
-                $movedItems = array_merge($movedItems, File::whereIn('id', $fileIds)->pluck('name')->toArray());
+                $movedItems = array_merge($movedItems, File::whereIn('id', $fileIds)->pluck('file_name')->toArray());
             }
 
             // Move folders
