@@ -54,6 +54,17 @@ class FileController extends Controller
         }
 
         try {
+            // Log invalid files on first batch only
+            if ((int) $request->input('batch_index', 0) === 0) {
+                $invalidFiles = json_decode($request->input('invalid_files', '[]'), true) ?? [];
+                if (!empty($invalidFiles)) {
+                    addUserAction([
+                        'user_id' => Auth::id(),
+                        'action' => 'File Upload - Skipped invalid file types (' . count($invalidFiles) . '): ' . implode(', ', $invalidFiles)
+                    ]);
+                }
+            }
+
             $filesData = [];
             $fileNames = [];
 

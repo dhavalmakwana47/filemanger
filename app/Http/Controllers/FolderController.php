@@ -68,6 +68,8 @@ class FolderController extends Controller implements HasMiddleware
             'roleArr' => CompanyRole::whereNot('role_name', 'Super Admin')->where('company_id', get_active_company())->get(),
             'totalSpace' => $totalSpace,
             'usedSpace' => $usedSpaceMb,
+            'totalFolders' => Folder::where('company_id', $company->id)->count(),
+            'totalFiles' => File::where('company_id', $company->id)->count(),
         ]);
     }
 
@@ -227,11 +229,12 @@ class FolderController extends Controller implements HasMiddleware
                         // Sync file permissions/roles
                         $this->syncFilePermissions($file->id, $roles);
                         $fileNames[] = $file->file_name;
+                        $roleNames = CompanyRole::whereIn('id', $roles)->pluck('role_name')->toArray();
 
                         // Log action
                         addUserAction([
                             'user_id' => $userId,
-                            'action' => "Roles [" . implode(', ', $roles) . "] assigned to File: {$file->file_name}"
+                            'action' => "Roles [" . implode(', ', $roleNames) . "] assigned to File: {$file->file_name}"
                         ]);
                     }
                 }
@@ -253,11 +256,12 @@ class FolderController extends Controller implements HasMiddleware
                         foreach ($folder->files as $file) {
                             $this->syncFilePermissions($file->id, $roles);
                         }
+                        $roleNames = CompanyRole::whereIn('id', $roles)->pluck('role_name')->toArray();
 
                         // Log action
                         addUserAction([
                             'user_id' => $userId,
-                            'action' => "Roles [" . implode(', ', $roles) . "] assigned to Folder: {$folder->name}"
+                            'action' => "Roles [" . implode(', ', $roleNames) . "] assigned to Folder: {$folder->name}"
                         ]);
                     }
                 }
@@ -514,28 +518,38 @@ class FolderController extends Controller implements HasMiddleware
     /**
      * Recursively build folder structure with permissions, applying search filter if provided.
      */
+    private function countAllFiles($folder): int
+    {
+        $count = $folder->files->count();
+        foreach ($folder->subfolders as $sub) {
+            $count += $this->countAllFiles($sub);
+        }
+        return $count;
+    }
+
     private function buildFileTree($folders, $defaultAccess, $query = '')
     {
         return $folders->filter(function ($folder) use ($query) {
-            // Include folder if it has access and either matches the query or has matching children
             $matchesQuery = !$query || stripos($folder->name, $query) !== false;
             return ($folder->has_access() || $this->hasAccessibleChild($folder)) && ($matchesQuery || $this->hasChildMatch($folder, $query));
         })
             ->map(function ($folder) use ($defaultAccess, $query) {
+                $items = array_merge(
+                    $this->buildFileTree($folder->subfolders, $defaultAccess, $query),
+                    $this->getPermittedFiles($folder, $defaultAccess, $query)
+                );
+                $totalFiles = $this->countAllFiles($folder);
                 return [
                     'id' => $folder->id,
                     'parentId' => $folder->parent_id,
-                    'name' => $folder->name,
+                    'name' => $folder->name . ' (' . $totalFiles . ')',
                     'isDirectory' => true,
-                    "dateModified" => $folder->created_at,
+                    'dateModified' => $folder->created_at,
                     'owner' => $folder->access_to_role->map(function ($rolePermission) {
                         return $rolePermission->companyRole->role_name ?? null;
                     })->filter()->join(', '),
                     'permissions' => $this->formatPermissions($folder, $defaultAccess),
-                    'items' => array_merge(
-                        $this->buildFileTree($folder->subfolders, $defaultAccess, $query),
-                        $this->getPermittedFiles($folder, $defaultAccess, $query)
-                    ),
+                    'items' => $items,
                     'index' => $folder->item_index,
                     'isBookmarked' => $folder->isBookmarkedByCurrentUser(),
                 ];
@@ -1093,6 +1107,26 @@ class FolderController extends Controller implements HasMiddleware
         }
 
         try {
+            // Log skipped/invalid files on first batch only (outside transaction)
+            if ((int) $request->input('batch_index', 0) === 0) {
+                $skippedFiles = json_decode($request->input('skipped_files', '[]'), true) ?? [];
+                $invalidFiles = json_decode($request->input('invalid_files', '[]'), true) ?? [];
+
+                if (!empty($skippedFiles)) {
+                    addUserAction([
+                        'user_id' => Auth::id(),
+                        'action' => 'Folder Upload - Skipped system files (' . count($skippedFiles) . '): ' . implode(', ', $skippedFiles)
+                    ]);
+                }
+
+                if (!empty($invalidFiles)) {
+                    addUserAction([
+                        'user_id' => Auth::id(),
+                        'action' => 'Folder Upload - Skipped invalid file types (' . count($invalidFiles) . '): ' . implode(', ', $invalidFiles)
+                    ]);
+                }
+            }
+
         return DB::transaction(function () use ($request, $allowedMimeTypes, $company_id) {
             $files = $request->file('files');
             $file_paths = $request->input('file_paths');
@@ -1221,7 +1255,7 @@ class FolderController extends Controller implements HasMiddleware
             // Log action
             $resourceNames = array_merge($folderNamesCreated, $fileNamesCreated);
             $roles = CompanyRole::whereIn('id', $selectedRoles)->pluck('role_name')->toArray();
-            
+
             addUserAction([
                 'user_id' => Auth::id(),
                 'action' => "Folders " . implode(', ', $resourceNames) . " Uploaded Successfully with Role Assigned: " . (count($roles) ? implode(', ', $roles) : "'-'")

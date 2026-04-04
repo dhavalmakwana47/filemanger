@@ -271,11 +271,13 @@
 
     <script>
         document.addEventListener('DOMContentLoaded', function() {
-            const ndaModal = new bootstrap.Modal(document.getElementById('ndaModal'));
+            const ndaModalEl = document.getElementById('ndaModal');
+            if (!ndaModalEl) return;
+
+            const ndaModal = new bootstrap.Modal(ndaModalEl);
             const agreeCheckbox = document.getElementById('agreeCheckbox');
             const agreeButton = document.getElementById('agreeButton');
 
-            // Show modal if NDA agreement is not signed
             @if (isset($setting) &&
                     !session('nda_agreement') &&
                     $setting->nda_content_enable &&
@@ -285,13 +287,13 @@
                 ndaModal.show();
             @endif
 
-            // Enable/disable agree button based on checkbox
-            agreeCheckbox.addEventListener('change', function() {
-                agreeButton.disabled = !this.checked;
-            });
+            if (agreeCheckbox) {
+                agreeCheckbox.addEventListener('change', function() {
+                    agreeButton.disabled = !this.checked;
+                });
+            }
 
-            // Prevent closing modal when clicking outside or pressing escape
-            document.getElementById('ndaModal').addEventListener('hide.bs.modal', function(e) {
+            ndaModalEl.addEventListener('hide.bs.modal', function(e) {
                 if (!@json(session('nda_agreement'))) {
                     e.preventDefault();
                     e.stopPropagation();

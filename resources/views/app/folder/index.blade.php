@@ -226,6 +226,10 @@
                 @if (current_user()->is_master_admin() || current_user()->is_super_admin())
                     <i class="fas fa-hdd me-2"></i>
                     <strong>Space:</strong> {{ $totalSpace}} MB / <strong>Used:</strong> {{ $usedSpace }} MB
+                    &nbsp;|&nbsp;
+                    <i class="fas fa-folder me-1"></i><strong>Folders:</strong> {{ $totalFolders }}
+                    &nbsp;|&nbsp;
+                    <i class="fas fa-file me-1"></i><strong>Files:</strong> {{ $totalFiles }}
                 @endif
             </div>
             <a href="{{ route('filemanger.data', ['is_download' => true]) }}" class="btn btn-primary" id="downloadTreeBtn">
@@ -429,6 +433,10 @@
             </div>
 
             <div class="dx-viewport demo-container">
+                <div id="fm-loader">
+                    <div class="fm-spinner"></div>
+                    <span>Loading files...</span>
+                </div>
                 <div id="file-manager"></div>
             </div>
 

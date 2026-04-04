@@ -47,8 +47,8 @@ $(function () {
         .dxFileManager({
             name: "fileManager",
             fileProvider: [],
-            height: 450,
-            width: 800,
+            height: 'auto',
+            width: '100%',
             selectionMode: "multiple",
             itemView: { mode: "details" },
             permissions: {
@@ -116,7 +116,7 @@ $(function () {
                         {
                             dataField: "name",
                             caption: "File/Folder",
-                            with: 300,
+                            wordWrapEnabled: true,
                         },
                         {
                             dataField: "dateModified",
@@ -1302,11 +1302,11 @@ $(function () {
 
     // ✅ Fetch File Manager Data
     async function fetchFileManagerData() {
+        $('#fm-loader').show();
         try {
             const response = await fetch(getFileMangerRoute);
             const data = await response.json();
             fileManager.option("fileSystemProvider", data);
-            // Clear search input when refreshing data
             fileManager.option("toolbar.items[4].options.value", "");
         } catch (error) {
             console.error("Error fetching data:", error);
@@ -1315,6 +1315,8 @@ $(function () {
                 "error",
                 2000
             );
+        } finally {
+            $('#fm-loader').hide();
         }
     }
 
@@ -1340,6 +1342,8 @@ $(function () {
     let skippedFiles = [];
     let validationTimeout = null;
     let validationLoader = null;
+    let allSkippedFiles = [];
+    let allInvalidFiles = [];
 
     const folderPond = FilePond.create(
         document.querySelector("#folder-upload"),
@@ -1422,6 +1426,7 @@ $(function () {
                 if (shouldSkip) {
                     console.log('Skipping file:', fileName);
                     skippedFiles.push(filePath);
+                    allSkippedFiles.push(filePath);
                     // Close loader if all files are being skipped
                     setTimeout(() => {
                         if (validationLoader && folderPond.getFiles().length === 0) {
@@ -1472,6 +1477,7 @@ $(function () {
                 if (!allowedTypes.includes(item.file.type) && !isSpecialFile) {
                     console.log('Invalid file type:', fileName, 'Type:', item.file.type);
                     invalidFiles.push(filePath);
+                    allInvalidFiles.push(filePath);
                     
                     clearTimeout(validationTimeout);
                     validationTimeout = setTimeout(() => {
@@ -1521,6 +1527,12 @@ $(function () {
 
         const BATCH_SIZE = 15;
         const batches = [];
+        const skippedFilesSnapshot = [...allSkippedFiles];
+        const invalidFilesSnapshot = [...allInvalidFiles];
+        console.log('Submit - skippedFilesSnapshot:', skippedFilesSnapshot);
+        console.log('Submit - invalidFilesSnapshot:', invalidFilesSnapshot);
+        allSkippedFiles = [];
+        allInvalidFiles = [];
         
         for (let i = 0; i < files.length; i += BATCH_SIZE) {
             batches.push(files.slice(i, i + BATCH_SIZE));
@@ -1552,6 +1564,10 @@ $(function () {
             formData.append("folder_id", fileManager.getCurrentDirectory().dataItem?.id || "");
             formData.append("batch_index", batchIndex);
             formData.append("total_batches", batches.length);
+            if (batchIndex === 0) {
+                formData.append("skipped_files", JSON.stringify(skippedFilesSnapshot));
+                formData.append("invalid_files", JSON.stringify(invalidFilesSnapshot));
+            }
 
             const xhr = new XMLHttpRequest();
             
@@ -1629,53 +1645,48 @@ $(function () {
         uploadBatch(0);
     });
 
+    const fileAllowedExtensions = [
+        ".png", ".jpg", ".jpeg", ".gif", ".tiff", ".tif",
+        ".pdf", ".doc", ".docx", ".rtf",
+        ".xls", ".xlsx", ".csv",
+        ".ppt", ".pptx", ".txt",
+        ".mp4", ".mov", ".wmv", ".mkv", ".mpeg", ".mpg",
+        ".mp3", ".wav", ".aac", ".m4a",
+        ".dwg", ".zip", ".rar", ".7z"
+    ];
+    let fileInvalidFiles = [];
+    let fileInvalidTimeout = null;
+
     // Create FilePond instance
     const pond = FilePond.create(document.querySelector("#file-upload"), {
         allowMultiple: true,
         instantUpload: false,
-        allowFileTypeValidation: false, // disable MIME check
-        labelIdle:
-            'Drag & Drop your files or <span class="filepond--label-action">Browse</span>',
-        onaddfilestart: (fileItem) => {
-            const allowedExtensions = [
-                // Images
-                ".png", ".jpg", ".jpeg", ".gif", ".tiff", ".tif",
-                // Documents
-                ".pdf", ".doc", ".docx", ".rtf",
-                ".xls", ".xlsx", ".csv",
-                ".ppt", ".pptx", ".txt",
-                // Video
-                ".mp4", ".mov", ".wmv", ".mkv", ".mpeg", ".mpg",
-                // Audio
-                ".mp3", ".wav", ".aac", ".m4a",
-                // CAD
-                ".dwg",
-                // Archives
-                ".zip", ".rar", ".7z"
-            ];
-
+        allowFileTypeValidation: false,
+        labelIdle: 'Drag & Drop your files or <span class="filepond--label-action">Browse</span>',
+        beforeAddFile: (fileItem) => {
             const fileName = fileItem.file.name.toLowerCase();
             const fileExtension = fileName.substring(fileName.lastIndexOf('.'));
-            const isValidExtension = allowedExtensions.includes(fileExtension);
-
-            if (!isValidExtension) {
-                const allowedTypesList = [
-                    'Images: PNG, JPG, JPEG, GIF, TIFF, TIF',
-                    'Documents: PDF, DOC, DOCX, RTF, XLS, XLSX, CSV, PPT, PPTX, TXT',
-                    'Video: MP4, MOV, WMV, MKV, MPEG, MPG',
-                    'Audio: MP3, WAV, AAC, M4A',
-                    'CAD: DWG',
-                    'Archives: ZIP, RAR, 7Z'
-                ].join('\n');
-
-                Swal.fire({
-                    icon: "error",
-                    title: "Invalid File Type",
-                    html: `The file type <strong>${fileExtension}</strong> is not allowed.<br><br>Allowed file types are:<br>${allowedTypesList.replace(/\n/g, '<br>')}`,
-                    confirmButtonText: 'OK'
-                });
-                fileItem.remove(); // remove invalid file
+            if (!fileAllowedExtensions.includes(fileExtension)) {
+                fileInvalidFiles.push(fileName);
+                allInvalidFiles.push(fileName);
+                clearTimeout(fileInvalidTimeout);
+                fileInvalidTimeout = setTimeout(() => {
+                    if (fileInvalidFiles.length > 0) {
+                        const fileList = fileInvalidFiles.map(f => `• ${f}`).join('<br>');
+                        Swal.fire({
+                            icon: "warning",
+                            title: "Invalid File Types",
+                            html: `<div style="text-align: left;"><p>The following <strong>${fileInvalidFiles.length}</strong> file(s) have invalid types and will be skipped:</p><div style="max-height: 400px; overflow-y: auto; margin: 10px 0; padding: 10px; background: #f8f9fa; border-radius: 5px; font-family: monospace; font-size: 12px;">${fileList}</div></div>`,
+                            confirmButtonText: "OK",
+                            confirmButtonColor: "#3085d6",
+                            width: '700px'
+                        });
+                        fileInvalidFiles = [];
+                    }
+                }, 500);
+                return false;
             }
+            return true;
         },
     });
 
@@ -1698,26 +1709,16 @@ $(function () {
             }
 
             // Validate files before upload
-            const allowedExtensions = [
-                ".png", ".jpg", ".jpeg", ".gif", ".tiff", ".tif",
-                ".pdf", ".doc", ".docx", ".rtf",
-                ".xls", ".xlsx", ".csv",
-                ".ppt", ".pptx", ".txt",
-                ".mp4", ".mov", ".wmv", ".mkv", ".mpeg", ".mpg",
-                ".mp3", ".wav", ".aac", ".m4a",
-                ".dwg", ".zip", ".rar", ".7z"
-            ];
-            
-            const invalidFiles = files.filter((fileItem) => {
+            const invalidFilesList = files.filter((fileItem) => {
                 const fileName = fileItem.file.name.toLowerCase();
-                return !allowedExtensions.some((ext) => fileName.endsWith(ext));
+                return !fileAllowedExtensions.some((ext) => fileName.endsWith(ext));
             });
 
-            if (invalidFiles.length > 0) {
+            if (invalidFilesList.length > 0) {
                 Swal.fire({
                     icon: "error",
                     title: "Invalid Files Detected",
-                    text: "One or more files are not allowed. Only PNG, JPEG, GIF, PDF, DOC, DOCX, ZIP, CSV, and XLSX files are permitted.",
+                    text: "One or more files are not allowed.",
                 });
                 return;
             }
@@ -1769,6 +1770,9 @@ $(function () {
                 
                 formData.append("batch_index", batchIndex);
                 formData.append("total_batches", batches.length);
+                if (batchIndex === 0) {
+                    formData.append("invalid_files", JSON.stringify(allInvalidFiles));
+                }
 
                 const xhr = new XMLHttpRequest();
                 

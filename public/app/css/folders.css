@@ -1,4 +1,96 @@
 #file-manager {
-    width: auto !important;
+    width: 100% !important;
     height: auto !important;
+    min-height: 400px;
+}
+
+#fm-loader {
+    position: absolute;
+    inset: 0;
+    background: rgba(255, 255, 255, 0.85);
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    z-index: 999;
+    border-radius: 4px;
+    gap: 12px;
+}
+
+#fm-loader .fm-spinner {
+    width: 42px;
+    height: 42px;
+    border: 4px solid #e0e0e0;
+    border-top-color: #0078d4;
+    border-radius: 50%;
+    animation: fm-spin 0.75s linear infinite;
+}
+
+#fm-loader span {
+    font-size: 14px;
+    color: #555;
+    font-weight: 500;
+}
+
+@keyframes fm-spin {
+    to { transform: rotate(360deg); }
+}
+
+.dx-viewport.demo-container {
+    position: relative;
+    overflow-x: auto;
+}
+
+.dx-filemanager .dx-filemanager-details-item-name {
+    white-space: normal !important;
+    overflow: visible !important;
+    text-overflow: unset !important;
+    word-break: break-word;
+    max-width: 220px;
+    display: inline-block !important;
+}
+
+/* Tablet */
+@media (max-width: 992px) {
+    .dx-filemanager .dx-filemanager-details-item-name {
+        max-width: 160px;
+    }
+
+    .dx-filemanager .dx-toolbar {
+        flex-wrap: wrap;
+        gap: 4px;
+    }
+
+    .dx-filemanager .dx-toolbar .dx-toolbar-items-container {
+        flex-wrap: wrap;
+    }
+}
+
+/* Mobile */
+@media (max-width: 576px) {
+    .dx-filemanager .dx-filemanager-details-item-name {
+        max-width: 110px;
+    }
+
+    .dx-filemanager .dx-toolbar-button .dx-button-text {
+        display: none;
+    }
+
+    .dx-filemanager .dx-toolbar-button .dx-icon {
+        margin: 0;
+    }
+
+    .dx-filemanager .dx-datagrid-headers .dx-datagrid-table .dx-row > td {
+        font-size: 11px;
+        padding: 4px 6px !important;
+    }
+
+    .dx-filemanager .dx-datagrid .dx-data-row > td {
+        font-size: 11px;
+        padding: 4px 6px !important;
+    }
+
+    .dx-filemanager .dx-filemanager-breadcrumbs {
+        font-size: 12px;
+    }
 }
