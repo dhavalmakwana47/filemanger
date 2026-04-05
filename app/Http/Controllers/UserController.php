@@ -103,6 +103,9 @@ class UserController extends Controller implements HasMiddleware
                 ->make(true);
         }
         $data['roleArr'] = CompanyRole::whereNot('role_name', 'Super Admin')->where('company_id', get_active_company())->get();
+        $data['totalUsers'] = User::whereHas('companies', fn($q) => $q->where('company_id', get_active_company()))
+            ->where(fn($q) => $q->whereDoesntHave('companyRoles')->orWhereHas('companyRoles', fn($q) => $q->where('role_name', '!=', 'Super Admin')))
+            ->count();
 
         return view('app.users.index', $data);
     }

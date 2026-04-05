@@ -233,7 +233,10 @@
                 }
             @endphp
 
+            <p class="text-muted mb-2">Total Users: <strong>{{ $totalUsers }}</strong></p>
+
             <x-data-table id="users-table" :columns="$columns" :extraOptions="['title' => 'Users List']" />
+
 
         </div>
     </div>

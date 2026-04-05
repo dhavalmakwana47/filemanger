@@ -51,6 +51,8 @@
                 }
             @endphp
 
+            <p class="text-muted mb-2">Total Roles: <strong>{{ $totalRoles }}</strong></p>
+
             <x-data-table id="companyrole-table" :columns="$columns" :extraOptions="['title' => 'Role List']" />
         </div>
     </div>

@@ -1,4 +1,4 @@
-<div class="form-group mb-3">
+<div class="form-group mb-3" @isset($permissionsSectionId) id="{{ $permissionsSectionId }}" @endisset>
     <label class="form-label fw-bold"><i class="fas fa-users"></i> Assign Permissions by Role</label>
     <select class="form-control select2" name="roles[]" id="upload_roles" multiple>
         @foreach ($roleArr as $role)

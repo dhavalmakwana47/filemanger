@@ -274,7 +274,7 @@
                             <div class="modal-body">
                                 <input type="file" id="file-upload" class="filepond" name="file[]" multiple />
 
-                                @include('app.folder.filepermissions')
+                                @include('app.folder.filepermissions', ['permissionsSectionId' => 'file-upload-permissions-section'])
                                 <div class="mb-3">
                                     <label for="fileIndex" class="form-label fw-bold"><i class="fas fa-folder"></i>
                                         Index</label>
@@ -299,7 +299,7 @@
 
             <div class="modal fade" id="folderUploadModalModal" tabindex="-1" aria-labelledby="folderUploadModalModalLabel"
                 aria-hidden="true">
-                <div class="modal-dialog modal-lg">
+                <div class="modal-dialog modal-lg modal-dialog-scrollable">
                     <div class="modal-content">
                         <form id="folderuploadForm" action="{{ route('folder.uploadstructure') }}" method="POST"
                             enctype="multipart/form-data">
@@ -314,7 +314,7 @@
                             <div class="modal-body">
                                 <input type="file" id="folder-upload" class="filepond" webkitdirectory multiple />
 
-                                @include('app.folder.filepermissions')
+                                @include('app.folder.filepermissions', ['permissionsSectionId' => 'folder-upload-permissions-section'])
                                 <div class="mb-3">
                                     <label for="fileIndex" class="form-label fw-bold"><i class="fas fa-folder"></i>
                                         Index</label>

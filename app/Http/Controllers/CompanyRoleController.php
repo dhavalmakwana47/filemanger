@@ -77,7 +77,8 @@ class CompanyRoleController extends Controller implements HasMiddleware
                 ->make(true);
         }
 
-        return view('app.role.index');
+        $totalRoles = CompanyRole::where('company_id', get_active_company())->whereNot('role_name', 'Super Admin')->count();
+        return view('app.role.index', compact('totalRoles'));
     }
 
     /**

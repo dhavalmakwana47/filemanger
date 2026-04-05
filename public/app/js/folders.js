@@ -2,6 +2,65 @@ $(function () {
     const csrfToken = $('meta[name="csrf-token"]').attr("content");
     let searchTimeout = null; // For debouncing search input
     let currentSearchValue = ""; // Track current search value
+    
+    // Internet connection monitor
+    let isOnline = true;
+    let connectionCheckInterval;
+    
+    function checkInternetConnection() {
+        // Try to fetch from Google's reliable endpoint
+        fetch('https://www.google.com/favicon.ico', {
+            method: 'HEAD',
+            mode: 'no-cors',
+            cache: 'no-cache'
+        })
+        .then(() => {
+            if (!isOnline) {
+                isOnline = true;
+                Swal.fire({
+                    icon: 'success',
+                    title: 'Back Online',
+                    text: 'Internet connection restored',
+                    timer: 3000,
+                    showConfirmButton: false,
+                    toast: true,
+                    position: 'top-end'
+                });
+            }
+        })
+        .catch(() => {
+            if (isOnline) {
+                isOnline = false;
+                Swal.fire({
+                    icon: 'error',
+                    title: 'No Internet Connection',
+                    text: 'Please check your internet connection and try again',
+                    confirmButtonColor: '#d33',
+                    allowOutsideClick: false
+                });
+            }
+        });
+    }
+    
+    // Check connection immediately on load
+    checkInternetConnection();
+    
+    // Check connection every 10 seconds
+    connectionCheckInterval = setInterval(checkInternetConnection, 10000);
+    
+    // Also listen to browser events as backup
+    window.addEventListener('online', checkInternetConnection);
+    window.addEventListener('offline', function() {
+        isOnline = false;
+        Swal.fire({
+            icon: 'error',
+            title: 'No Internet Connection',
+            text: 'Please check your internet connection and try again',
+            confirmButtonColor: '#d33',
+            allowOutsideClick: false
+        });
+    });
+    
     // Add this before the fileManager initialization
     const fileManagerItemTemplate = function (itemData, itemIndex, itemElement) {
         const $item = $("<div>").addClass("dx-filemanager-item");
@@ -1328,11 +1387,13 @@ $(function () {
 
     // ✅ Custom Function to Upload a file
     function uploadFile() {
+        scrollLocked = false;
         $("#fileForm")[0].reset();
         $("#fileModal").modal("show");
     }
 
     function uploadFolder() {
+        scrollLocked = false;
         $("#folderForm")[0].reset();
         $("#folderUploadModalModal").modal("show");
     }
@@ -1344,6 +1405,8 @@ $(function () {
     let validationLoader = null;
     let allSkippedFiles = [];
     let allInvalidFiles = [];
+    let scrollLocked = false;
+    let targetScrollPosition = 0;
 
     const folderPond = FilePond.create(
         document.querySelector("#folder-upload"),
@@ -1400,6 +1463,31 @@ $(function () {
                         validationLoader = null;
                     }
                 }, 500);
+                // Scroll to Assign Permissions by Role section in modal - only once
+                if (!scrollLocked) {
+                    scrollLocked = true;
+                    setTimeout(() => {
+                        const modalBody = document.querySelector('#folderUploadModalModal .modal-body');
+                        const rolesSection = document.querySelector('#folder-upload-permissions-section');
+                        if (modalBody && rolesSection) {
+                            targetScrollPosition = rolesSection.offsetTop - modalBody.offsetTop;
+                            modalBody.scrollTop = targetScrollPosition;
+                            
+                            // Lock scroll position for a moment
+                            const maintainScroll = () => {
+                                if (modalBody.scrollTop < targetScrollPosition - 50) {
+                                    modalBody.scrollTop = targetScrollPosition;
+                                }
+                            };
+                            
+                            // Maintain scroll for 2 seconds
+                            const scrollInterval = setInterval(maintainScroll, 100);
+                            setTimeout(() => {
+                                clearInterval(scrollInterval);
+                            }, 2000);
+                        }
+                    }, 800);
+                }
             },
             beforeAddFile: (item) => {
                 const fileName = item.file.name.toLowerCase();
@@ -1690,6 +1778,32 @@ $(function () {
             }
             return true;
         },
+        onaddfile: (error, file) => {
+            if (!scrollLocked) {
+                scrollLocked = true;
+                setTimeout(() => {
+                    const modal = document.querySelector('#fileModal');
+                    const modalBody = modal?.querySelector('.modal-body');
+                    const rolesSection = document.querySelector('#roles, [name="roles[]"], #rolesv2');
+                    if (modalBody && rolesSection) {
+                        targetScrollPosition = rolesSection.offsetTop - modalBody.offsetTop;
+                        modalBody.scrollTop = targetScrollPosition;
+                        
+                        // Maintain scroll position
+                        const maintainScroll = () => {
+                            if (modalBody.scrollTop < targetScrollPosition - 50) {
+                                modalBody.scrollTop = targetScrollPosition;
+                            }
+                        };
+                        
+                        const scrollInterval = setInterval(maintainScroll, 100);
+                        setTimeout(() => {
+                            clearInterval(scrollInterval);
+                        }, 2000);
+                    }
+                }, 300);
+            }
+        }
     });
 
     // Handle form submission with batch upload for files
