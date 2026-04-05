@@ -11,6 +11,7 @@ use App\Models\RoleFilePermission;
 use App\Models\RoleFolderPermission;
 use App\Services\FileStorageService;
 use App\Services\FolderService;
+use App\Services\IndexNumberingService;
 use Illuminate\Http\Request;
 use Illuminate\Routing\Controllers\HasMiddleware;
 use Illuminate\Routing\Controllers\Middleware;
@@ -84,12 +85,20 @@ class FolderController extends Controller implements HasMiddleware
         }
 
         try {
-            // Create folder
+            // Create folder with custom or auto-generated index
+            $customIndex = $request->input('item_index');
+            $parentId = $request['parent_id'] ?? null;
+            
+            // If custom index provided, normalize and use it; otherwise auto-generate
+            $itemIndex = $customIndex 
+                ? IndexNumberingService::normalizeIndex($customIndex)
+                : IndexNumberingService::generateNextIndex($parentId, 'folder');
+            
             $folder = Folder::create([
                 'name' => $request['name'],
-                'parent_id' => $request['parent_id'] ?? null,
+                'parent_id' => $parentId,
                 'company_id' => $company_id,
-                'item_index' => $request->item_index ?? 0,
+                'item_index' => $itemIndex,
                 'created_by' => current_user()->id
             ]);
 
@@ -99,9 +108,9 @@ class FolderController extends Controller implements HasMiddleware
                 $file = File::create([
                     'name' => $request->input('file_name'),
                     'file_name' => $request->input('file_name'),
-                    'parent_id' => $request['parent_id'] ?? null,
+                    'parent_id' => $parentId,
                     'company_id' => $company_id,
-                    'item_index' => $request->item_index ?? 0,
+                    'item_index' => IndexNumberingService::generateNextIndex($parentId, 'file', $itemIndex),
                     'created_by' => current_user()->id
                 ]);
                 $fileNamesCreated[] = $file->file_name;
@@ -166,11 +175,21 @@ class FolderController extends Controller implements HasMiddleware
 
         try {
             $folder = Folder::findOrFail($id);
+            $oldIndex = $folder->item_index;
+            $newIndex = $request->input('item_index', $oldIndex);
+            
+            // Normalize the index to remove leading zeros
+            $newIndex = IndexNumberingService::normalizeIndex($newIndex);
+            
             $folder->update([
                 'name' => $request->input('name'),
-                'item_index' => $request->item_index ?? 0,
+                'item_index' => $newIndex,
                 'updated_by' => current_user()->id
             ]);
+            
+            // Always update children indexes to ensure proper hierarchy
+            // This handles cases where children might have incorrect indexes
+            $this->recursivelyUpdateAllChildren($folder->id, $newIndex);
 
             $selectedRoles = $request->input('roles', []);
             $request->merge(['permissions' => $selectedRoles]);
@@ -283,6 +302,87 @@ class FolderController extends Controller implements HasMiddleware
                 'action' => "Error assigning roles: " . $e->getMessage()
             ]);
             return $this->errorResponse('There was an error assigning roles.', 500, $e);
+        }
+    }
+
+    /**
+     * Update children indexes when parent index changes
+     */
+    private function updateChildrenIndexes($folderId, $newParentIndex)
+    {
+        $company_id = get_active_company();
+        
+        // Normalize the parent index
+        $newParentIndex = IndexNumberingService::normalizeIndex($newParentIndex);
+        
+        // Get all child folders sorted by their current index
+        $childFolders = Folder::where('company_id', $company_id)
+            ->where('parent_id', $folderId)
+            ->orderBy('item_index')
+            ->get();
+        
+        // Get all child files sorted by their current index
+        $childFiles = File::where('company_id', $company_id)
+            ->where('folder_id', $folderId)
+            ->orderBy('item_index')
+            ->get();
+        
+        $childIndex = 1;
+        
+        // Update child folders first and recursively update their children
+        foreach ($childFolders as $childFolder) {
+            $newChildIndex = $newParentIndex . '.' . $childIndex;
+            $childFolder->update(['item_index' => $newChildIndex]);
+            
+            // Recursively update all descendants of this folder
+            $this->recursivelyUpdateAllChildren($childFolder->id, $newChildIndex);
+            $childIndex++;
+        }
+        
+        // Update child files
+        foreach ($childFiles as $childFile) {
+            $newChildIndex = $newParentIndex . '.' . $childIndex;
+            $childFile->update(['item_index' => $newChildIndex]);
+            $childIndex++;
+        }
+    }
+    
+    /**
+     * Recursively update all children at all levels
+     */
+    private function recursivelyUpdateAllChildren($folderId, $parentIndex)
+    {
+        $company_id = get_active_company();
+        
+        // Get all child folders
+        $childFolders = Folder::where('company_id', $company_id)
+            ->where('parent_id', $folderId)
+            ->orderBy('item_index')
+            ->get();
+        
+        // Get all child files
+        $childFiles = File::where('company_id', $company_id)
+            ->where('folder_id', $folderId)
+            ->orderBy('item_index')
+            ->get();
+        
+        $index = 1;
+        
+        // Process folders first
+        foreach ($childFolders as $folder) {
+            $newIndex = $parentIndex . '.' . $index;
+            $folder->update(['item_index' => $newIndex]);
+            
+            // Recursively update this folder's children
+            $this->recursivelyUpdateAllChildren($folder->id, $newIndex);
+            $index++;
+        }
+        
+        // Process files
+        foreach ($childFiles as $file) {
+            $newIndex = $parentIndex . '.' . $index;
+            $file->update(['item_index' => $newIndex]);
+            $index++;
         }
     }
 
@@ -1094,9 +1194,15 @@ class FolderController extends Controller implements HasMiddleware
             'application/x-7z-compressed'
         ];
 
+        if ($request->has('item_index')) {
+            $request->merge([
+                'item_index' => trim((string) $request->input('item_index', '')),
+            ]);
+        }
+
         $request->validate([
             'file_paths.*' => 'string',
-            'item_index' => 'nullable|integer|min:0',
+            'item_index' => ['nullable', 'string', 'max:40', 'regex:/^$|^[0-9]+(\.[0-9]+)*$/'],
             'folder_id' => 'nullable|exists:folders,id',
             'roles' => 'nullable|array',
             'roles.*' => 'exists:company_roles,id',
@@ -1128,11 +1234,18 @@ class FolderController extends Controller implements HasMiddleware
                 }
             }
 
-        return DB::transaction(function () use ($request, $allowedMimeTypes, $company_id) {
+        $rawItemIndex = $request->input('item_index');
+        $customParentIndex = ($rawItemIndex !== null && $rawItemIndex !== '')
+            ? IndexNumberingService::normalizeIndex(trim((string) $rawItemIndex))
+            : null;
+        if ($customParentIndex === '') {
+            $customParentIndex = null;
+        }
+
+        return DB::transaction(function () use ($request, $allowedMimeTypes, $company_id, $customParentIndex) {
             $files = $request->file('files');
             $file_paths = $request->input('file_paths');
             $root_folder_id = $request->input('folder_id') ?: null;
-            $item_index = $request->input('item_index', 0);
             $created_by = current_user()->id;
             $selectedRoles = array_filter($request->input('roles', []), fn($value) => !empty($value));
 
@@ -1172,10 +1285,11 @@ class FolderController extends Controller implements HasMiddleware
                 $pathParts = explode('/', trim($relativePath, '/'));
                 $fileName = array_pop($pathParts); // Last part is the file
                 $currentParentId = $root_folder_id; // Start with the provided folder_id
+                $hasNestedFolders = count($pathParts) > 0;
 
                 // Create folder hierarchy
                 $currentPath = '';
-                foreach ($pathParts as $folderName) {
+                foreach ($pathParts as $folderIndex => $folderName) {
                     $currentPath .= $folderName . '/';
 
                     // Unique key for folderMap to avoid conflicts
@@ -1189,11 +1303,14 @@ class FolderController extends Controller implements HasMiddleware
                             ->first();
 
                         if (!$folder) {
+                            // Only the first path segment under the upload target may use the user's base index;
+                            // deeper segments must use the real parent's item_index (child-of-child: 1.1.1, not 1.2).
+                            $indexCustomForFolder = ($folderIndex === 0) ? $customParentIndex : null;
                             $folder = Folder::create([
                                 'name' => $folderName,
                                 'parent_id' => $currentParentId,
                                 'company_id' => $company_id,
-                                'item_index' => $item_index,
+                                'item_index' => IndexNumberingService::generateNextIndex($currentParentId, 'folder', $indexCustomForFolder),
                                 'created_by' => $created_by,
                                 'updated_by' => $created_by,
                             ]);
@@ -1222,13 +1339,16 @@ class FolderController extends Controller implements HasMiddleware
                 $this->fileStorage->store($file, $filePath, $uniqueFileName);
                 $sizeKb = $file->getSize();
 
+                // File directly in the target folder: optional user base index; file inside uploaded subfolders: use that folder's index chain only.
+                $indexCustomForFile = $hasNestedFolders ? null : $customParentIndex;
+
                 $fileRecord = File::create([
                     'name' => $uniqueFileName,
                     'file_name' => $originalName . '.' . $extension,
                     'folder_id' => $currentParentId,
                     'company_id' => $company_id,
                     'file_path' => $filePath . '/' . $uniqueFileName,
-                    'item_index' => $item_index,
+                    'item_index' => IndexNumberingService::generateNextIndex($currentParentId, 'file', $indexCustomForFile),
                     'created_by' => $created_by,
                     'updated_by' => $created_by,
                     'size_kb' => $sizeKb,
@@ -1249,7 +1369,7 @@ class FolderController extends Controller implements HasMiddleware
             }
 
             // Send emails if toggle is enabled
-            if (!empty($selectedRoles) && (isset($request->send_email) && $request->send_emai === 1)) {
+            if (!empty($selectedRoles) && (isset($request->send_email) && (int) $request->send_email === 1)) {
                 $this->sendPermissionEmails($folderNamesCreated, $fileNamesCreated, $selectedRoles, $company_id);
             }
 

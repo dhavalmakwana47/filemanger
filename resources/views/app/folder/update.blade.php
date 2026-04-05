@@ -22,10 +22,11 @@
         </select>
     </div>
 
-     <div class="mb-3">
-        <label for="folderIndex" class="form-label fw-bold"><i class="fas fa-folder"></i> Index</label>
-        <input type="number" min="0" class="form-control form-control-lg" id="folderIndex" name="item_index"
-            value="{{ isset($folder->item_index) ? $folder->item_index : '' }}"  placeholder="Enter Index ...">
+    <div class="mb-3">
+        <label for="folderIndex" class="form-label fw-bold"><i class="fas fa-sort-numeric-down"></i> Index</label>
+        <input type="text" class="form-control form-control-lg" id="folderIndex" name="item_index"
+            value="{{ isset($folder->item_index) ? $folder->item_index : '' }}" placeholder="e.g., 1 or 1.1">
+        <small class="text-muted">Change this to update all child items automatically (e.g., if you change to 2, children become 2.1, 2.2, etc.)</small>
     </div>
 
     <div class="mb-3">

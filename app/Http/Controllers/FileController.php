@@ -11,6 +11,7 @@ use App\Models\Setting;
 use App\Services\FileStorageService;
 use App\Services\FileViewer;
 use App\Services\ZipExtarctService;
+use App\Services\IndexNumberingService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Storage;
@@ -102,14 +103,18 @@ class FileController extends Controller
                     // $file->storeAs($filePath, $fileName, 'public');
                     $this->fileStorage->store($file, $filePath, $fileName);
 
-                    // Save file info in the database
+                    // Save file info in the database with auto-generated index based on parent folder (do not pass
+                    // parent item_index as customParentIndex — that is only for overriding the base; passing it
+                    // matched the DB anyway and is redundant).
+                    $folderId = $request->folder_id ?? null;
+                    
                     $folder = File::create([
                         'name' => $fileName,
                         'file_name' => $originalName . '.' . $extension,
-                        'folder_id' => $request->folder_id ?? null,
+                        'folder_id' => $folderId,
                         'company_id' => $company_id,
                         'file_path' => $filePath . '/' . $fileName,
-                        'item_index' => $request->item_index ?? 0,
+                        'item_index' => IndexNumberingService::generateNextIndex($folderId, 'file'),
                         'created_by' => current_user()->id,
                         'size_kb' => $sizeKb,
                     ]);
@@ -407,7 +412,6 @@ class FileController extends Controller
             $file->update([
                 'file_name' => $request->name,
                 'updated_by' => current_user()->id,
-                'item_index' => $request->item_index ?? 0,
             ]);
 
             $selectedRoles = $request->input('roles', []);

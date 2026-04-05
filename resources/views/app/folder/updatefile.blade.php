@@ -21,11 +21,11 @@
             @endforeach
         </select>
     </div>
+
     <div class="mb-3">
-        <label for="fileIndex" class="form-label fw-bold"><i class="fas fa-folder"></i>
-            Index</label>
-        <input type="number" min="0" class="form-control form-control-lg" value="{{ isset($file->item_index) ? $file->item_index : '' }}" id="fileIndex" name="item_index"
-            placeholder="Enter Index...">
+        <label for="fileIndex" class="form-label fw-bold"><i class="fas fa-sort-numeric-down"></i> Index</label>
+        <input type="text" class="form-control form-control-lg bg-light" value="{{ isset($file->item_index) ? $file->item_index : '' }}" id="fileIndex" name="item_index" readonly>
+        <small class="text-muted">File index is based on parent folder. To change, update the parent folder's index.</small>
     </div>
     
     <div class="mb-3">

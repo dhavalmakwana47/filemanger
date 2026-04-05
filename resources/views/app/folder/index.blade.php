@@ -99,9 +99,9 @@
         }
 
         /* ==========================================================
-       CUSTOM CHECKBOX DESIGN FOR DEVEXTREME FILEMANAGER
-       FULLY FIXED + REFRESH SAFE + CLEAN VERSION
-       ========================================================== */
+           CUSTOM CHECKBOX DESIGN FOR DEVEXTREME FILEMANAGER
+           FULLY FIXED + REFRESH SAFE + CLEAN VERSION
+           ========================================================== */
 
         /* Ensure checkbox column has proper space */
         .dx-filemanager .dx-datagrid .dx-command-select {
@@ -189,8 +189,8 @@
         }
 
         /* ==========================================================
-       DARK MODE SUPPORT
-       ========================================================== */
+           DARK MODE SUPPORT
+           ========================================================== */
         @media (prefers-color-scheme: dark) {
 
             .dx-filemanager .dx-select-checkbox .dx-checkbox-icon {
@@ -225,12 +225,13 @@
             <div class="text-muted">
                 @if (current_user()->is_master_admin() || current_user()->is_super_admin())
                     <i class="fas fa-hdd me-2"></i>
-                    <strong>Space:</strong> {{ $totalSpace}} MB / <strong>Used:</strong> {{ $usedSpace }} MB
+                    <strong>Space:</strong> {{ $totalSpace }} MB / <strong>Used:</strong> {{ $usedSpace }} MB
                     &nbsp;|&nbsp;
-                    <i class="fas fa-folder me-1"></i><strong>Folders:</strong> {{ $totalFolders }}
-                    &nbsp;|&nbsp;
-                    <i class="fas fa-file me-1"></i><strong>Files:</strong> {{ $totalFiles }}
                 @endif
+
+                <i class="fas fa-folder me-1"></i><strong>Folders:</strong> {{ $totalFolders }}
+                &nbsp;|&nbsp;
+                <i class="fas fa-file me-1"></i><strong>Files:</strong> {{ $totalFiles }}
             </div>
             <a href="{{ route('filemanger.data', ['is_download' => true]) }}" class="btn btn-primary" id="downloadTreeBtn">
                 <i class="fas fa-download me-2"></i>Download Tree
@@ -274,16 +275,21 @@
                             <div class="modal-body">
                                 <input type="file" id="file-upload" class="filepond" name="file[]" multiple />
 
-                                @include('app.folder.filepermissions', ['permissionsSectionId' => 'file-upload-permissions-section'])
+                                @include('app.folder.filepermissions', [
+                                    'permissionsSectionId' => 'file-upload-permissions-section',
+                                ])
                                 <div class="mb-3">
-                                    <label for="fileIndex" class="form-label fw-bold"><i class="fas fa-folder"></i>
+                                    <label for="fileIndex" class="form-label fw-bold"><i
+                                            class="fas fa-sort-numeric-down"></i>
                                         Index</label>
-                                    <input type="number" min="0" class="form-control form-control-lg" id="fileIndex"
-                                        name="item_index" placeholder="Enter Index...">
+                                    <input type="text" class="form-control form-control-lg" id="fileIndex"
+                                        name="item_index" placeholder="Leave empty for auto-assignment">
+                                    <small class="text-muted">Leave empty to auto-assign. Files will follow parent folder's
+                                        index (e.g., 1.1, 1.2)</small>
                                 </div>
                                 <div class="mb-3">
                                     <div class="form-check form-switch">
-                                        <input class="form-check-input" type="checkbox" id="send_email" >
+                                        <input class="form-check-input" type="checkbox" id="send_email">
                                         <label class="form-check-label" for="send_email">Send Email Notification</label>
                                     </div>
                                 </div>
@@ -314,17 +320,22 @@
                             <div class="modal-body">
                                 <input type="file" id="folder-upload" class="filepond" webkitdirectory multiple />
 
-                                @include('app.folder.filepermissions', ['permissionsSectionId' => 'folder-upload-permissions-section'])
+                                @include('app.folder.filepermissions', [
+                                    'permissionsSectionId' => 'folder-upload-permissions-section',
+                                ])
                                 <div class="mb-3">
-                                    <label for="fileIndex" class="form-label fw-bold"><i class="fas fa-folder"></i>
+                                    <label for="folderIndex" class="form-label fw-bold"><i
+                                            class="fas fa-sort-numeric-down"></i>
                                         Index</label>
-                                    <input type="number" min="0" class="form-control form-control-lg"
-                                        id="folderIndex" name="item_index" placeholder="Enter Index...">
+                                    <input type="text" class="form-control form-control-lg" id="folderIndex"
+                                        name="item_index" placeholder="Leave empty for auto-assignment">
+                                    <small class="text-muted">Leave empty to auto-assign. Child folders/files will follow
+                                        this index (e.g., if you enter 1, children will be 1.1, 1.2, 1.3)</small>
                                 </div>
                                 <div class="mb-3">
                                     <div class="form-check form-switch">
                                         <input class="form-check-input" type="checkbox" id="folder_send_email"
-                                            name="send_email" >
+                                            name="send_email">
                                         <label class="form-check-label" for="folder_send_email">Send Email
                                             Notification</label>
                                     </div>
@@ -368,7 +379,7 @@
                                 <div class="mb-3">
                                     <div class="form-check form-switch">
                                         <input class="form-check-input" type="checkbox" id="assign_send_email"
-                                            name="send_email" >
+                                            name="send_email">
                                         <label class="form-check-label" for="assign_send_email">Send Email
                                             Notification</label>
                                     </div>

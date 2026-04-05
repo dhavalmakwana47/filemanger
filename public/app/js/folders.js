@@ -102,6 +102,48 @@ $(function () {
         return $item;
     };
 
+    /**
+     * Compare helper for hierarchical index (1.2 before 1.11). Used only while sorting arrays — never stored on items,
+     * so the UI never shows padded strings like 00000001.00000002.
+     */
+    function buildIndexSortKey(raw) {
+        if (raw == null || raw === "") {
+            return "zzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzz";
+        }
+        var parts = String(raw).split(".");
+        return parts
+            .map(function (part) {
+                var num = parseInt(part.trim(), 10);
+                if (isNaN(num)) {
+                    return "00000000";
+                }
+                return num.toString().padStart(8, "0");
+            })
+            .join(".");
+    }
+
+    function sortFileManagerItemsByIndex(nodes) {
+        if (!Array.isArray(nodes) || nodes.length === 0) {
+            return;
+        }
+        nodes.forEach(function (node) {
+            if (node.items && node.items.length) {
+                sortFileManagerItemsByIndex(node.items);
+            }
+        });
+        nodes.sort(function (a, b) {
+            var ka = a.name === ".." ? "" : buildIndexSortKey(a.index);
+            var kb = b.name === ".." ? "" : buildIndexSortKey(b.index);
+            if (ka < kb) {
+                return -1;
+            }
+            if (ka > kb) {
+                return 1;
+            }
+            return 0;
+        });
+    }
+
     const fileManager = $("#file-manager")
         .dxFileManager({
             name: "fileManager",
@@ -158,13 +200,12 @@ $(function () {
                             }
                         },
                         {
-                            dataField: "index", // your custom field
-                            caption: "Index", // column title
-                            dataType: "number",
+                            dataField: "index",
+                            caption: "Index",
+                            dataType: "string",
                             width: 70,
                             cssClass: "index-column",
-                            sortOrder: "desc", // 👈 default sort order
-                            sortIndex: 0, // 👈 first sort priority
+                            allowSorting: false,
                         },
                         {
                             dataField: "thumbnail",
@@ -1345,6 +1386,7 @@ $(function () {
                 }
             });
             const data = await response.json();
+            sortFileManagerItemsByIndex(data);
             fileManager.option("fileSystemProvider", data);
 
             // Keep the search term in the input but don't clear it
@@ -1365,6 +1407,7 @@ $(function () {
         try {
             const response = await fetch(getFileMangerRoute);
             const data = await response.json();
+            sortFileManagerItemsByIndex(data);
             fileManager.option("fileSystemProvider", data);
             fileManager.option("toolbar.items[4].options.value", "");
         } catch (error) {
@@ -1640,6 +1683,9 @@ $(function () {
         });
 
         let completedBatches = 0;
+        const folderUploadItemIndex = (
+            $("#folderUploadModalModal #folderIndex").val() || ""
+        ).trim();
         const uploadBatch = (batchIndex) => {
             const batch = batches[batchIndex];
             const formData = new FormData();
@@ -1650,6 +1696,9 @@ $(function () {
             });
             
             formData.append("folder_id", fileManager.getCurrentDirectory().dataItem?.id || "");
+            if (folderUploadItemIndex) {
+                formData.append("item_index", folderUploadItemIndex);
+            }
             formData.append("batch_index", batchIndex);
             formData.append("total_batches", batches.length);
             formData.append("send_email", $("#folder_send_email").is(":checked") ? 1 : 0);
