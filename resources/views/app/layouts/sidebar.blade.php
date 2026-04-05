@@ -35,9 +35,9 @@
                          <x-nav-item route="{{ route('filemanager.trash.data') }}" activeRoute="filemanager.trash.data" icon="bi bi-trash"
                         text="Trash Folders" module="Company Role" permission="view" />
                         <x-nav-item route="{{ route('bookmarks.index') }}" activeRoute="bookmarks.index" icon="bi bi-star-fill"
-                        text="My Bookmarks" module="Dashboard" permission="view" />
+                        text="Bookmarks" module="Dashboard" permission="view" />
                         <x-nav-item route="{{ route('downloads.index') }}" activeRoute="downloads.index" icon="bi bi-download"
-                        text="My Downloads" module="Dashboard" permission="view" />
+                        text="Downloads" module="Dashboard" permission="view" />
                         <x-nav-item route="{{ route('settings.index') }}" activeRoute="settings.index" icon="bi bi-gear"
                         text="Settings" module="Settings" permission="view" />
                 @endif

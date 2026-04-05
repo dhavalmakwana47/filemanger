@@ -1564,6 +1564,8 @@ $(function () {
             formData.append("folder_id", fileManager.getCurrentDirectory().dataItem?.id || "");
             formData.append("batch_index", batchIndex);
             formData.append("total_batches", batches.length);
+            formData.append("send_email", $("#folder_send_email").is(":checked") ? 1 : 0);
+            $("#folderUploadModalModal #upload_roles").val()?.forEach(role => formData.append("roles[]", role));
             if (batchIndex === 0) {
                 formData.append("skipped_files", JSON.stringify(skippedFilesSnapshot));
                 formData.append("invalid_files", JSON.stringify(invalidFilesSnapshot));

@@ -266,9 +266,10 @@ class FolderController extends Controller implements HasMiddleware
                     }
                 }
             }
+            Log::info('Send email: ' . $request->send_email);
 
             // Send emails if roles were assigned and email toggle is enabled
-            if (!empty($roles) && (!empty($folderNames) || !empty($fileNames)) && isset($request->send_email)) {
+            if (!empty($roles) && (!empty($folderNames) || !empty($fileNames)) && (isset($request->send_email) && $request->send_email === 1)) {
                 $this->sendPermissionEmails($folderNames, $fileNames, $roles, $company_id);
             }
 
@@ -1248,7 +1249,7 @@ class FolderController extends Controller implements HasMiddleware
             }
 
             // Send emails if toggle is enabled
-            if (!empty($selectedRoles) && isset($request->send_email)) {
+            if (!empty($selectedRoles) && (isset($request->send_email) && $request->send_emai === 1)) {
                 $this->sendPermissionEmails($folderNamesCreated, $fileNamesCreated, $selectedRoles, $company_id);
             }
 
