@@ -25,8 +25,15 @@ class FolderRequest extends FormRequest
             'name' => ['required','max:150'],
             'parent_id' => 'nullable|exists:folders,id',
             'permissions' => ['nullable','array'],
-            'item_index' => ['nullable','numeric','digits_between:1,10'],
+            'item_index' => ['nullable','numeric','digits_between:1,10','gt:0'],
         ];
+    }
+
+    protected function prepareForValidation()
+    {
+        if ($this->item_index == '0' || $this->item_index == '0.00' || $this->item_index === 0) {
+            $this->merge(['item_index' => null]);
+        }
     }
 
     /**

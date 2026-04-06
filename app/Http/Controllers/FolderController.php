@@ -69,8 +69,8 @@ class FolderController extends Controller implements HasMiddleware
             'roleArr' => CompanyRole::whereNot('role_name', 'Super Admin')->where('company_id', get_active_company())->get(),
             'totalSpace' => $totalSpace,
             'usedSpace' => $usedSpaceMb,
-            'totalFolders' => Folder::where('company_id', $company->id)->count(),
-            'totalFiles' => File::where('company_id', $company->id)->count(),
+            'totalFolders' => Folder::where('company_id', $company->id)->get()->filter(fn($f) => $f->has_access())->count(),
+            'totalFiles' => File::where('company_id', $company->id)->get()->filter(fn($f) => $f->hasAccess())->count(),
         ]);
     }
 

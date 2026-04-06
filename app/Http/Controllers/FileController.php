@@ -289,18 +289,22 @@ class FileController extends Controller
                         // Use the imported page
                         $pdf->useTemplate($templateId, 0, 0, $size['width'], $size['height'], true);
 
-                        // Set font and calculate text dimensions
-                        $pdf->SetFont('Helvetica', '', 24);
+                        // Set font
+                        $pdf->SetFont('Helvetica', '', 20);
                         $pdf->SetTextColor(150, 150, 150);
 
-                        // Calculate diagonal length and angle
+                        // Calculate diagonal from bottom-left to top-right
                         $diagonal = sqrt($size['width'] * $size['width'] + $size['height'] * $size['height']);
                         $angle = atan2($size['height'], $size['width']);
 
-                        // Position at bottom-left corner and rotate
-                        $pdf->_out(sprintf('q %.5F %.5F %.5F %.5F %.2F %.2F cm', cos($angle), sin($angle), -sin($angle), cos($angle), 0, $size['height']));
-                        $pdf->SetXY(0, -8);
-                        $pdf->Cell($diagonal, 16, $textWatermark, 0, 0, 'C');
+                        // Get text width to calculate proper starting position
+                        $textWidth = $pdf->GetStringWidth($textWatermark);
+                        $margin = 10; // Small margin from corner
+
+                        // Position at bottom-left corner with margin and rotate towards top-right
+                        $pdf->_out(sprintf('q %.5F %.5F %.5F %.5F %.2F %.2F cm', cos($angle), sin($angle), -sin($angle), cos($angle), $margin, $margin));
+                        $pdf->SetXY(0, -6);
+                        $pdf->Cell($diagonal - ($margin * 2), 12, $textWatermark, 0, 0, 'L');
                         $pdf->_out('Q');
                     }
                 }
