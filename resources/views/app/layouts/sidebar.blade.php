@@ -40,6 +40,8 @@
                         text="Downloads" module="Dashboard" permission="view" />
                         <x-nav-item route="{{ route('settings.index') }}" activeRoute="settings.index" icon="bi bi-gear"
                         text="Settings" module="Settings" permission="view" />
+                        <x-nav-item route="{{ route('documents.index') }}" activeRoute="documents.index" icon="bi bi-file-text"
+                        text="Documents" module="Documents" permission="view" />
                 @endif
 
             </ul>

@@ -237,6 +237,7 @@
         @include('app.layouts.sidebar')
         <main class="app-main">
             @yield('content')
+            @yield('modals')
         </main>
         @include('app.layouts.footer')
     </div>

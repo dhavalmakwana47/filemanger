@@ -135,6 +135,11 @@ Route::middleware(['auth', 'restrict_ip_by_company'])->group(function () {
     Route::get('/bookmarks', [BookmarkController::class, 'index'])->name('bookmarks.index');
     Route::post('/bookmarks/remove', [BookmarkController::class, 'remove'])->name('bookmarks.remove');
     
+    //documents
+    Route::resource('documents', \App\Http\Controllers\DocumentController::class);
+    Route::post('documents/{document}/share', [\App\Http\Controllers\DocumentController::class, 'share'])->name('documents.share');
+    Route::get('documents/{document}/view-logs', [\App\Http\Controllers\DocumentController::class, 'viewLogs'])->name('documents.view-logs');
+
     //downloads
     Route::get('/downloads', [DownloadController::class, 'index'])->name('downloads.index');
     Route::get('/downloads/{id}/download', [DownloadController::class, 'download'])->name('downloads.download');
@@ -142,3 +147,12 @@ Route::middleware(['auth', 'restrict_ip_by_company'])->group(function () {
 });
 
 require __DIR__ . '/auth.php';
+
+// Public document share routes (no auth required)
+Route::prefix('doc')->group(function () {
+    Route::get('/{token}',            [\App\Http\Controllers\DocumentShareController::class, 'showEmailForm'])->name('doc.email');
+    Route::post('/{token}/send-otp',  [\App\Http\Controllers\DocumentShareController::class, 'sendOtp'])->name('doc.send-otp');
+    Route::get('/{token}/verify',     [\App\Http\Controllers\DocumentShareController::class, 'showOtpForm'])->name('doc.otp');
+    Route::post('/{token}/verify',    [\App\Http\Controllers\DocumentShareController::class, 'verifyOtp'])->name('doc.verify-otp');
+    Route::get('/{token}/view',       [\App\Http\Controllers\DocumentShareController::class, 'viewDocument'])->name('doc.view');
+});
