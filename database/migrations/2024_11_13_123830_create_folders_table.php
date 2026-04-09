@@ -26,7 +26,7 @@ return new class extends Migration
             $table->unsignedBigInteger('updated_by')->nullable();
             $table->foreign('updated_by')->references('id')->on('users')->onDelete('cascade');
 
-            $table->bigInteger('item_indexs')->default(0); // For ordering folders
+            $table->string('item_indexs')->length(1000)->default(0); // For ordering folders
 
             $table->timestamps();
             $table->softDeletes(); // Add this for soft deletes

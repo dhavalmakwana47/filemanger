@@ -20,7 +20,7 @@ return new class extends Migration
             $table->foreignId('created_by')->constrained('users')->nullable();
             $table->foreignId('updated_by')->constrained('users')->nullable();
             $table->unsignedInteger('size_kb'); // Store size in KB
-            $table->bigInteger('item_index')->default(0); // For ordering folders
+            $table->string('item_indexs')->length(1000)->default(0); // For ordering folders
 
             $table->timestamps();
             $table->softDeletes(); // Add this for soft deletes
