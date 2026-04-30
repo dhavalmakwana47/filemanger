@@ -3,12 +3,65 @@
 
 @push('styles')
     <link rel="stylesheet" href="{{ asset('select2.min.css') }}">
+    <style>
+        .settings-page .card-body {
+            padding: 1.25rem;
+        }
+
+        @media (max-width: 576px) {
+            .settings-page .card-header h4 {
+                font-size: 1.05rem;
+            }
+
+            .settings-page .card-body {
+                padding: 0.9rem;
+            }
+
+            .settings-page textarea.form-control {
+                min-height: 180px;
+            }
+
+            .settings-page .form-check.form-switch {
+                display: flex;
+                gap: 10px;
+                align-items: flex-start;
+            }
+
+            .settings-page .form-group .d-flex {
+                flex-direction: column;
+                align-items: flex-start !important;
+                gap: 8px;
+            }
+
+            .settings-page #users + .select2,
+            .settings-page #users + .select2 .select2-selection {
+                width: 100% !important;
+                min-height: 42px;
+            }
+
+            .settings-page .btn.btn-lg,
+            .settings-page .btn.w-100 {
+                min-height: 42px;
+                font-size: 14px;
+                padding-top: 0.5rem;
+                padding-bottom: 0.5rem;
+            }
+
+            .settings-page .ip-manager .row > [class*='col-'] {
+                margin-bottom: 8px;
+            }
+
+            .settings-page .table-responsive table {
+                min-width: 560px;
+            }
+        }
+    </style>
 @endpush
 
 @section('content')
     <x-app-breadcrumb title="Settings" :breadcrumbs="[['name' => 'Home', 'url' => route('companyrole.index')], ['name' => 'Settings']]" />
 
-    <div class="app-content">
+    <div class="app-content settings-page">
         <div class="container-fluid">
 
             <!-- Success / Error Messages -->

@@ -226,15 +226,40 @@
     color: white;
     font-weight: 600;
 }
+
+/* Mobile navbar readability/fallback for AdminLTE + Bootstrap collapse */
+.app-header .navbar-toggler {
+    border-color: rgba(0, 0, 0, 0.2);
+}
+
+@media (max-width: 991.98px) {
+    .app-header .navbar-brand span {
+        font-size: 16px;
+    }
+
+    #mobileNavDrawer .nav-link {
+        border-radius: 8px;
+        padding: 10px 12px;
+        color: #212529;
+    }
+
+    #mobileNavDrawer .nav-link.active {
+        background-color: #0d6efd;
+        color: #fff;
+    }
+
+    #mobileNavDrawer .form-select {
+        min-height: 38px;
+    }
+}
 </style>
 
     @stack('styles')
 </head>
 
-<body class="layout-fixed sidebar-expand-lg bg-body-tertiary">
+<body class="layout-fixed bg-body-tertiary">
     <div class="app-wrapper">
         @include('app.layouts.navbar')
-        @include('app.layouts.sidebar')
         <main class="app-main">
             @yield('content')
             @yield('modals')

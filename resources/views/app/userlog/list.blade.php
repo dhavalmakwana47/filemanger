@@ -53,6 +53,58 @@
         .btn-apply {
             margin-top: 30px;
         }
+
+        .logs-header-actions {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .user-logs-table-wrap {
+            overflow-x: auto;
+            -webkit-overflow-scrolling: touch;
+        }
+
+        @media (max-width: 576px) {
+            .filter-section {
+                padding: 12px;
+            }
+
+            .filter-section .row > [class*="col-"] {
+                margin-bottom: 10px;
+            }
+
+            .filter-section .btn {
+                width: 100%;
+                min-height: 42px;
+            }
+
+            .filter-section #resetFilters {
+                margin-left: 0 !important;
+                margin-top: 8px;
+            }
+
+            .logs-header-actions {
+                width: 100%;
+                flex-direction: column;
+                align-items: stretch;
+                margin-top: 10px;
+            }
+
+            .logs-header-actions .btn-group,
+            .logs-header-actions #exportForm,
+            .logs-header-actions #exportButton {
+                width: 100%;
+            }
+
+            .logs-header-actions .btn-group .btn {
+                flex: 1;
+            }
+
+            .user-logs-table-wrap table {
+                min-width: 820px;
+            }
+        }
     </style>
 @endpush
 
@@ -110,9 +162,9 @@
                 <div class="col-12">
                     <div class="card">
                         <div class="card-header">
-                            <div class="d-flex justify-content-between align-items-center">
+                            <div class="d-flex justify-content-between align-items-center flex-wrap">
                                 <h4 class="card-title mb-0">User Logs</h4>
-                                <div class="export-options d-flex align-items-center">
+                                <div class="export-options logs-header-actions">
                                     <div class="btn-group btn-group-toggle mr-2" data-toggle="buttons">
                                         <label class="btn btn-outline-secondary active">
                                             <input type="radio" name="export_type" value="xlsx" checked> Excel
@@ -135,7 +187,7 @@
                             </div>
                         </div>
                         <div class="card-body">
-                            <div class="table-responsive">
+                            <div class="table-responsive user-logs-table-wrap">
                                 <table id="user-logs-table" class="table table-striped table-bordered" style="width:100%">
                                     <thead>
                                         <tr>
@@ -187,7 +239,7 @@
                         d.to_date = $('#to_date').val();
                     }
                 },
-                scrollX: false,
+                scrollX: true,
                 autoWidth: true,
                 columnDefs: [{
                         width: '5%',

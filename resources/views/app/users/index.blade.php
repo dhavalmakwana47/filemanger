@@ -27,6 +27,92 @@
         .select2-container.is-invalid .select2-selection {
             border-color: #dc3545 !important;
         }
+
+        .users-toolbar {
+            gap: 12px;
+        }
+
+        .users-filter-group,
+        .users-action-group {
+            display: flex;
+            align-items: center;
+            flex-wrap: wrap;
+            gap: 8px;
+        }
+
+        .users-table-wrap {
+            overflow-x: auto;
+            -webkit-overflow-scrolling: touch;
+        }
+
+        .users-table-wrap .card {
+            width: 100%;
+        }
+
+        .users-table-wrap .card-body {
+            overflow-x: auto;
+            -webkit-overflow-scrolling: touch;
+        }
+
+        .users-table-wrap .dataTables_wrapper {
+            width: 100%;
+        }
+
+        @media (max-width: 576px) {
+            .users-toolbar {
+                flex-direction: column;
+                align-items: stretch !important;
+            }
+
+            .users-filter-group,
+            .users-action-group {
+                width: 100%;
+            }
+
+            .users-filter-group label {
+                width: 100%;
+                margin-bottom: 0;
+                font-weight: 600;
+            }
+
+            #statusFilter {
+                width: 100% !important;
+            }
+
+            .users-action-group .btn,
+            .users-filter-group .btn {
+                flex: 1 1 100%;
+                min-height: 42px;
+                justify-content: center;
+                font-size: 14px;
+                white-space: normal;
+            }
+
+            .users-action-group .btn i,
+            .users-filter-group .btn i {
+                margin-right: 6px !important;
+            }
+
+            #bulkActionButtons {
+                display: flex;
+                flex-wrap: wrap;
+                gap: 8px;
+            }
+
+            #bulkActionButtons .btn {
+                flex: 1 1 calc(50% - 8px);
+                min-height: 40px;
+            }
+
+            #bulkActionButtons #selectedCount {
+                width: 100%;
+                margin-left: 0 !important;
+            }
+
+            .users-table-wrap .dataTables_wrapper table {
+                min-width: 860px;
+            }
+        }
     </style>
 @endpush
 
@@ -104,8 +190,8 @@
                 </div>
             </div>
             @if (current_user()->hasPermission('Users', 'create'))
-                <div class="d-flex justify-content-between align-items-center mb-3">
-                    <div>
+                <div class="d-flex justify-content-between align-items-center mb-3 users-toolbar">
+                    <div class="users-filter-group">
                         <label class="me-2">Filter:</label>
                         <select id="statusFilter" class="form-select form-select-sm d-inline-block" style="width: 150px;">
                             <option value="">All Users</option>
@@ -119,7 +205,7 @@
                             <i class="fas fa-times-circle me-1"></i> Inactive All
                         </button>
                     </div>
-                    <div class="d-flex gap-2">
+                    <div class="d-flex gap-2 users-action-group">
                         <button type="button" class="btn btn-primary d-flex align-items-center" data-bs-toggle="modal"
                             data-bs-target="#createUserModal">
                             <i class="fas fa-user-plus me-2"></i> Create User
@@ -234,8 +320,9 @@
             @endphp
 
             <p class="text-muted mb-2">Total Users: <strong>{{ $totalUsers }}</strong></p>
-
-            <x-data-table id="users-table" :columns="$columns" :extraOptions="['title' => 'Users List']" />
+            <div class="users-table-wrap">
+                <x-data-table id="users-table" :columns="$columns" :extraOptions="['title' => 'Users List']" />
+            </div>
 
 
         </div>

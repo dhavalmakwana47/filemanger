@@ -1,15 +1,92 @@
-<nav class="app-header navbar navbar-expand bg-body">
-    <div class="container-fluid"> <!--begin::Start Navbar Links-->
-        <ul class="navbar-nav">
-            <li class="nav-item"> <a id="sidebar-toggle-btn"  class="nav-link" data-lte-toggle="sidebar" href="#" role="button">
-                    <i class="bi bi-list"></i> </a> </li>
-            <li class="nav-item d-none d-md-block"> <a href="{{ route('dashboard') }}" class="nav-link">Home</a> </li>
-        </ul> <!--end::Start Navbar Links--> <!--begin::End Navbar Links-->
-        <ul class="navbar-nav ms-auto"> <!--begin::Navbar Search-->
+<nav class="app-header navbar navbar-expand-lg navbar-light bg-body border-bottom">
+    <div class="container-fluid">
+        <button class="btn btn-outline-secondary d-lg-none me-2" type="button" data-bs-toggle="offcanvas"
+            data-bs-target="#mobileNavDrawer" aria-controls="mobileNavDrawer" aria-label="Open menu">
+            <i class="bi bi-list"></i>
+        </button>
+
+        <a href="{{ route('dashboard') }}" class="navbar-brand d-flex align-items-center">
+            <img src="{{ asset('repository.png') }}" alt="File Manager" style="height:30px;" class="me-2">
+            <span>File Manager</span>
+        </a>
+
+        <button class="navbar-toggler d-none" type="button" data-bs-toggle="collapse" data-bs-target="#topNavMenu"
+            aria-controls="topNavMenu" aria-expanded="false" aria-label="Toggle navigation">
+            <span class="navbar-toggler-icon"></span>
+        </button>
+
+        <div class="collapse navbar-collapse mt-2 mt-lg-0" id="topNavMenu">
+            <ul class="navbar-nav me-auto mb-2 mb-lg-0 d-none d-lg-flex">
+                <li class="nav-item">
+                    <a href="{{ route('dashboard') }}"
+                        class="nav-link {{ request()->routeIs('home') || request()->routeIs('dashboard') ? 'active' : '' }}">
+                        <i class="bi bi-speedometer2 me-1"></i>Dashboard
+                    </a>
+                </li>
+
+                @if (get_active_company())
+                    <li class="nav-item">
+                        <a href="{{ route('folder.index') }}" class="nav-link {{ request()->routeIs('folder.index') ? 'active' : '' }}">
+                            <i class="bi bi-folder-fill me-1"></i>Folders
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a href="{{ route('users.index') }}" class="nav-link {{ request()->routeIs('users.index') ? 'active' : '' }}">
+                            <i class="bi bi-people me-1"></i>Users
+                        </a>
+                    </li>
+                @endif
+
+                <li class="nav-item">
+                    <a href="{{ route('company.index') }}" class="nav-link {{ request()->routeIs('company.index') ? 'active' : '' }}">
+                        <i class="bi bi-building me-1"></i>Company
+                    </a>
+                </li>
+
+                @if (get_active_company())
+                    <li class="nav-item">
+                        <a href="{{ route('companyrole.index') }}" class="nav-link {{ request()->routeIs('companyrole.index') ? 'active' : '' }}">
+                            <i class="bi bi-person-badge me-1"></i>Role
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a href="{{ route('userlog.index') }}" class="nav-link {{ request()->routeIs('userlog.index') ? 'active' : '' }}">
+                            <i class="bi bi-journal-text me-1"></i>User Log
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a href="{{ route('filemanager.trash.data') }}" class="nav-link {{ request()->routeIs('filemanager.trash.data') ? 'active' : '' }}">
+                            <i class="bi bi-trash me-1"></i>Trash Folders
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a href="{{ route('bookmarks.index') }}" class="nav-link {{ request()->routeIs('bookmarks.index') ? 'active' : '' }}">
+                            <i class="bi bi-star-fill me-1"></i>Bookmarks
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a href="{{ route('downloads.index') }}" class="nav-link {{ request()->routeIs('downloads.index') ? 'active' : '' }}">
+                            <i class="bi bi-download me-1"></i>Downloads
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a href="{{ route('settings.index') }}" class="nav-link {{ request()->routeIs('settings.index') ? 'active' : '' }}">
+                            <i class="bi bi-gear me-1"></i>Settings
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a href="{{ route('documents.index') }}" class="nav-link {{ request()->routeIs('documents.index') ? 'active' : '' }}">
+                            <i class="bi bi-file-text me-1"></i>Documents
+                        </a>
+                    </li>
+                @endif
+            </ul>
+
+            <ul class="navbar-nav ms-auto align-items-lg-center gap-lg-2 flex-row">
             <li class="nav-item"> <a class="nav-link" data-widget="navbar-search" href="#" role="button">
                     <i class="bi bi-search"></i> </a>
             </li>
-            <li class="nav-item">
+            <li class="nav-item d-none d-lg-block">
                 <form action="{{ route('change_company') }}" method="post" id="company-form" class="d-flex align-items-center">
                     @csrf
                     <div class="custom-company-dropdown">
@@ -115,7 +192,7 @@
                     </a>
                 </div>
             </li>  --}}
-            <li class="nav-item"> <a class="nav-link" href="#" data-lte-toggle="fullscreen"> <i
+            <li class="nav-item d-none d-lg-block"> <a class="nav-link" href="#" data-lte-toggle="fullscreen"> <i
                         data-lte-icon="maximize" class="bi bi-arrows-fullscreen"></i> <i data-lte-icon="minimize"
                         class="bi bi-fullscreen-exit" style="display: none;"></i>
                 </a> </li>
@@ -147,6 +224,94 @@
                     <!--end::Menu Footer-->
                 </ul>
             </li> <!--end::User Menu Dropdown-->
-        </ul> <!--end::End Navbar Links-->
-    </div> <!--end::Container-->
+            </ul>
+        </div>
+    </div>
 </nav>
+
+<div class="offcanvas offcanvas-start" tabindex="-1" id="mobileNavDrawer" aria-labelledby="mobileNavDrawerLabel">
+    <div class="offcanvas-header border-bottom">
+        <h5 class="offcanvas-title" id="mobileNavDrawerLabel">Menu</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="offcanvas" aria-label="Close"></button>
+    </div>
+    <div class="offcanvas-body">
+        <div class="mb-3">
+            <form action="{{ route('change_company') }}" method="post" class="d-flex flex-column gap-2">
+                @csrf
+                <label for="mobile-company-select" class="form-label mb-0 small text-muted">Active Company</label>
+                <select name="company_id" id="mobile-company-select" class="form-select form-select-sm"
+                    onchange="this.form.submit()">
+                    @foreach (fetch_company() as $company)
+                        <option value="{{ $company->id }}" {{ get_active_company() == $company->id ? 'selected' : '' }}>
+                            {{ $company->name }}
+                        </option>
+                    @endforeach
+                </select>
+                <input type="hidden" value="{{ Route::currentRouteName() }}" name="route">
+            </form>
+        </div>
+
+        <ul class="nav nav-pills flex-column gap-1">
+            <li class="nav-item">
+                <a href="{{ route('dashboard') }}"
+                    class="nav-link {{ request()->routeIs('home') || request()->routeIs('dashboard') ? 'active' : '' }}">
+                    <i class="bi bi-speedometer2 me-2"></i>Dashboard
+                </a>
+            </li>
+            @if (get_active_company())
+                <li class="nav-item">
+                    <a href="{{ route('folder.index') }}" class="nav-link {{ request()->routeIs('folder.index') ? 'active' : '' }}">
+                        <i class="bi bi-folder-fill me-2"></i>Folders
+                    </a>
+                </li>
+                <li class="nav-item">
+                    <a href="{{ route('users.index') }}" class="nav-link {{ request()->routeIs('users.index') ? 'active' : '' }}">
+                        <i class="bi bi-people me-2"></i>Users
+                    </a>
+                </li>
+            @endif
+            <li class="nav-item">
+                <a href="{{ route('company.index') }}" class="nav-link {{ request()->routeIs('company.index') ? 'active' : '' }}">
+                    <i class="bi bi-building me-2"></i>Company
+                </a>
+            </li>
+            @if (get_active_company())
+                <li class="nav-item">
+                    <a href="{{ route('companyrole.index') }}" class="nav-link {{ request()->routeIs('companyrole.index') ? 'active' : '' }}">
+                        <i class="bi bi-person-badge me-2"></i>Role
+                    </a>
+                </li>
+                <li class="nav-item">
+                    <a href="{{ route('userlog.index') }}" class="nav-link {{ request()->routeIs('userlog.index') ? 'active' : '' }}">
+                        <i class="bi bi-journal-text me-2"></i>User Log
+                    </a>
+                </li>
+                <li class="nav-item">
+                    <a href="{{ route('filemanager.trash.data') }}" class="nav-link {{ request()->routeIs('filemanager.trash.data') ? 'active' : '' }}">
+                        <i class="bi bi-trash me-2"></i>Trash Folders
+                    </a>
+                </li>
+                <li class="nav-item">
+                    <a href="{{ route('bookmarks.index') }}" class="nav-link {{ request()->routeIs('bookmarks.index') ? 'active' : '' }}">
+                        <i class="bi bi-star-fill me-2"></i>Bookmarks
+                    </a>
+                </li>
+                <li class="nav-item">
+                    <a href="{{ route('downloads.index') }}" class="nav-link {{ request()->routeIs('downloads.index') ? 'active' : '' }}">
+                        <i class="bi bi-download me-2"></i>Downloads
+                    </a>
+                </li>
+                <li class="nav-item">
+                    <a href="{{ route('settings.index') }}" class="nav-link {{ request()->routeIs('settings.index') ? 'active' : '' }}">
+                        <i class="bi bi-gear me-2"></i>Settings
+                    </a>
+                </li>
+                <li class="nav-item">
+                    <a href="{{ route('documents.index') }}" class="nav-link {{ request()->routeIs('documents.index') ? 'active' : '' }}">
+                        <i class="bi bi-file-text me-2"></i>Documents
+                    </a>
+                </li>
+            @endif
+        </ul>
+    </div>
+</div>

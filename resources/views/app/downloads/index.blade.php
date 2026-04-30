@@ -2,6 +2,23 @@
 @push('styles')
     <link rel="stylesheet" href="https://cdn.datatables.net/1.13.5/css/dataTables.bootstrap4.min.css" />
     <link rel="stylesheet" href="https://stackpath.bootstrapcdn.com/bootstrap/4.5.2/css/bootstrap.min.css" />
+    <style>
+        .downloads-table-wrap {
+            overflow-x: auto;
+            -webkit-overflow-scrolling: touch;
+        }
+
+        .downloads-table-wrap .card-body {
+            overflow-x: auto;
+            -webkit-overflow-scrolling: touch;
+        }
+
+        @media (max-width: 576px) {
+            .downloads-table-wrap .dataTables_wrapper table {
+                min-width: 780px;
+            }
+        }
+    </style>
 @endpush
 
 @section('content')
@@ -22,7 +39,9 @@
             ];
         @endphp
 
-        <x-data-table id="downloads-table" :columns="$columns" :extraOptions="['title' => 'Downloads List']" />
+        <div class="downloads-table-wrap">
+            <x-data-table id="downloads-table" :columns="$columns" :extraOptions="['title' => 'Downloads List']" />
+        </div>
     </div>
 </div>
 @endsection

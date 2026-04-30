@@ -2,6 +2,22 @@
 
 @push('styles')
     <link rel="stylesheet" href="https://cdn.datatables.net/1.13.4/css/dataTables.bootstrap5.min.css">
+    <style>
+        .bookmarks-table-wrap {
+            overflow-x: auto;
+            -webkit-overflow-scrolling: touch;
+        }
+
+        @media (max-width: 576px) {
+            .bookmarks-table-wrap table {
+                min-width: 760px;
+            }
+
+            .card-title {
+                font-size: 1rem;
+            }
+        }
+    </style>
 @endpush
 
 @section('content')
@@ -21,7 +37,7 @@
                             </h5>
                         </div>
                         <div class="card-body">
-                            <div class="table-responsive">
+                            <div class="table-responsive bookmarks-table-wrap">
                                 <table id="bookmarksTable" class="table table-striped table-bordered">
                                     <thead>
                                         <tr>
@@ -59,7 +75,8 @@
                 ],
                 order: [[2, 'desc']],
                 pageLength: 25,
-                responsive: true
+                responsive: false,
+                scrollX: true
             });
         });
     </script>

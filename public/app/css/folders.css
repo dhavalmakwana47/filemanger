@@ -39,6 +39,10 @@
 .dx-viewport.demo-container {
     position: relative;
     overflow-x: auto;
+    background: #fff;
+    border: 1px solid #e7e7e7;
+    border-radius: 10px;
+    padding: 8px;
 }
 
 .dx-filemanager .dx-filemanager-details-item-name {
@@ -68,8 +72,40 @@
 
 /* Mobile */
 @media (max-width: 576px) {
+    .folder-topbar {
+        display: flex;
+        flex-direction: column;
+        gap: 10px;
+        margin: 0.75rem !important;
+    }
+
+    .folder-stats {
+        font-size: 14px;
+        line-height: 1.5;
+        background: #f8f9fa;
+        border: 1px solid #ececec;
+        border-radius: 10px;
+        padding: 10px 12px;
+    }
+
+    .folder-download-btn {
+        width: 100%;
+        min-height: 44px;
+        font-size: 14px;
+        font-weight: 600;
+    }
+
+    .app-content {
+        padding: 0 !important;
+    }
+
+    .dx-viewport.demo-container {
+        margin: 0 8px 12px;
+        padding: 6px;
+    }
+
     .dx-filemanager .dx-filemanager-details-item-name {
-        max-width: 110px;
+        max-width: 140px;
     }
 
     .dx-filemanager .dx-toolbar-button .dx-button-text {
@@ -86,11 +122,65 @@
     }
 
     .dx-filemanager .dx-datagrid .dx-data-row > td {
-        font-size: 11px;
-        padding: 4px 6px !important;
+        font-size: 12px;
+        padding: 7px 6px !important;
     }
 
     .dx-filemanager .dx-filemanager-breadcrumbs {
         font-size: 12px;
+    }
+
+    .dx-filemanager .dx-toolbar {
+        padding: 6px 4px 8px !important;
+        border-bottom: 1px solid #ececec;
+    }
+
+    .dx-filemanager .dx-toolbar .dx-toolbar-before,
+    .dx-filemanager .dx-toolbar .dx-toolbar-after {
+        width: 100%;
+    }
+
+    .dx-filemanager .dx-toolbar .dx-toolbar-before .dx-toolbar-item,
+    .dx-filemanager .dx-toolbar .dx-toolbar-after .dx-toolbar-item {
+        margin-right: 4px;
+    }
+
+    .dx-filemanager .dx-toolbar .dx-toolbar-after {
+        margin-top: 6px;
+        display: flex;
+        justify-content: flex-end;
+    }
+
+    .dx-filemanager .dx-toolbar .dx-filemanager-search {
+        width: 100% !important;
+        max-width: 100% !important;
+    }
+
+    .dx-filemanager .dx-toolbar .dx-filemanager-search .dx-texteditor {
+        border-radius: 8px !important;
+        background: #fff !important;
+        min-height: 38px;
+    }
+
+    .dx-filemanager .dx-toolbar .dx-filemanager-search .dx-texteditor-input {
+        font-size: 14px !important;
+        padding: 8px 10px 8px 34px !important;
+    }
+
+    .dx-filemanager .dx-toolbar .dx-filemanager-search .dx-icon-search {
+        left: 10px !important;
+        top: 50% !important;
+        transform: translateY(-50%);
+        opacity: 0.8;
+        font-size: 14px;
+    }
+
+    .dx-filemanager .dx-toolbar .dx-filemanager-search .dx-placeholder {
+        font-size: 13px;
+        color: #8a8a8a;
+    }
+
+    .dx-filemanager .dx-datagrid {
+        min-width: 640px;
     }
 }

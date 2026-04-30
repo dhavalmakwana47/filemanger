@@ -13,6 +13,37 @@
             width: auto;
             display: inline-block;
         }
+
+        .trash-toolbar {
+            display: flex;
+            justify-content: flex-end;
+            align-items: center;
+            flex-wrap: wrap;
+            gap: 8px;
+            margin-bottom: 0.75rem;
+        }
+
+        .trash-table-wrap {
+            overflow-x: auto;
+            -webkit-overflow-scrolling: touch;
+        }
+
+        .trash-table-wrap .card-body {
+            overflow-x: auto;
+            -webkit-overflow-scrolling: touch;
+        }
+
+        @media (max-width: 576px) {
+            .trash-toolbar .btn {
+                width: 100%;
+                min-height: 42px;
+                font-size: 14px;
+            }
+
+            .trash-table-wrap .dataTables_wrapper table {
+                min-width: 860px;
+            }
+        }
     </style>
 @endpush
 
@@ -20,8 +51,8 @@
     <x-app-breadcrumb title="Trash Bin" :breadcrumbs="[['name' => 'Home', 'url' => route('home')], ['name' => 'File Manager', 'url' => route('dashboard')]]" />
     <div class="app-content">
         <div class="container-fluid">
-            <div class="row mb-2">
-                <div class="col text-right">
+            <div class="trash-toolbar">
+                <div class="w-100 text-end">
                     <a href="{{ route('folder.index') }}" class="btn btn-primary">
                         <i class="fas fa-arrow-left"></i> Back to File Manager
                     </a>
@@ -30,14 +61,16 @@
                     </button>
                 </div>
             </div>
-            <x-data-table id="trash-table" :columns="[
-                ['data' => 'select', 'title' => 'select', 'orderable' => false, 'searchable' => false],
-                ['data' => 'id', 'title' => 'ID'],
-                ['data' => 'name', 'title' => 'Name'],
-                ['data' => 'type', 'title' => 'Type'],
-                ['data' => 'created_at', 'title' => 'Created At'],
-                ['data' => 'action', 'title' => 'Action', 'orderable' => false, 'searchable' => false],
-            ]" :extraOptions="['title' => 'Trashed Items']" />
+            <div class="trash-table-wrap">
+                <x-data-table id="trash-table" :columns="[
+                    ['data' => 'select', 'title' => 'select', 'orderable' => false, 'searchable' => false],
+                    ['data' => 'id', 'title' => 'ID'],
+                    ['data' => 'name', 'title' => 'Name'],
+                    ['data' => 'type', 'title' => 'Type'],
+                    ['data' => 'created_at', 'title' => 'Created At'],
+                    ['data' => 'action', 'title' => 'Action', 'orderable' => false, 'searchable' => false],
+                ]" :extraOptions="['title' => 'Trashed Items']" />
+            </div>
         </div>
     </div>
 @endsection

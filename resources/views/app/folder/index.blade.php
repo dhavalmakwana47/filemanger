@@ -221,8 +221,8 @@
     ]" />
 
     <div class="app-content">
-        <div class="d-flex justify-content-between align-items-center m-3">
-            <div class="text-muted">
+        <div class="folder-topbar m-3">
+            <div class="text-muted folder-stats">
                 @if (current_user()->is_master_admin() || current_user()->is_super_admin())
                     <i class="fas fa-hdd me-2"></i>
                     <strong>Space:</strong> {{ $totalSpace }} MB / <strong>Used:</strong> {{ $usedSpace }} MB
@@ -233,7 +233,8 @@
                 &nbsp;|&nbsp;
                 <i class="fas fa-file me-1"></i><strong>Files:</strong> {{ $totalFiles }}
             </div>
-            <a href="{{ route('filemanger.data', ['is_download' => true]) }}" class="btn btn-primary" id="downloadTreeBtn">
+            <a href="{{ route('filemanger.data', ['is_download' => true]) }}" class="btn btn-primary folder-download-btn"
+                id="downloadTreeBtn">
                 <i class="fas fa-download me-2"></i>Download Tree
             </a>
         </div>
@@ -471,7 +472,7 @@
         let createFolderPermission = "{{ current_user()->hasPermission('Folder', 'create') }}"
         let deleteFolderPermission = "{{ current_user()->hasPermission('Folder', 'delete') }}"
         let updateFolderPermission = "{{ current_user()->hasPermission('Folder', 'update') }}"
-        let isMultiSelect = '{{ $multiSelect ?? 'false' }}' === '1' ? true : false;
+        let isMultiSelect = "{{ $multiSelect ?? 'false' }}" === "1";
 
 
         $('#fileModal').on('shown.bs.modal', function() {
@@ -509,7 +510,10 @@
         });
 
         $('document').ready(function() {
-            document.getElementById('sidebar-toggle-btn').click();
+            const sidebarBtn = document.getElementById('sidebar-toggle-btn');
+            if (sidebarBtn) {
+                sidebarBtn.click();
+            }
         });
     </script>
     <script src="{{ asset('app/js/folders.js') }}"></script>

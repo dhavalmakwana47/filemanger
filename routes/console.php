@@ -8,3 +8,4 @@ Artisan::command('inspire', function () {
     $this->comment(Inspiring::quote());
 })->purpose('Display an inspiring quote')->hourly();
 Schedule::command('plans:check-expired')->dailyAt('00:10');
+Schedule::command('zip-downloads:cleanup')->dailyAt('00:30');

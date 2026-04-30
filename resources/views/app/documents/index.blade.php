@@ -120,6 +120,7 @@
         line-height: 1.5;
         overflow: hidden;
         display: -webkit-box;
+        line-clamp: 10;
         -webkit-line-clamp: 10;
         -webkit-box-orient: vertical;
     }
@@ -173,6 +174,85 @@
     .empty-state { text-align: center; padding: 60px 20px; color: #5f6368; }
     .empty-state i { font-size: 64px; color: #dadce0; display: block; margin-bottom: 16px; }
     .empty-state p { font-size: 15px; }
+
+    @media (max-width: 768px) {
+        .docs-banner,
+        .new-doc-area,
+        .docs-recent {
+            padding-left: 14px;
+            padding-right: 14px;
+        }
+
+        .docs-banner {
+            padding-top: 14px;
+            padding-bottom: 14px;
+        }
+
+        .docs-banner h1 {
+            font-size: 16px;
+        }
+
+        .new-doc-card {
+            width: 100%;
+            max-width: 170px;
+        }
+
+        .new-doc-thumb {
+            width: 100%;
+            height: 190px;
+        }
+
+        .docs-recent {
+            display: grid;
+            grid-template-columns: repeat(2, minmax(0, 1fr));
+            gap: 12px;
+        }
+
+        .docs-recent h6,
+        .docs-recent .empty-state {
+            grid-column: 1 / -1;
+        }
+
+        .doc-card {
+            width: 100%;
+            margin: 0;
+        }
+
+        .doc-card-thumb {
+            width: 100%;
+            height: 180px;
+            padding: 10px 12px;
+        }
+
+        .doc-card-thumb .doc-content-preview {
+            line-clamp: 8;
+            -webkit-line-clamp: 8;
+        }
+
+        .doc-card-name {
+            font-size: 12px;
+        }
+
+        .doc-card-date {
+            font-size: 10px;
+        }
+
+        .doc-dropdown {
+            right: 0;
+            left: auto;
+            min-width: 130px;
+        }
+    }
+
+    @media (max-width: 480px) {
+        .docs-recent {
+            grid-template-columns: 1fr;
+        }
+
+        .new-doc-card {
+            max-width: 100%;
+        }
+    }
 </style>
 @endpush
 

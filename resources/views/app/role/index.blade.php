@@ -13,6 +13,42 @@
             width: auto;
             display: inline-block;
         }
+
+        .role-toolbar {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            gap: 10px;
+            margin-bottom: 0.75rem;
+            flex-wrap: wrap;
+        }
+
+        .role-table-wrap {
+            overflow-x: auto;
+            -webkit-overflow-scrolling: touch;
+        }
+
+        .role-table-wrap .card-body {
+            overflow-x: auto;
+            -webkit-overflow-scrolling: touch;
+        }
+
+        @media (max-width: 576px) {
+            .role-toolbar {
+                flex-direction: column;
+                align-items: stretch;
+            }
+
+            .role-toolbar .btn {
+                width: 100%;
+                min-height: 42px;
+                font-size: 14px;
+            }
+
+            .role-table-wrap .dataTables_wrapper table {
+                min-width: 920px;
+            }
+        }
     </style>
 @endpush
 
@@ -24,8 +60,8 @@
     <div class="app-content">
         <div class="container-fluid">
             @if (current_user()->hasPermission('Company Role', 'create'))
-                <div class="row mb-2">
-                    <div class="col text-right">
+                <div class="role-toolbar">
+                    <div class="w-100 w-sm-auto ms-sm-auto text-end">
                         <a href="{{ route('companyrole.create') }}" class="btn btn-primary">
                             <i class="fas fa-plus"></i> Create Role
                         </a>
@@ -52,8 +88,9 @@
             @endphp
 
             <p class="text-muted mb-2">Total Roles: <strong>{{ $totalRoles }}</strong></p>
-
-            <x-data-table id="companyrole-table" :columns="$columns" :extraOptions="['title' => 'Role List']" />
+            <div class="role-table-wrap">
+                <x-data-table id="companyrole-table" :columns="$columns" :extraOptions="['title' => 'Role List']" />
+            </div>
         </div>
     </div>
 @endsection

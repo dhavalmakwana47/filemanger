@@ -13,6 +13,39 @@
             width: auto;
             display: inline-block;
         }
+
+        .company-toolbar {
+            display: flex;
+            justify-content: flex-end;
+            align-items: center;
+            margin-bottom: 0.75rem;
+        }
+
+        .company-table-wrap {
+            overflow-x: auto;
+            -webkit-overflow-scrolling: touch;
+        }
+
+        .company-table-wrap .card-body {
+            overflow-x: auto;
+            -webkit-overflow-scrolling: touch;
+        }
+
+        @media (max-width: 576px) {
+            .company-toolbar {
+                justify-content: stretch;
+            }
+
+            .company-toolbar .btn {
+                width: 100%;
+                min-height: 42px;
+                font-size: 14px;
+            }
+
+            .company-table-wrap .dataTables_wrapper table {
+                min-width: 760px;
+            }
+        }
     </style>
 @endpush
 
@@ -20,20 +53,22 @@
     <x-app-breadcrumb title="Company" :breadcrumbs="[['name' => 'Home', 'url' => route('home')], ['name' => 'Comoany', 'url' => route('company.index')]]" />
     <div class="app-content">
         <div class="container-fluid">
-            <div class="row mb-2">
-                <div class="col text-right">
+            <div class="company-toolbar">
+                <div class="w-100 w-sm-auto text-end">
                     <a href="{{ route('company.create') }}" class="btn btn-primary">
                         <i class="fas fa-plus"></i> Create Company
                     </a>
                 </div>
             </div>
-            <x-data-table id="company-table" :columns="[
-                ['data' => 'id', 'title' => 'ID'],
-                ['data' => 'name', 'title' => 'Name'],
-                ['data' => 'admin', 'title' => 'Admin Users'],
-                ['data' => 'created_at', 'title' => 'Created At'],
-                ['data' => 'action', 'title' => 'Action', 'orderable' => false, 'searchable' => false],
-            ]" :extraOptions="['title' => 'Company List']" />
+            <div class="company-table-wrap">
+                <x-data-table id="company-table" :columns="[
+                    ['data' => 'id', 'title' => 'ID'],
+                    ['data' => 'name', 'title' => 'Name'],
+                    ['data' => 'admin', 'title' => 'Admin Users'],
+                    ['data' => 'created_at', 'title' => 'Created At'],
+                    ['data' => 'action', 'title' => 'Action', 'orderable' => false, 'searchable' => false],
+                ]" :extraOptions="['title' => 'Company List']" />
+            </div>
         </div>
     </div>
 @endsection
