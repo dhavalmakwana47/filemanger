@@ -15,6 +15,9 @@ class NavItem extends Component
     public $module;
     public $permission;
 
+    /** @var string sidebar|navbar */
+    public string $variant;
+
     /**
      * Create a new component instance.
      *
@@ -24,7 +27,7 @@ class NavItem extends Component
      * @param string $text
      * @return void
      */
-    public function __construct($route, $activeRoute, $icon, $text, $module, $permission)
+    public function __construct($route, $activeRoute, $icon, $text, $module, $permission, string $variant = 'sidebar')
     {
         $this->route = $route;
         $this->activeRoute = $activeRoute;
@@ -32,6 +35,7 @@ class NavItem extends Component
         $this->text = $text;
         $this->module = $module;
         $this->permission = $permission;
+        $this->variant = $variant;
     }
 
     /**

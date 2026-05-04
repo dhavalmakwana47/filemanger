@@ -15,6 +15,123 @@
     </script>
 
     <style>
+        .folder-page {
+            --folder-primary: #0d6efd;
+            --folder-primary-soft: #eaf2ff;
+            --folder-border: #e6ebf2;
+            --folder-text-muted: #667085;
+        }
+
+        .folder-page .container-fluid {
+            max-width: 1280px;
+        }
+
+        .folder-page .folder-topbar {
+            border: 1px solid var(--folder-border);
+            border-radius: 14px;
+            background: linear-gradient(180deg, #ffffff 0%, #fbfdff 100%);
+            box-shadow: 0 8px 22px rgba(16, 24, 40, 0.06);
+            padding: 14px 16px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 12px;
+        }
+
+        .folder-page .folder-stats {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 8px;
+            font-size: 14px;
+            color: #1d2939;
+        }
+
+        .folder-page .folder-stat-chip {
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            padding: 8px 10px;
+            border-radius: 999px;
+            border: 1px solid var(--folder-border);
+            background: #fff;
+            font-weight: 500;
+            line-height: 1;
+        }
+
+        .folder-page .folder-stat-chip i {
+            color: var(--folder-primary);
+        }
+
+        .folder-page .folder-download-btn {
+            border-radius: 10px;
+            min-height: 42px;
+            font-weight: 600;
+            box-shadow: 0 4px 12px rgba(13, 110, 253, 0.3);
+        }
+
+        .folder-page .demo-container {
+            border: 1px solid var(--folder-border);
+            border-radius: 14px;
+            background: #fff;
+            box-shadow: 0 10px 28px rgba(16, 24, 40, 0.06);
+            padding: 10px;
+        }
+
+        .folder-page #file-manager {
+            border-radius: 10px;
+            overflow: hidden;
+        }
+
+        .folder-page .dx-filemanager .dx-toolbar {
+            padding: 8px;
+            border-bottom: 1px solid #eef2f6;
+            background: #fbfdff;
+        }
+
+        .folder-page .dx-filemanager .dx-datagrid-rowsview .dx-row > td {
+            vertical-align: middle;
+        }
+
+        .folder-page .dx-filemanager .dx-datagrid .dx-row > td {
+            border-color: #edf1f7 !important;
+        }
+
+        .folder-page .modal-content {
+            border: 0;
+            border-radius: 14px;
+            box-shadow: 0 20px 48px rgba(15, 23, 42, 0.18);
+        }
+
+        .folder-page .modal-header {
+            border: 0;
+            border-radius: 14px 14px 0 0;
+            background: linear-gradient(135deg, #0d6efd 0%, #3b82f6 100%);
+        }
+
+        .folder-page .modal-body {
+            padding: 18px 20px;
+        }
+
+        .folder-page .modal-footer {
+            border-top: 1px solid #edf1f7;
+            padding: 12px 16px;
+        }
+
+        .folder-page .form-control,
+        .folder-page .form-select {
+            border-radius: 10px;
+        }
+
+        .folder-page .form-control:focus,
+        .folder-page .form-select:focus {
+            border-color: #91b4ff;
+            box-shadow: 0 0 0 0.2rem rgba(13, 110, 253, 0.15);
+        }
+
+        .folder-page .btn {
+            border-radius: 10px;
+        }
+
         .modal-content {
             border-radius: 8px;
             box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
@@ -211,6 +328,38 @@
                 background-color: #1f2733 !important;
             }
         }
+
+        @media (max-width: 768px) {
+            .folder-page .folder-topbar {
+                flex-direction: column;
+                align-items: stretch;
+                margin: 0.75rem !important;
+                padding: 12px;
+            }
+
+            .folder-page .folder-stats {
+                gap: 6px;
+            }
+
+            .folder-page .folder-stat-chip {
+                width: 100%;
+                justify-content: flex-start;
+                border-radius: 10px;
+            }
+
+            .folder-page .folder-download-btn {
+                width: 100%;
+            }
+
+            .folder-page .container-fluid {
+                padding-left: 10px;
+                padding-right: 10px;
+            }
+
+            .folder-page .modal-body {
+                padding: 14px 12px;
+            }
+        }
     </style>
 @endpush
 
@@ -220,18 +369,22 @@
         ['name' => 'Folders', 'url' => route('folder.index')],
     ]" />
 
-    <div class="app-content">
+    <div class="app-content folder-page">
         <div class="folder-topbar m-3">
             <div class="text-muted folder-stats">
                 @if (current_user()->is_master_admin() || current_user()->is_super_admin())
-                    <i class="fas fa-hdd me-2"></i>
-                    <strong>Space:</strong> {{ $totalSpace }} MB / <strong>Used:</strong> {{ $usedSpace }} MB
-                    &nbsp;|&nbsp;
+                    <span class="folder-stat-chip">
+                        <i class="fas fa-hdd"></i>
+                        Space {{ $totalSpace }} MB / Used {{ $usedSpace }} MB
+                    </span>
                 @endif
 
-                <i class="fas fa-folder me-1"></i><strong>Folders:</strong> {{ $totalFolders }}
-                &nbsp;|&nbsp;
-                <i class="fas fa-file me-1"></i><strong>Files:</strong> {{ $totalFiles }}
+                <span class="folder-stat-chip">
+                    <i class="fas fa-folder"></i> Folders {{ $totalFolders }}
+                </span>
+                <span class="folder-stat-chip">
+                    <i class="fas fa-file"></i> Files {{ $totalFiles }}
+                </span>
             </div>
             <a href="{{ route('filemanger.data', ['is_download' => true]) }}" class="btn btn-primary folder-download-btn"
                 id="downloadTreeBtn">

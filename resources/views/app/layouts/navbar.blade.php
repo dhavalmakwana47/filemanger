@@ -17,68 +17,34 @@
 
         <div class="collapse navbar-collapse mt-2 mt-lg-0" id="topNavMenu">
             <ul class="navbar-nav me-auto mb-2 mb-lg-0 d-none d-lg-flex">
-                <li class="nav-item">
-                    <a href="{{ route('dashboard') }}"
-                        class="nav-link {{ request()->routeIs('home') || request()->routeIs('dashboard') ? 'active' : '' }}">
-                        <i class="bi bi-speedometer2 me-1"></i>Dashboard
-                    </a>
-                </li>
+                <x-nav-item route="{{ route('dashboard') }}" activeRoute="home" icon="bi bi-speedometer"
+                    text="Dashboard" module="Dashboard" permission="view" variant="navbar" />
 
                 @if (get_active_company())
-                    <li class="nav-item">
-                        <a href="{{ route('folder.index') }}" class="nav-link {{ request()->routeIs('folder.index') ? 'active' : '' }}">
-                            <i class="bi bi-folder-fill me-1"></i>Folders
-                        </a>
-                    </li>
-                    <li class="nav-item">
-                        <a href="{{ route('users.index') }}" class="nav-link {{ request()->routeIs('users.index') ? 'active' : '' }}">
-                            <i class="bi bi-people me-1"></i>Users
-                        </a>
-                    </li>
+                    <x-nav-item route="{{ route('folder.index') }}" activeRoute="folder.index" icon="bi bi-folder-fill"
+                        text="Folders" module="Folder" permission="view" variant="navbar" />
+                    <x-nav-item route="{{ route('users.index') }}" activeRoute="users.index" icon="bi bi-people"
+                        text="Users" module="Users" permission="view" variant="navbar" />
                 @endif
 
-                <li class="nav-item">
-                    <a href="{{ route('company.index') }}" class="nav-link {{ request()->routeIs('company.index') ? 'active' : '' }}">
-                        <i class="bi bi-building me-1"></i>Company
-                    </a>
-                </li>
+                <x-nav-item route="{{ route('company.index') }}" activeRoute="company.index" icon="bi bi-building"
+                    text="Company" module="Company" permission="view" variant="navbar" />
 
                 @if (get_active_company())
-                    <li class="nav-item">
-                        <a href="{{ route('companyrole.index') }}" class="nav-link {{ request()->routeIs('companyrole.index') ? 'active' : '' }}">
-                            <i class="bi bi-person-badge me-1"></i>Role
-                        </a>
-                    </li>
-                    <li class="nav-item">
-                        <a href="{{ route('userlog.index') }}" class="nav-link {{ request()->routeIs('userlog.index') ? 'active' : '' }}">
-                            <i class="bi bi-journal-text me-1"></i>User Log
-                        </a>
-                    </li>
-                    <li class="nav-item">
-                        <a href="{{ route('filemanager.trash.data') }}" class="nav-link {{ request()->routeIs('filemanager.trash.data') ? 'active' : '' }}">
-                            <i class="bi bi-trash me-1"></i>Trash Folders
-                        </a>
-                    </li>
-                    <li class="nav-item">
-                        <a href="{{ route('bookmarks.index') }}" class="nav-link {{ request()->routeIs('bookmarks.index') ? 'active' : '' }}">
-                            <i class="bi bi-star-fill me-1"></i>Bookmarks
-                        </a>
-                    </li>
-                    <li class="nav-item">
-                        <a href="{{ route('downloads.index') }}" class="nav-link {{ request()->routeIs('downloads.index') ? 'active' : '' }}">
-                            <i class="bi bi-download me-1"></i>Downloads
-                        </a>
-                    </li>
-                    <li class="nav-item">
-                        <a href="{{ route('settings.index') }}" class="nav-link {{ request()->routeIs('settings.index') ? 'active' : '' }}">
-                            <i class="bi bi-gear me-1"></i>Settings
-                        </a>
-                    </li>
-                    <li class="nav-item">
-                        <a href="{{ route('documents.index') }}" class="nav-link {{ request()->routeIs('documents.index') ? 'active' : '' }}">
-                            <i class="bi bi-file-text me-1"></i>Documents
-                        </a>
-                    </li>
+                    <x-nav-item route="{{ route('companyrole.index') }}" activeRoute="companyrole.index"
+                        icon="bi bi-person-badge" text="Role" module="Company Role" permission="view" variant="navbar" />
+                    <x-nav-item route="{{ route('userlog.index') }}" activeRoute="userlog.index"
+                        icon="bi bi-person-badge" text="User Log" module="Dashboard" permission="view" variant="navbar" />
+                    <x-nav-item route="{{ route('filemanager.trash.data') }}" activeRoute="filemanager.trash.data"
+                        icon="bi bi-trash" text="Trash Folders" module="Company Role" permission="view" variant="navbar" />
+                    <x-nav-item route="{{ route('bookmarks.index') }}" activeRoute="bookmarks.index" icon="bi bi-star-fill"
+                        text="Bookmarks" module="Dashboard" permission="view" variant="navbar" />
+                    <x-nav-item route="{{ route('downloads.index') }}" activeRoute="downloads.index" icon="bi bi-download"
+                        text="Downloads" module="Dashboard" permission="view" variant="navbar" />
+                    <x-nav-item route="{{ route('settings.index') }}" activeRoute="settings.index" icon="bi bi-gear"
+                        text="Settings" module="Settings" permission="view" variant="navbar" />
+                    <x-nav-item route="{{ route('documents.index') }}" activeRoute="documents.index" icon="bi bi-file-text"
+                        text="Documents" module="Documents" permission="view" variant="navbar" />
                 @endif
             </ul>
 
@@ -252,65 +218,34 @@
         </div>
 
         <ul class="nav nav-pills flex-column gap-1">
-            <li class="nav-item">
-                <a href="{{ route('dashboard') }}"
-                    class="nav-link {{ request()->routeIs('home') || request()->routeIs('dashboard') ? 'active' : '' }}">
-                    <i class="bi bi-speedometer2 me-2"></i>Dashboard
-                </a>
-            </li>
+            <x-nav-item route="{{ route('dashboard') }}" activeRoute="home" icon="bi bi-speedometer"
+                text="Dashboard" module="Dashboard" permission="view" variant="navbar" />
+
             @if (get_active_company())
-                <li class="nav-item">
-                    <a href="{{ route('folder.index') }}" class="nav-link {{ request()->routeIs('folder.index') ? 'active' : '' }}">
-                        <i class="bi bi-folder-fill me-2"></i>Folders
-                    </a>
-                </li>
-                <li class="nav-item">
-                    <a href="{{ route('users.index') }}" class="nav-link {{ request()->routeIs('users.index') ? 'active' : '' }}">
-                        <i class="bi bi-people me-2"></i>Users
-                    </a>
-                </li>
+                <x-nav-item route="{{ route('folder.index') }}" activeRoute="folder.index" icon="bi bi-folder-fill"
+                    text="Folders" module="Folder" permission="view" variant="navbar" />
+                <x-nav-item route="{{ route('users.index') }}" activeRoute="users.index" icon="bi bi-people"
+                    text="Users" module="Users" permission="view" variant="navbar" />
             @endif
-            <li class="nav-item">
-                <a href="{{ route('company.index') }}" class="nav-link {{ request()->routeIs('company.index') ? 'active' : '' }}">
-                    <i class="bi bi-building me-2"></i>Company
-                </a>
-            </li>
+
+            <x-nav-item route="{{ route('company.index') }}" activeRoute="company.index" icon="bi bi-building"
+                text="Company" module="Company" permission="view" variant="navbar" />
+
             @if (get_active_company())
-                <li class="nav-item">
-                    <a href="{{ route('companyrole.index') }}" class="nav-link {{ request()->routeIs('companyrole.index') ? 'active' : '' }}">
-                        <i class="bi bi-person-badge me-2"></i>Role
-                    </a>
-                </li>
-                <li class="nav-item">
-                    <a href="{{ route('userlog.index') }}" class="nav-link {{ request()->routeIs('userlog.index') ? 'active' : '' }}">
-                        <i class="bi bi-journal-text me-2"></i>User Log
-                    </a>
-                </li>
-                <li class="nav-item">
-                    <a href="{{ route('filemanager.trash.data') }}" class="nav-link {{ request()->routeIs('filemanager.trash.data') ? 'active' : '' }}">
-                        <i class="bi bi-trash me-2"></i>Trash Folders
-                    </a>
-                </li>
-                <li class="nav-item">
-                    <a href="{{ route('bookmarks.index') }}" class="nav-link {{ request()->routeIs('bookmarks.index') ? 'active' : '' }}">
-                        <i class="bi bi-star-fill me-2"></i>Bookmarks
-                    </a>
-                </li>
-                <li class="nav-item">
-                    <a href="{{ route('downloads.index') }}" class="nav-link {{ request()->routeIs('downloads.index') ? 'active' : '' }}">
-                        <i class="bi bi-download me-2"></i>Downloads
-                    </a>
-                </li>
-                <li class="nav-item">
-                    <a href="{{ route('settings.index') }}" class="nav-link {{ request()->routeIs('settings.index') ? 'active' : '' }}">
-                        <i class="bi bi-gear me-2"></i>Settings
-                    </a>
-                </li>
-                <li class="nav-item">
-                    <a href="{{ route('documents.index') }}" class="nav-link {{ request()->routeIs('documents.index') ? 'active' : '' }}">
-                        <i class="bi bi-file-text me-2"></i>Documents
-                    </a>
-                </li>
+                <x-nav-item route="{{ route('companyrole.index') }}" activeRoute="companyrole.index"
+                    icon="bi bi-person-badge" text="Role" module="Company Role" permission="view" variant="navbar" />
+                <x-nav-item route="{{ route('userlog.index') }}" activeRoute="userlog.index"
+                    icon="bi bi-person-badge" text="User Log" module="Dashboard" permission="view" variant="navbar" />
+                <x-nav-item route="{{ route('filemanager.trash.data') }}" activeRoute="filemanager.trash.data"
+                    icon="bi bi-trash" text="Trash Folders" module="Company Role" permission="view" variant="navbar" />
+                <x-nav-item route="{{ route('bookmarks.index') }}" activeRoute="bookmarks.index" icon="bi bi-star-fill"
+                    text="Bookmarks" module="Dashboard" permission="view" variant="navbar" />
+                <x-nav-item route="{{ route('downloads.index') }}" activeRoute="downloads.index" icon="bi bi-download"
+                    text="Downloads" module="Dashboard" permission="view" variant="navbar" />
+                <x-nav-item route="{{ route('settings.index') }}" activeRoute="settings.index" icon="bi bi-gear"
+                    text="Settings" module="Settings" permission="view" variant="navbar" />
+                <x-nav-item route="{{ route('documents.index') }}" activeRoute="documents.index" icon="bi bi-file-text"
+                    text="Documents" module="Documents" permission="view" variant="navbar" />
             @endif
         </ul>
     </div>
