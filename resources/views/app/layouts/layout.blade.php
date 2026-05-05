@@ -132,6 +132,7 @@
 .custom-company-dropdown {
     position: relative;
     display: inline-block;
+    max-width: min(320px, 32vw);
 }
 
 .custom-dropdown-selected {
@@ -140,14 +141,21 @@
     background: #28a745;
     border-radius: 8px;
     padding: 10px 20px;
-    margin: 0 10px;
+    margin: 0;
     box-shadow: 0 2px 4px rgba(40,167,69,0.2);
     transition: all 0.3s ease;
     cursor: pointer;
-    min-width: 250px;
+    min-width: 180px;
+    max-width: 100%;
     color: white;
     font-size: 16px;
     font-weight: 500;
+}
+
+.custom-dropdown-selected #selected-company {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
 }
 
 .custom-dropdown-selected:hover {
@@ -230,6 +238,38 @@
 /* Mobile navbar readability/fallback for AdminLTE + Bootstrap collapse */
 .app-header .navbar-toggler {
     border-color: rgba(0, 0, 0, 0.2);
+}
+
+@media (min-width: 992px) {
+    #topNavMenu {
+        flex-wrap: nowrap;
+        min-width: 0;
+        gap: 0.5rem;
+    }
+
+    #topNavMenu .top-menu-nav {
+        flex-wrap: nowrap;
+        overflow-x: auto;
+        overflow-y: hidden;
+        white-space: nowrap;
+        min-width: 0;
+        scrollbar-width: thin;
+        scrollbar-gutter: stable;
+    }
+
+    #topNavMenu .top-menu-nav .nav-link {
+        padding-left: 0.6rem;
+        padding-right: 0.6rem;
+    }
+
+    #topNavMenu .top-menu-actions {
+        flex-wrap: nowrap;
+        margin-left: auto;
+    }
+
+    #topNavMenu .top-menu-actions > .nav-item {
+        flex: 0 0 auto;
+    }
 }
 
 @media (max-width: 991.98px) {

@@ -69,6 +69,14 @@
             box-shadow: 0 4px 12px rgba(13, 110, 253, 0.3);
         }
 
+        .folder-page .folder-topbar-actions {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            flex-wrap: wrap;
+            justify-content: flex-end;
+        }
+
         .folder-page .demo-container {
             border: 1px solid var(--folder-border);
             border-radius: 14px;
@@ -351,6 +359,10 @@
                 width: 100%;
             }
 
+            .folder-page .folder-topbar-actions {
+                width: 100%;
+            }
+
             .folder-page .container-fluid {
                 padding-left: 10px;
                 padding-right: 10px;
@@ -386,10 +398,20 @@
                     <i class="fas fa-file"></i> Files {{ $totalFiles }}
                 </span>
             </div>
-            <a href="{{ route('filemanger.data', ['is_download' => true]) }}" class="btn btn-primary folder-download-btn"
-                id="downloadTreeBtn">
-                <i class="fas fa-download me-2"></i>Download Tree
-            </a>
+            <div class="folder-topbar-actions">
+                @if (current_user()->hasPermission('Dashboard', 'view'))
+                    <a href="{{ route('bookmarks.index') }}" class="btn btn-outline-warning folder-download-btn">
+                        <i class="fas fa-star me-2"></i>Bookmarks
+                    </a>
+                    <a href="{{ route('downloads.index') }}" class="btn btn-outline-secondary folder-download-btn">
+                        <i class="fas fa-download me-2"></i>Downloads
+                    </a>
+                @endif
+                <a href="{{ route('filemanger.data', ['is_download' => true]) }}" class="btn btn-primary folder-download-btn"
+                    id="downloadTreeBtn">
+                    <i class="fas fa-download me-2"></i>Download Tree
+                </a>
+            </div>
         </div>
         <div class="container-fluid">
             <div class="modal fade " id="createFolderModal" tabindex="-1" aria-labelledby="createFolderModalLabel"

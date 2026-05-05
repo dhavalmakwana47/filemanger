@@ -8,6 +8,29 @@
             -webkit-overflow-scrolling: touch;
         }
 
+        #bookmarksTable {
+            width: 100% !important;
+        }
+
+        #bookmarksTable th,
+        #bookmarksTable td {
+            white-space: nowrap;
+            vertical-align: middle;
+        }
+
+        #bookmarksTable td:last-child {
+            min-width: 210px;
+        }
+
+        #bookmarksTable td:last-child .btn {
+            margin-right: 4px;
+            margin-bottom: 4px;
+        }
+
+        .bookmarks-table-wrap .dataTables_wrapper .row {
+            row-gap: 8px;
+        }
+
         @media (max-width: 576px) {
             .bookmarks-table-wrap table {
                 min-width: 760px;
@@ -15,6 +38,25 @@
 
             .card-title {
                 font-size: 1rem;
+            }
+
+            .bookmarks-table-wrap .dataTables_length,
+            .bookmarks-table-wrap .dataTables_filter {
+                float: none !important;
+                text-align: left !important;
+            }
+
+            .bookmarks-table-wrap .dataTables_filter input,
+            .bookmarks-table-wrap .dataTables_length select {
+                width: 100%;
+                max-width: 100%;
+            }
+
+            .bookmarks-table-wrap .dataTables_info,
+            .bookmarks-table-wrap .dataTables_paginate {
+                float: none !important;
+                text-align: left !important;
+                margin-top: 8px;
             }
         }
     </style>
@@ -66,7 +108,7 @@
             $('#bookmarksTable').DataTable({
                 processing: true,
                 serverSide: true,
-                ajax: '{{ route('bookmarks.index') }}',
+                ajax: "{{ route('bookmarks.index') }}",
                 columns: [
                     { data: 'name', name: 'name' },
                     { data: 'size', name: 'size' },
@@ -75,8 +117,15 @@
                 ],
                 order: [[2, 'desc']],
                 pageLength: 25,
+                autoWidth: false,
                 responsive: false,
-                scrollX: true
+                scrollX: true,
+                columnDefs: [
+                    { targets: 0, width: '38%' },
+                    { targets: 1, width: '14%' },
+                    { targets: 2, width: '23%' },
+                    { targets: 3, width: '25%' }
+                ]
             });
         });
     </script>

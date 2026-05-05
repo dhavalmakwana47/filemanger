@@ -16,7 +16,7 @@
         </button>
 
         <div class="collapse navbar-collapse mt-2 mt-lg-0" id="topNavMenu">
-            <ul class="navbar-nav me-auto mb-2 mb-lg-0 d-none d-lg-flex">
+            <ul class="navbar-nav me-auto mb-2 mb-lg-0 d-none d-lg-flex top-menu-nav">
                 <x-nav-item route="{{ route('dashboard') }}" activeRoute="home" icon="bi bi-speedometer"
                     text="Dashboard" module="Dashboard" permission="view" variant="navbar" />
 
@@ -37,10 +37,6 @@
                         icon="bi bi-person-badge" text="User Log" module="Dashboard" permission="view" variant="navbar" />
                     <x-nav-item route="{{ route('filemanager.trash.data') }}" activeRoute="filemanager.trash.data"
                         icon="bi bi-trash" text="Trash Folders" module="Company Role" permission="view" variant="navbar" />
-                    <x-nav-item route="{{ route('bookmarks.index') }}" activeRoute="bookmarks.index" icon="bi bi-star-fill"
-                        text="Bookmarks" module="Dashboard" permission="view" variant="navbar" />
-                    <x-nav-item route="{{ route('downloads.index') }}" activeRoute="downloads.index" icon="bi bi-download"
-                        text="Downloads" module="Dashboard" permission="view" variant="navbar" />
                     <x-nav-item route="{{ route('settings.index') }}" activeRoute="settings.index" icon="bi bi-gear"
                         text="Settings" module="Settings" permission="view" variant="navbar" />
                     <x-nav-item route="{{ route('documents.index') }}" activeRoute="documents.index" icon="bi bi-file-text"
@@ -48,10 +44,7 @@
                 @endif
             </ul>
 
-            <ul class="navbar-nav ms-auto align-items-lg-center gap-lg-2 flex-row">
-            <li class="nav-item"> <a class="nav-link" data-widget="navbar-search" href="#" role="button">
-                    <i class="bi bi-search"></i> </a>
-            </li>
+            <ul class="navbar-nav ms-auto align-items-lg-center gap-lg-2 flex-row top-menu-actions">
             <li class="nav-item d-none d-lg-block">
                 <form action="{{ route('change_company') }}" method="post" id="company-form" class="d-flex align-items-center">
                     @csrf
@@ -158,10 +151,6 @@
                     </a>
                 </div>
             </li>  --}}
-            <li class="nav-item d-none d-lg-block"> <a class="nav-link" href="#" data-lte-toggle="fullscreen"> <i
-                        data-lte-icon="maximize" class="bi bi-arrows-fullscreen"></i> <i data-lte-icon="minimize"
-                        class="bi bi-fullscreen-exit" style="display: none;"></i>
-                </a> </li>
             <li class="nav-item dropdown user-menu"> <a href="#" class="nav-link dropdown-toggle"
                     data-bs-toggle="dropdown"> <img src="{{ asset('app/assets/img/user2-160x160.jpg') }}"
                         class="user-image rounded-circle shadow" alt="User Image"> <span class="d-none d-md-inline">
@@ -238,10 +227,6 @@
                     icon="bi bi-person-badge" text="User Log" module="Dashboard" permission="view" variant="navbar" />
                 <x-nav-item route="{{ route('filemanager.trash.data') }}" activeRoute="filemanager.trash.data"
                     icon="bi bi-trash" text="Trash Folders" module="Company Role" permission="view" variant="navbar" />
-                <x-nav-item route="{{ route('bookmarks.index') }}" activeRoute="bookmarks.index" icon="bi bi-star-fill"
-                    text="Bookmarks" module="Dashboard" permission="view" variant="navbar" />
-                <x-nav-item route="{{ route('downloads.index') }}" activeRoute="downloads.index" icon="bi bi-download"
-                    text="Downloads" module="Dashboard" permission="view" variant="navbar" />
                 <x-nav-item route="{{ route('settings.index') }}" activeRoute="settings.index" icon="bi bi-gear"
                     text="Settings" module="Settings" permission="view" variant="navbar" />
                 <x-nav-item route="{{ route('documents.index') }}" activeRoute="documents.index" icon="bi bi-file-text"
