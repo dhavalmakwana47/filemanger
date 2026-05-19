@@ -857,8 +857,9 @@ class FolderController extends Controller implements HasMiddleware
 
         return response()->json([
             'success' => true,
-            'message' => 'Zip processing started. You will be notified when ready.',
-            'zip_id' => $zipDownload->id
+            'message' => 'Zip processing started. Redirecting to downloads page...',
+            'zip_id' => $zipDownload->id,
+            'redirect_url' => route('downloads.index')
         ]);
     }
 
@@ -887,11 +888,11 @@ class FolderController extends Controller implements HasMiddleware
             ->first();
 
         if (!$zipDownload || !$zipDownload->zip_path) {
-            return response()->json(['error' => 'Zip file not found or not ready'], 404);
+            return redirect()->route('downloads.index')->with('error', 'Zip file not found or not ready');
         }
 
         if (!Storage::disk('s3')->exists($zipDownload->zip_path)) {
-            return response()->json(['error' => 'Zip file not found in storage'], 404);
+            return redirect()->route('downloads.index')->with('error', 'Zip file not found in storage');
         }
 
         addUserAction([
@@ -899,7 +900,13 @@ class FolderController extends Controller implements HasMiddleware
             'action' => "Folder/File {$zipDownload->folder_name} Successfully Downloaded"
         ]);
 
-        return Storage::disk('s3')->download($zipDownload->zip_path, $zipDownload->folder_name . '.zip');
+        $url = Storage::disk('s3')->temporaryUrl(
+            $zipDownload->zip_path,
+            now()->addMinutes(15),
+            ['ResponseContentDisposition' => 'attachment; filename="' . $zipDownload->folder_name . '.zip"']
+        );
+
+        return redirect()->away($url)->with('download_started', true)->with('redirect_to', route('downloads.index'));
     }
 
     private function addToZip(array $item, string $relativePath, ZipArchive $zip, string $company_id): void

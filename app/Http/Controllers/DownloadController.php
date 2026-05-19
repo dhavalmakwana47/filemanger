@@ -72,11 +72,11 @@ public function download($id)
         ->first();
 
     if (!$download || !$download->zip_path) {
-        return response()->json(['error' => 'Zip file not found or not ready'], 404);
+        return redirect()->route('downloads.index')->with('error', 'Zip file not found or not ready');
     }
 
     if (!Storage::disk('s3')->exists($download->zip_path)) {
-        return response()->json(['error' => 'Zip file not found in storage'], 404);
+        return redirect()->route('downloads.index')->with('error', 'Zip file not found in storage');
     }
 
     addUserAction([
@@ -84,17 +84,13 @@ public function download($id)
         'action' => "Folder/File {$download->folder_name} Successfully Downloaded"
     ]);
 
-    // ✅ Generate temporary S3 URL (BEST PRACTICE)
     $url = Storage::disk('s3')->temporaryUrl(
         $download->zip_path,
         now()->addMinutes(15),
-        [
-            'ResponseContentDisposition' =>
-                'attachment; filename="'.$download->folder_name.'.zip"'
-        ]
+        ['ResponseContentDisposition' => 'attachment; filename="' . $download->folder_name . '.zip"']
     );
 
-    return redirect($url);
+    return redirect()->away($url);
 }
 
 }

@@ -29,6 +29,12 @@
 
 <div class="app-content">
     <div class="container-fluid">
+        <div class="mb-3">
+            <a href="{{ route('folder.index') }}" class="btn btn-primary">
+                <i class="fas fa-arrow-left me-2"></i>Back to Folders
+            </a>
+        </div>
+        
         @php
             $columns = [
                 ['data' => 'DT_RowIndex', 'title' => '#', 'orderable' => false, 'searchable' => false],

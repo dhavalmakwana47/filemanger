@@ -399,14 +399,12 @@
                 </span>
             </div>
             <div class="folder-topbar-actions">
-                @if (current_user()->hasPermission('Dashboard', 'view'))
                     <a href="{{ route('bookmarks.index') }}" class="btn btn-outline-warning folder-download-btn">
                         <i class="fas fa-star me-2"></i>Bookmarks
                     </a>
                     <a href="{{ route('downloads.index') }}" class="btn btn-outline-secondary folder-download-btn">
                         <i class="fas fa-download me-2"></i>Downloads
                     </a>
-                @endif
                 <a href="{{ route('filemanger.data', ['is_download' => true]) }}" class="btn btn-primary folder-download-btn"
                     id="downloadTreeBtn">
                     <i class="fas fa-download me-2"></i>Download Tree

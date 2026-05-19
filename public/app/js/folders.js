@@ -378,6 +378,11 @@ $(function () {
                                                 displayTime: 5000
                                             });
 
+                                            // Open downloads page in new tab
+                                            if (response.redirect_url) {
+                                                window.open(response.redirect_url, '_blank');
+                                            }
+
                                             // Start polling for status
                                             checkZipStatus(response.zip_id);
                                         } else {
