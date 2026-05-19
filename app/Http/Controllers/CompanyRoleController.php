@@ -87,7 +87,7 @@ class CompanyRoleController extends Controller implements HasMiddleware
     public function create()
     {
         $data = [];
-        $data['permissionsArr'] = Permission::whereIn('module_name', ['folder','settings'])->orderBy('module_name')->orderBy('name')->get()->groupBy('module_name');
+        $data['permissionsArr'] = Permission::whereIn('module_name', ['folder','settings','Documents'])->orderBy('module_name')->orderBy('name')->get()->groupBy('module_name');
         return view('app.role.add-update', $data);
     }
 
@@ -149,7 +149,7 @@ class CompanyRoleController extends Controller implements HasMiddleware
         }
 
         $data['role'] = $companyrole;
-        $data['permissionsArr'] = Permission::whereIn('module_name', ['folder','settings'])->orderBy('module_name')->orderBy('name')->get()->groupBy('module_name');
+        $data['permissionsArr'] = Permission::whereIn('module_name', ['folder','settings','Documents'])->orderBy('module_name')->orderBy('name')->get()->groupBy('module_name');
         return view('app.role.add-update', $data);
     }
 

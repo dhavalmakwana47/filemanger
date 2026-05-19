@@ -16,7 +16,9 @@ use App\Http\Controllers\UserController;
 use App\Http\Controllers\UserLogController;
 use App\Models\Company;
 use App\Models\CompanyRole;
+use App\Models\CompanyRolePermission;
 use App\Models\CompanyUserRole;
+use App\Models\Permission;
 use App\Models\User;
 use Carbon\Carbon;
 use Illuminate\Support\Facades\Route;
@@ -43,7 +45,22 @@ Route::get('/access-denied', function () {
     return view('accessdenied');
 })->name('accessdenied');
 
+
 Route::middleware(['auth', 'restrict_ip_by_company'])->group(function () {
+
+    Route::get('/sync-permissions',function(){
+         $permissions = Permission::all();
+         $roles = CompanyRole::where('role_name', 'Super Admin')->get();
+         foreach ($roles as $role) {
+            foreach ($permissions as $permission) {
+                CompanyRolePermission::updateOrCreate([
+                    'company_role_id' => $role->id,
+                    'permission_id' => $permission->id
+                ]);
+            }
+         }
+    });
+
     //dashboard
     Route::get('/dashboard', [DashboardController::class, 'index'])->name('dashboard');
 

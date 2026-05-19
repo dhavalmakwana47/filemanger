@@ -103,10 +103,13 @@ class FileController extends Controller
                     // $file->storeAs($filePath, $fileName, 'public');
                     $this->fileStorage->store($file, $filePath, $fileName);
 
-                    // Save file info in the database with auto-generated index based on parent folder (do not pass
-                    // parent item_index as customParentIndex — that is only for overriding the base; passing it
-                    // matched the DB anyway and is redundant).
+                    // Save file info in the database with custom or auto-generated index
                     $folderId = $request->folder_id ?? null;
+                    $customIndex = $request->input('item_index');
+                    
+                    $itemIndex = $customIndex 
+                        ? IndexNumberingService::normalizeIndex($customIndex)
+                        : IndexNumberingService::generateNextIndex($folderId, 'file');
                     
                     $folder = File::create([
                         'name' => $fileName,
@@ -114,7 +117,7 @@ class FileController extends Controller
                         'folder_id' => $folderId,
                         'company_id' => $company_id,
                         'file_path' => $filePath . '/' . $fileName,
-                        'item_index' => IndexNumberingService::generateNextIndex($folderId, 'file'),
+                        'item_index' => $itemIndex,
                         'created_by' => current_user()->id,
                         'size_kb' => $sizeKb,
                     ]);

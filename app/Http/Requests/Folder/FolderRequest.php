@@ -25,7 +25,7 @@ class FolderRequest extends FormRequest
             'name' => ['required','max:150'],
             'parent_id' => 'nullable|exists:folders,id',
             'permissions' => ['nullable','array'],
-            'item_index' => ['nullable','numeric','digits_between:1,10','gt:0'],
+            'item_index' => ['nullable','regex:/^\d+(\.\d+)?$/','gt:0'],
         ];
     }
 
