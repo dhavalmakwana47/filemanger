@@ -2,152 +2,304 @@
 
 namespace App\Jobs;
 
-use App\Models\ZipDownload;
 use App\Models\Setting;
+use App\Models\User;
+use App\Models\ZipDownload;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Queue\Queueable;
-use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Facades\Log;
-use ZipArchive;
+use Illuminate\Support\Facades\Storage;
 use Intervention\Image\ImageManager;
 use Intervention\Image\Drivers\Gd\Driver;
+use ZipArchive;
 
 class ProcessZipDownloadJob implements ShouldQueue
 {
     use Queueable;
 
-    protected $zipDownload;
+    /** @var list<string> */
+    private array $tempFiles = [];
 
-    public function __construct(ZipDownload $zipDownload)
+    public int $timeout = 3600;
+
+    public int $tries = 1;
+
+    public function __construct(protected ZipDownload $zipDownload)
     {
-        $this->zipDownload = $zipDownload;
+        $this->onQueue(env('ZIP_DOWNLOAD_QUEUE', 'default'));
     }
 
     public function handle(): void
     {
+        $tempZipPath = null;
+
         try {
+            $stats = $this->collectFolderStats($this->zipDownload->folder_data);
+            $maxFiles = (int) env('ZIP_DOWNLOAD_MAX_FILES', 500);
+            $maxBytes = (int) env('ZIP_DOWNLOAD_MAX_BYTES', 2 * 1024 * 1024 * 1024);
+
+            if ($stats['files'] > $maxFiles) {
+                throw new \RuntimeException("Too many files ({$stats['files']}). Maximum: {$maxFiles}.");
+            }
+
+            if ($stats['bytes'] > $maxBytes) {
+                throw new \RuntimeException('Folder is too large to zip. Download smaller folders.');
+            }
+
             $this->zipDownload->update(['status' => 'processing']);
 
-            $zip = new ZipArchive();
             $zipFileName = 'zip_downloads/' . $this->zipDownload->id . '_' . time() . '.zip';
             $tempZipPath = storage_path('app/' . $zipFileName);
 
-            if (!is_dir(dirname($tempZipPath))) {
+            if (! is_dir(dirname($tempZipPath))) {
                 mkdir(dirname($tempZipPath), 0755, true);
             }
 
+            $zip = new ZipArchive();
             if ($zip->open($tempZipPath, ZipArchive::CREATE | ZipArchive::OVERWRITE) !== true) {
-                throw new \Exception('Could not create zip file');
+                throw new \RuntimeException('Could not create zip file');
             }
 
-            $this->addToZip($this->zipDownload->folder_data, '', $zip, $this->zipDownload->company_id, $this->zipDownload->user_id);
+            $this->addToZip(
+                $this->zipDownload->folder_data,
+                '',
+                $zip,
+                (string) $this->zipDownload->company_id,
+                (int) $this->zipDownload->user_id
+            );
+
             $zip->close();
+            $this->cleanupTempFiles();
 
             $storagePath = "zip_downloads/company_{$this->zipDownload->company_id}/{$this->zipDownload->folder_name}_{$this->zipDownload->id}.zip";
-            Storage::disk('s3')->put($storagePath, file_get_contents($tempZipPath));
 
-            unlink($tempZipPath);
+            $stream = fopen($tempZipPath, 'rb');
+            if ($stream === false) {
+                throw new \RuntimeException('Could not read zip for upload');
+            }
+
+            Storage::disk('s3')->writeStream($storagePath, $stream);
+
+            if (is_resource($stream)) {
+                fclose($stream);
+            }
+
+            @unlink($tempZipPath);
+            $tempZipPath = null;
 
             $this->zipDownload->update([
                 'status' => 'completed',
-                'zip_path' => $storagePath
+                'zip_path' => $storagePath,
+            ]);
+        } catch (\Throwable $e) {
+            Log::error('Zip processing failed', [
+                'zip_download_id' => $this->zipDownload->id,
+                'error' => $e->getMessage(),
             ]);
 
-        } catch (\Exception $e) {
-            Log::error('Zip processing failed: ' . $e->getMessage());
             $this->zipDownload->update([
                 'status' => 'failed',
-                'error_message' => $e->getMessage()
+                'error_message' => $e->getMessage(),
             ]);
+        } finally {
+            $this->cleanupTempFiles();
+
+            if ($tempZipPath && is_file($tempZipPath)) {
+                @unlink($tempZipPath);
+            }
         }
     }
 
-    private function addToZip(array $item, string $relativePath, ZipArchive $zip, string $company_id, int $user_id): void
+    /**
+     * @return array{files: int, bytes: int}
+     */
+    private function collectFolderStats(array $item): array
+    {
+        if (! empty($item['isDirectory'])) {
+            $files = 0;
+            $bytes = 0;
+
+            foreach ($item['items'] ?? [] as $subItem) {
+                $sub = $this->collectFolderStats($subItem);
+                $files += $sub['files'];
+                $bytes += $sub['bytes'];
+            }
+
+            return ['files' => $files, 'bytes' => $bytes];
+        }
+
+        $fileName = $item['file_name'] ?? null;
+        if (empty($fileName)) {
+            return ['files' => 0, 'bytes' => 0];
+        }
+
+        $s3Key = 'uploads/company_' . $this->zipDownload->company_id . '/' . $fileName;
+
+        try {
+            if (Storage::disk('s3')->exists($s3Key)) {
+                return ['files' => 1, 'bytes' => (int) Storage::disk('s3')->size($s3Key)];
+            }
+        } catch (\Throwable $e) {
+            Log::warning('Zip stat failed', ['key' => $s3Key, 'error' => $e->getMessage()]);
+        }
+
+        return ['files' => 0, 'bytes' => 0];
+    }
+
+    private function addToZip(array $item, string $relativePath, ZipArchive $zip, string $companyId, int $userId): void
     {
         $name = $item['name'] ?? 'unknown';
         $entryName = $relativePath . $name;
-        $isDir = !empty($item['isDirectory']);
 
-        if ($isDir) {
+        if (! empty($item['isDirectory'])) {
             if ($entryName !== '') {
                 $zip->addEmptyDir($entryName . '/');
             }
 
-            $subItems = $item['items'] ?? [];
-            foreach ($subItems as $subItem) {
-                $this->addToZip($subItem, $entryName . '/', $zip, $company_id, $user_id);
+            foreach ($item['items'] ?? [] as $subItem) {
+                $this->addToZip($subItem, $entryName . '/', $zip, $companyId, $userId);
             }
-        } else {
-            $file_name = $item['file_name'] ?? null;
-            if (empty($file_name)) {
+
+            return;
+        }
+
+        $fileName = $item['file_name'] ?? null;
+        if (empty($fileName)) {
+            return;
+        }
+
+        $s3Key = "uploads/company_{$companyId}/{$fileName}";
+        $maxFileBytes = (int) env('ZIP_DOWNLOAD_MAX_FILE_BYTES', 100 * 1024 * 1024);
+
+        try {
+            if (! Storage::disk('s3')->exists($s3Key)) {
                 return;
             }
 
-            $s3Key = "uploads/company_{$company_id}/{$file_name}";
+            if ((int) Storage::disk('s3')->size($s3Key) > $maxFileBytes) {
+                Log::warning('Skipped large file in zip', ['key' => $s3Key]);
 
-            try {
-                if (Storage::disk('s3')->exists($s3Key)) {
-                    $content = Storage::disk('s3')->get($s3Key);
-                    if ($content === null) {
-                        return;
-                    }
-
-                    $content = $this->applyWatermarkToContent($content, $file_name, $company_id, $user_id);
-                    $zip->addFromString($entryName, $content);
-                }
-            } catch (\Exception $e) {
-                Log::error('Error accessing S3 file: ' . $e->getMessage());
+                return;
             }
+
+            $localPath = $this->streamS3ToTemp($s3Key);
+            if ($localPath === null) {
+                return;
+            }
+
+            $zipPath = $this->watermarkFileIfNeeded($localPath, $fileName, $companyId, $userId);
+            if ($zipPath !== $localPath) {
+                $this->tempFiles[] = $zipPath;
+            }
+
+            $zip->addFile($zipPath, $entryName);
+            gc_collect_cycles();
+        } catch (\Throwable $e) {
+            Log::error('Error adding file to zip', ['key' => $s3Key, 'error' => $e->getMessage()]);
         }
     }
 
-    private function applyWatermarkToContent($content, $fileName, $company_id, $user_id)
+    private function streamS3ToTemp(string $s3Key): ?string
     {
-        $setting = Setting::where('company_id', $company_id)->first();
-        Log::info('Watermark check', ['company_id' => $company_id, 'setting_exists' => !!$setting, 'enable_watermark' => $setting?->enable_watermark]);
-        
-        if (!$setting || !$setting->enable_watermark) {
-            return $content;
+        $in = Storage::disk('s3')->readStream($s3Key);
+        if ($in === null) {
+            return null;
         }
 
-        $user = \App\Models\User::find($user_id);
+        $tempPath = tempnam(sys_get_temp_dir(), 'zipf_');
+        if ($tempPath === false) {
+            if (is_resource($in)) {
+                fclose($in);
+            }
+
+            return null;
+        }
+
+        $out = fopen($tempPath, 'wb');
+        if ($out === false) {
+            @unlink($tempPath);
+            if (is_resource($in)) {
+                fclose($in);
+            }
+
+            return null;
+        }
+
+        stream_copy_to_stream($in, $out);
+        fclose($out);
+
+        if (is_resource($in)) {
+            fclose($in);
+        }
+
+        $this->tempFiles[] = $tempPath;
+
+        return $tempPath;
+    }
+
+    private function watermarkFileIfNeeded(string $path, string $fileName, string $companyId, int $userId): string
+    {
+        $setting = Setting::where('company_id', $companyId)->first();
+        if (! $setting || ! $setting->enable_watermark) {
+            return $path;
+        }
+
+        $user = User::find($userId);
         if ($user && ($user->is_master_admin() || $user->is_super_admin())) {
-            Log::info('Skipping watermark for admin user', ['user_id' => $user_id]);
-            return $content;
+            return $path;
         }
 
-        $userEmail = $user?->email ?? 'unknown@domain.com';
-        $downloadDate = now()->format('Y-m-d H:i');
-        $textWatermark = "$userEmail | $downloadDate";
         $ext = strtolower(pathinfo($fileName, PATHINFO_EXTENSION));
-        
-        Log::info('Applying watermark', ['file' => $fileName, 'ext' => $ext, 'watermark' => $textWatermark]);
+        if (! in_array($ext, ['png', 'jpg', 'jpeg'], true)) {
+            return $path;
+        }
+
+        $maxBytes = (int) env('ZIP_DOWNLOAD_MAX_WATERMARK_BYTES', 15 * 1024 * 1024);
+        if (filesize($path) > $maxBytes) {
+            return $path;
+        }
+
+        $text = ($user?->email ?? 'unknown@domain.com') . ' | ' . now()->format('Y-m-d H:i');
 
         try {
-            if (in_array($ext, ['png', 'jpg', 'jpeg'])) {
-                $manager = new ImageManager(new Driver());
-                $image = $manager->read($content);
+            $manager = new ImageManager(new Driver());
+            $image = $manager->read($path);
 
-                $width = $image->width();
-                $height = $image->height();
-                $fontSize = min($width, $height) / 3;
+            $w = $image->width();
+            $h = $image->height();
+            $fontSize = min($w, $h) / 3;
 
-                $image->text($textWatermark, $width / 2, $height / 2, function ($font) use ($fontSize) {
-                    $font->size($fontSize);
-                    $font->color('#CCCCCC80');
-                    $font->align('center');
-                    $font->valign('middle');
-                    $font->angle(45);
-                });
+            $image->text($text, $w / 2, $h / 2, function ($font) use ($fontSize) {
+                $font->size($fontSize);
+                $font->color('#CCCCCC80');
+                $font->align('center');
+                $font->valign('middle');
+                $font->angle(45);
+            });
 
-                Log::info('Image watermark applied', ['file' => $fileName]);
-                return $ext === 'png' ? $image->toPng()->toString() : $image->toJpeg(90)->toString();
+            $out = $path . '.wm.' . $ext;
+            file_put_contents(
+                $out,
+                $ext === 'png' ? $image->toPng()->toString() : $image->toJpeg(90)->toString()
+            );
+            unset($image);
+
+            return $out;
+        } catch (\Throwable $e) {
+            Log::error('Watermark failed', ['file' => $fileName, 'error' => $e->getMessage()]);
+
+            return $path;
+        }
+    }
+
+    private function cleanupTempFiles(): void
+    {
+        foreach ($this->tempFiles as $path) {
+            if (is_file($path)) {
+                @unlink($path);
             }
-            // Skip PDF watermarking due to FPDI limitations
-        } catch (\Exception $e) {
-            Log::error('Watermark application failed', ['file' => $fileName, 'error' => $e->getMessage()]);
         }
 
-        return $content;
+        $this->tempFiles = [];
     }
 }

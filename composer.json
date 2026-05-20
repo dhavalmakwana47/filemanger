@@ -15,6 +15,7 @@
         "league/flysystem-aws-s3-v3": "^3.30",
         "maatwebsite/excel": "^3.1",
         "mpdf/mpdf": "8.2",
+        "opcodesio/log-viewer": "^3.24",
         "phpoffice/phpspreadsheet": "^1.30",
         "phpoffice/phpword": "^1.4",
         "setasign/fpdi": "2.5",
