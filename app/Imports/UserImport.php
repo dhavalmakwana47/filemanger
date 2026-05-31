@@ -24,7 +24,7 @@ use Illuminate\Support\Facades\Log as FacadesLog;
 use Maatwebsite\Excel\Validators\Failure;
 use Log;
 
-class UserImport implements ToCollection, WithHeadingRow, WithBatchInserts, WithChunkReading
+class UserImport implements ToCollection, WithHeadingRow, WithValidation, WithBatchInserts, WithChunkReading
 {
     protected $requestData;
     protected $skippedEmails = [];

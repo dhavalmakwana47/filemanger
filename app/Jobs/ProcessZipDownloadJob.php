@@ -32,8 +32,18 @@ class ProcessZipDownloadJob implements ShouldQueue
     public function handle(): void
     {
         $tempZipPath = null;
+        $zip = null;
 
         try {
+            // Set temp directory BEFORE any operations
+            $customTempDir = storage_path('app/temp');
+            if (! is_dir($customTempDir)) {
+                @mkdir($customTempDir, 0777, true);
+            }
+            putenv('TMPDIR=' . $customTempDir);
+            putenv('TEMP=' . $customTempDir);
+            putenv('TMP=' . $customTempDir);
+
             $stats = $this->collectFolderStats($this->zipDownload->folder_data);
             $maxFiles = (int) env('ZIP_DOWNLOAD_MAX_FILES', 500);
             $maxBytes = (int) env('ZIP_DOWNLOAD_MAX_BYTES', 2 * 1024 * 1024 * 1024);
@@ -43,21 +53,20 @@ class ProcessZipDownloadJob implements ShouldQueue
             }
 
             if ($stats['bytes'] > $maxBytes) {
-                throw new \RuntimeException('Folder is too large to zip. Download smaller folders.');
+                $sizeMB = round($stats['bytes'] / 1024 / 1024, 2);
+                $maxMB = round($maxBytes / 1024 / 1024, 2);
+                throw new \RuntimeException("Folder is too large ({$sizeMB}MB). Maximum: {$maxMB}MB. Download smaller folders.");
             }
 
             $this->zipDownload->update(['status' => 'processing']);
 
-            $zipFileName = 'zip_downloads/' . $this->zipDownload->id . '_' . time() . '.zip';
-            $tempZipPath = storage_path('app/' . $zipFileName);
-
-            if (! is_dir(dirname($tempZipPath))) {
-                mkdir(dirname($tempZipPath), 0755, true);
-            }
+            // Use storage/app/temp for zip file creation
+            $tempZipPath = $customTempDir . '/zip_' . $this->zipDownload->id . '_' . time() . '.zip';
 
             $zip = new ZipArchive();
-            if ($zip->open($tempZipPath, ZipArchive::CREATE | ZipArchive::OVERWRITE) !== true) {
-                throw new \RuntimeException('Could not create zip file');
+            $openResult = $zip->open($tempZipPath, ZipArchive::CREATE | ZipArchive::OVERWRITE);
+            if ($openResult !== true) {
+                throw new \RuntimeException("Could not create zip file. Error code: {$openResult}");
             }
 
             $this->addToZip(
@@ -68,7 +77,10 @@ class ProcessZipDownloadJob implements ShouldQueue
                 (int) $this->zipDownload->user_id
             );
 
-            $zip->close();
+            if ($zip !== null) {
+                $zip->close();
+                $zip = null;
+            }
             $this->cleanupTempFiles();
 
             $storagePath = "zip_downloads/company_{$this->zipDownload->company_id}/{$this->zipDownload->folder_name}_{$this->zipDownload->id}.zip";
@@ -102,6 +114,9 @@ class ProcessZipDownloadJob implements ShouldQueue
                 'error_message' => $e->getMessage(),
             ]);
         } finally {
+            if ($zip !== null) {
+                @$zip->close();
+            }
             $this->cleanupTempFiles();
 
             if ($tempZipPath && is_file($tempZipPath)) {
@@ -206,7 +221,8 @@ class ProcessZipDownloadJob implements ShouldQueue
             return null;
         }
 
-        $tempPath = tempnam(sys_get_temp_dir(), 'zipf_');
+        $customTempDir = storage_path('app/temp');
+        $tempPath = tempnam($customTempDir, 'zipf_');
         if ($tempPath === false) {
             if (is_resource($in)) {
                 fclose($in);

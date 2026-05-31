@@ -382,7 +382,7 @@ $(function () {
                                             if (response.redirect_url) {
                                                 window.open(response.redirect_url, '_blank');
                                             }
-
+                                console.log("Initiating zip for folder ID:", selectedItem.dataItem.id);
                                             // Start polling for status
                                             checkZipStatus(response.zip_id);
                                         } else {
