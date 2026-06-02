@@ -629,6 +629,42 @@ class FolderController extends Controller implements HasMiddleware
         return $count;
     }
 
+    /**
+     * Skip OS / app lock & temp files from folder uploads (e.g. Office ~$file.docx).
+     */
+    private function shouldSkipFolderUploadFile(string $fileName, string $relativePath = ''): bool
+    {
+        $baseName = basename($fileName);
+        $lowerBase = strtolower($baseName);
+        $lowerPath = strtolower($relativePath !== '' ? $relativePath : $fileName);
+
+        if (str_starts_with($baseName, '~$') || str_starts_with($baseName, '~')) {
+            return true;
+        }
+
+        if (str_contains($lowerPath, '.~lock.') || str_starts_with($lowerBase, '.~lock.')) {
+            return true;
+        }
+
+        if ($lowerBase === '.ds_store' || str_starts_with($lowerBase, '._')) {
+            return true;
+        }
+
+        $skipNames = ['thumbs.db', 'desktop.ini', '.gitignore'];
+        if (in_array($lowerBase, $skipNames, true)) {
+            return true;
+        }
+
+        $skipExtensions = ['.tmp', '.temp', '.log', '.cache', '.swp', '.swo'];
+        foreach ($skipExtensions as $ext) {
+            if (str_ends_with($lowerBase, $ext)) {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
     private function buildFileTree($folders, $defaultAccess, $query = '')
     {
         return $folders->filter(function ($folder) use ($query) {
@@ -1285,14 +1321,18 @@ class FolderController extends Controller implements HasMiddleware
                     continue;
                 }
 
+                $pathParts = explode('/', trim($relativePath, '/'));
+                $fileName = array_pop($pathParts); // Last part is the file
+
+                if ($this->shouldSkipFolderUploadFile($fileName, $relativePath)) {
+                    continue;
+                }
+
                 // Skip files with invalid MIME types
                 $file = $files[$index];
                 if (!in_array($file->getMimeType(), $allowedMimeTypes)) {
                     continue;
                 }
-
-                $pathParts = explode('/', trim($relativePath, '/'));
-                $fileName = array_pop($pathParts); // Last part is the file
                 $currentParentId = $root_folder_id; // Start with the provided folder_id
                 $hasNestedFolders = count($pathParts) > 0;
 

@@ -1600,6 +1600,59 @@ $(function () {
     let scrollLocked = false;
     let targetScrollPosition = 0;
 
+    /**
+     * Skip OS / app lock & temp files (e.g. Office ~$Document.docx when file is open).
+     */
+    function shouldSkipFolderUploadFile(fileName, filePath) {
+        const baseName = (fileName || "").split(/[/\\]/).pop() || fileName || "";
+        const lowerBase = baseName.toLowerCase();
+        const lowerPath = (filePath || fileName || "").toLowerCase();
+
+        // Microsoft Office lock files while document is open: ~$Report.docx
+        if (baseName.startsWith("~$") || lowerBase.startsWith("~$")) {
+            return true;
+        }
+
+        // Other temp/lock files starting with ~
+        if (baseName.startsWith("~") || lowerBase.startsWith("~")) {
+            return true;
+        }
+
+        // LibreOffice lock files: .~lock.document.docx#
+        if (lowerPath.includes(".~lock.") || lowerBase.startsWith(".~lock.")) {
+            return true;
+        }
+
+        // macOS metadata
+        if (lowerBase === ".ds_store" || lowerBase.startsWith("._")) {
+            return true;
+        }
+
+        const skipPatterns = [
+            ".gitignore",
+            ".git/",
+            "node_modules/",
+            "thumbs.db",
+            "desktop.ini",
+            ".vscode/",
+            ".idea/",
+        ];
+
+        if (
+            skipPatterns.some((pattern) => {
+                if (pattern.endsWith("/")) {
+                    return lowerPath.includes(pattern);
+                }
+                return lowerBase === pattern || lowerPath.endsWith("/" + pattern);
+            })
+        ) {
+            return true;
+        }
+
+        const skipExtensions = [".tmp", ".temp", ".log", ".cache", ".swp", ".swo"];
+        return skipExtensions.some((ext) => lowerBase.endsWith(ext));
+    }
+
     const folderPond = FilePond.create(
         document.querySelector("#folder-upload"),
         {
@@ -1682,29 +1735,12 @@ $(function () {
                 }
             },
             beforeAddFile: (item) => {
-                const fileName = item.file.name.toLowerCase();
+                const fileName = item.file.name;
                 const filePath = item.file.webkitRelativePath || item.file.name;
                 console.log('Processing file:', fileName, 'Path:', filePath);
-                
-                // Files to skip completely (don't show in invalid files list)
-                const skipFiles = [
-                    '.gitignore', '.git/', 'node_modules/', '.DS_Store', 'thumbs.db',
-                    '.vscode/', '.idea/', '*.tmp', '*.temp', '*.log', '*.cache'
-                ];
-                
-                // Check if file should be skipped
-                const shouldSkip = skipFiles.some(pattern => {
-                    if (pattern.endsWith('/')) {
-                        return filePath.includes(pattern);
-                    }
-                    if (pattern.startsWith('*')) {
-                        return fileName.endsWith(pattern.substring(1));
-                    }
-                    return fileName === pattern || filePath.endsWith('/' + pattern);
-                });
-                
-                if (shouldSkip) {
-                    console.log('Skipping file:', fileName);
+
+                if (shouldSkipFolderUploadFile(fileName, filePath)) {
+                    console.log('Skipping system/temp file:', fileName);
                     skippedFiles.push(filePath);
                     allSkippedFiles.push(filePath);
                     // Close loader if all files are being skipped
