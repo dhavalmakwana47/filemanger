@@ -2,6 +2,8 @@ $(function () {
     const csrfToken = $('meta[name="csrf-token"]').attr("content");
     let searchTimeout = null; // For debouncing search input
     let currentSearchValue = ""; // Track current search value
+    let lastBrowseContext = { folderId: null, folderKey: null, path: "" };
+    let pendingUploadContext = null;
     
     // Internet connection monitor
     let isOnline = true;
@@ -1092,8 +1094,19 @@ $(function () {
             },
             onCurrentDirectoryChanged: function (e) {
                 createPermission = createFolderPermission;
-                if (e.directory.dataItem !== undefined) {
-                    createPermission = e.directory.dataItem.permissions.create;
+                const dir = e.directory;
+                if (dir?.dataItem !== undefined) {
+                    createPermission = dir.dataItem.permissions.create;
+                }
+                if (dir && !dir.isRoot) {
+                    const dataItem = dir.dataItem;
+                    lastBrowseContext = {
+                        folderId: dataItem?.isDirectory !== false ? dataItem?.id ?? null : lastBrowseContext.folderId,
+                        folderKey: dir.key ?? (dataItem?.id != null ? `folder_${dataItem.id}` : lastBrowseContext.folderKey),
+                        path: fileManager.option("currentPath") || dir.path || "",
+                    };
+                } else {
+                    lastBrowseContext = { folderId: null, folderKey: null, path: "" };
                 }
                 fileManager.option(
                     "toolbar.items[2].visible",
@@ -1144,6 +1157,7 @@ $(function () {
 
     $("#processForm").on("submit", function (e) {
         e.preventDefault();
+        const actionContext = captureBrowseContext();
 
         let formData = {
             file_ids: JSON.parse($("#file_ids").val()),
@@ -1167,7 +1181,7 @@ $(function () {
                     "success",
                     2000
                 );
-                fetchFileManagerData(); // refresh file manager if needed
+                fetchFileManagerData(true, actionContext); // refresh file manager if needed
             },
             error: function (err) {
                 console.error("Error:", err);
@@ -1221,6 +1235,7 @@ $(function () {
 
     $("#folderForm").on("submit", function (e) {
         e.preventDefault();
+        const actionContext = captureBrowseContext();
 
         let selectedItem = fileManager.getSelectedItems()[0]; // Get selected item
         let editUrl =
@@ -1260,7 +1275,7 @@ $(function () {
                     });
 
                     $("#folderModal").modal("hide");
-                    fetchFileManagerData();
+                    fetchFileManagerData(true, actionContext);
                 } else {
                     Swal.fire({
                         icon: "error",
@@ -1286,6 +1301,7 @@ $(function () {
     //delete handle
     function customDeleteHandler() {
         let selectedItems = fileManager.getSelectedItems();
+        const actionContext = captureBrowseContext();
 
         if (selectedItems.length === 0) {
             Swal.fire({
@@ -1350,7 +1366,7 @@ $(function () {
                                 showConfirmButton: false,
                             });
 
-                            fetchFileManagerData();
+                            fetchFileManagerData(true, actionContext);
                         } else {
                             Swal.fire({
                                 icon: "error",
@@ -1376,6 +1392,14 @@ $(function () {
             }
         });
     }
+
+    $("#fileModal").on("show.bs.modal", function () {
+        pendingUploadContext = captureBrowseContext();
+    });
+
+    $("#folderUploadModalModal").on("show.bs.modal", function () {
+        pendingUploadContext = captureBrowseContext();
+    });
 
     async function searchFileManagerData(query) {
         try {
@@ -1406,14 +1430,132 @@ $(function () {
         }
     }
 
+    function getCurrentPathSafe() {
+        const fromOption = fileManager.option("currentPath");
+        if (fromOption) {
+            return fromOption;
+        }
+        const currentDir = fileManager.getCurrentDirectory();
+        return currentDir?.path || lastBrowseContext.path || "";
+    }
+
+    function captureBrowseContext() {
+        const dir = fileManager.getCurrentDirectory();
+        const dataItem = dir?.dataItem;
+        const folderId =
+            dataItem?.isDirectory !== false && dataItem?.id != null
+                ? dataItem.id
+                : lastBrowseContext.folderId;
+
+        return {
+            folderId: folderId ?? null,
+            folderKey:
+                dir?.key ??
+                (folderId != null ? `folder_${folderId}` : null) ??
+                lastBrowseContext.folderKey,
+            path: fileManager.option("currentPath") || dir?.path || lastBrowseContext.path || "",
+        };
+    }
+
+    function findPathByFolderKey(items, targetKey, parentPath = "") {
+        if (!Array.isArray(items) || !targetKey) {
+            return null;
+        }
+
+        for (const item of items) {
+            if (!item?.isDirectory || !item.name) {
+                continue;
+            }
+
+            const itemPath = parentPath ? `${parentPath}/${item.name}` : item.name;
+            const itemKey = item.key || (item.id != null ? `folder_${item.id}` : null);
+
+            if (itemKey === targetKey) {
+                return itemPath;
+            }
+
+            if (Array.isArray(item.items) && item.items.length > 0) {
+                const nestedPath = findPathByFolderKey(item.items, targetKey, itemPath);
+                if (nestedPath) {
+                    return nestedPath;
+                }
+            }
+        }
+
+        return null;
+    }
+
+    function findPathByDirectoryId(items, targetId, parentPath = "") {
+        if (!Array.isArray(items) || targetId == null) {
+            return null;
+        }
+
+        for (const item of items) {
+            if (!item?.isDirectory || !item.name) {
+                continue;
+            }
+
+            const itemPath = parentPath ? `${parentPath}/${item.name}` : item.name;
+            if (String(item.id) === String(targetId)) {
+                return itemPath;
+            }
+
+            if (Array.isArray(item.items) && item.items.length > 0) {
+                const nestedPath = findPathByDirectoryId(item.items, targetId, itemPath);
+                if (nestedPath) {
+                    return nestedPath;
+                }
+            }
+        }
+
+        return null;
+    }
+
+    function restoreFolderLocation(data, context) {
+        if (!context) {
+            return;
+        }
+
+        const { folderId, folderKey, path } = context;
+        let resolvedPath = null;
+
+        if (folderKey) {
+            resolvedPath = findPathByFolderKey(data, folderKey);
+        }
+        if (!resolvedPath && folderId != null) {
+            resolvedPath = findPathByDirectoryId(data, folderId);
+        }
+        if (!resolvedPath && path) {
+            resolvedPath = path;
+        }
+
+        if (!folderId && !folderKey && !path) {
+            fileManager.option("currentPath", "");
+            return;
+        }
+
+        if (!resolvedPath) {
+            return;
+        }
+
+        const applyPath = () => fileManager.option("currentPath", resolvedPath);
+        applyPath();
+        [50, 200, 500, 1000].forEach((delay) => setTimeout(applyPath, delay));
+    }
+
     // ✅ Fetch File Manager Data
-    async function fetchFileManagerData() {
+    async function fetchFileManagerData(keepCurrentPath = true, browseContext = null) {
         $('#fm-loader').show();
+        const context = keepCurrentPath ? (browseContext || captureBrowseContext()) : null;
         try {
             const response = await fetch(getFileMangerRoute);
             const data = await response.json();
             sortFileManagerItemsByIndex(data);
             fileManager.option("fileSystemProvider", data);
+
+            if (context) {
+                restoreFolderLocation(data, context);
+            }
             fileManager.option("toolbar.items[4].options.value", "");
         } catch (error) {
             console.error("Error fetching data:", error);
@@ -1436,12 +1578,14 @@ $(function () {
     // ✅ Custom Function to Upload a file
     function uploadFile() {
         scrollLocked = false;
+        pendingUploadContext = captureBrowseContext();
         $("#fileForm")[0].reset();
         $("#fileModal").modal("show");
     }
 
     function uploadFolder() {
         scrollLocked = false;
+        pendingUploadContext = captureBrowseContext();
         $("#folderForm")[0].reset();
         $("#folderUploadModalModal").modal("show");
     }
@@ -1650,6 +1794,7 @@ $(function () {
     $("#folderuploadForm").on("submit", function (e) {
         e.preventDefault();
         const files = folderPond.getFiles();
+        const uploadContext = pendingUploadContext || captureBrowseContext();
         
         if (files.length === 0) {
             Swal.fire({
@@ -1700,7 +1845,7 @@ $(function () {
                 formData.append(`file_paths[${index}]`, fileItem.file.webkitRelativePath || fileItem.filename);
             });
             
-            formData.append("folder_id", fileManager.getCurrentDirectory().dataItem?.id || "");
+            formData.append("folder_id", uploadContext.folderId || "");
             if (folderUploadItemIndex) {
                 formData.append("item_index", folderUploadItemIndex);
             }
@@ -1760,7 +1905,8 @@ $(function () {
                         });
                         folderPond.removeFiles();
                         $("#folderUploadModalModal").modal("hide");
-                        fetchFileManagerData();
+                        fetchFileManagerData(true, uploadContext);
+                        pendingUploadContext = null;
                     }
                 } else {
                     Swal.fire({
@@ -1868,6 +2014,7 @@ $(function () {
 
             const form = e.target;
             const files = pond.getFiles();
+            const uploadContext = pendingUploadContext || captureBrowseContext();
             
             if (files.length === 0) {
                 Swal.fire({
@@ -1924,7 +2071,7 @@ $(function () {
                 });
                 
                 // Append other form fields
-                formData.append("folder_id", fileManager.getCurrentDirectory().dataItem?.id || "");
+                formData.append("folder_id", uploadContext.folderId || "");
                 formData.append("_token", document.querySelector('input[name="_token"]').value);
                 
                 const otherFields = form.querySelectorAll("input, select, textarea");
@@ -1968,7 +2115,8 @@ $(function () {
                                 confirmButtonColor: "#3085d6",
                             });
                             $("#fileModal").modal("hide");
-                            fetchFileManagerData();
+                            fetchFileManagerData(true, uploadContext);
+                            pendingUploadContext = null;
                             pond.removeFiles();
                         }
                     } else {
@@ -1997,6 +2145,7 @@ $(function () {
         });
     $("#createFolderForm").on("submit", function (e) {
         e.preventDefault();
+        const actionContext = captureBrowseContext();
 
         const currentDir = fileManager.getCurrentDirectory();
         const parentId = currentDir.dataItem?.id || "";
@@ -2036,7 +2185,7 @@ $(function () {
                     });
 
                     $("#createFolderModal").modal("hide");
-                    fetchFileManagerData();
+                    fetchFileManagerData(true, actionContext);
                 } else {
                     Swal.fire({
                         icon: "error",
@@ -2079,6 +2228,7 @@ $(function () {
     // Move form submission
     $("#moveForm").on("submit", function (e) {
         e.preventDefault();
+        const actionContext = captureBrowseContext();
 
         let formData = {
             file_ids: JSON.parse($("#move_file_ids").val()),
@@ -2101,7 +2251,7 @@ $(function () {
                     "success",
                     2000
                 );
-                fetchFileManagerData();
+                fetchFileManagerData(true, actionContext);
             },
             error: function (err) {
                 console.error("Error:", err);
@@ -2111,7 +2261,7 @@ $(function () {
     });
 
     // Initialize File Manager Data
-    fetchFileManagerData();
+    fetchFileManagerData(false);
 });
 
 // Function to check zip status and handle download

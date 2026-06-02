@@ -477,6 +477,7 @@ class FolderController extends Controller implements HasMiddleware
                 if ($folder->has_access()) {
                     $fileTree[] = [
                         'id' => $folder->id,
+                        'key' => 'folder_' . $folder->id,
                         'parentId' => $folder->parent_id,
                         'name' => $folder->name,
                         'isDirectory' => true,
@@ -642,6 +643,7 @@ class FolderController extends Controller implements HasMiddleware
                 $totalFiles = $this->countAllFiles($folder);
                 return [
                     'id' => $folder->id,
+                    'key' => 'folder_' . $folder->id,
                     'parentId' => $folder->parent_id,
                     'name' => $folder->name . ' (' . $totalFiles . ')',
                     'isDirectory' => true,
