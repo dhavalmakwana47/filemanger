@@ -77,10 +77,18 @@
                                             <td class="px-4 py-2 border text-center align-middle">
                                                 <div class="d-flex justify-content-center align-items-center">
                                                     <div class="form-check form-switch">
+                                                        @php
+                                                            $isForcedFolderView =
+                                                                ($permission->module_name === 'Folder' && $permission->slug === 'view');
+                                                        @endphp
                                                         <input class="form-check-input toggle-checkbox" type="checkbox" name="permissions[]"
                                                             value="{{  $permission->id }}"
-                                                            {{ isset($role) && $permission->hasRole($role->id) ? 'checked' : '' }}
-                                                            {{ auth()->user()->hasPermission('Company Permission', 'update') ? '' : 'disabled' }}>
+                                                            @if ($isForcedFolderView) checked disabled
+                                                            @else
+                                                                {{ isset($role) && $permission->hasRole($role->id) ? 'checked' : '' }}
+                                                                {{ auth()->user()->hasPermission('Company Permission', 'update') ? '' : 'disabled' }}
+                                                            @endif
+                                                        >
                                                     </div>
                                                 </div>
                                             </td>

@@ -17,6 +17,23 @@ use Illuminate\Support\Facades\Auth;
 
 class CompanyRoleController extends Controller implements HasMiddleware
 {
+    /**
+     * Ensure Folder view permission is always granted to company roles.
+     */
+    private function ensureFolderViewPermission(array $permissions): array
+    {
+        $folderViewPermissionId = Permission::query()
+            ->where('module_name', 'Folder')
+            ->where('slug', 'view')
+            ->value('id');
+
+        if ($folderViewPermissionId) {
+            $permissions[] = $folderViewPermissionId;
+        }
+
+        return array_values(array_unique(array_filter($permissions)));
+    }
+
     public static function middleware(): array
     {
         return [
@@ -104,6 +121,7 @@ class CompanyRoleController extends Controller implements HasMiddleware
 
         // Ensure permissions is an array; default to empty array if null
         $permissions = $request->permissions ?? [];
+        $permissions = $this->ensureFolderViewPermission($permissions);
 
         // Insert permissions if any are provided
         if (!empty($permissions)) {
@@ -163,6 +181,7 @@ class CompanyRoleController extends Controller implements HasMiddleware
 
         // Ensure permissions is an array; default to empty array if null
         $permissions = $request->permissions ?? [];
+        $permissions = $this->ensureFolderViewPermission($permissions);
 
         // Insert new permissions if any are provided
         if (!empty($permissions)) {
