@@ -324,7 +324,7 @@ class FileController extends Controller
             // On error, serve original file
             addUserAction([
                 'user_id' => Auth::id(),
-                'action'  => "File {$file->name} downloaded (watermark failed)"
+                'action'  => "File {$file->file_name} downloaded (watermark failed)"
             ]);
 
             return Storage::download($path, $file->name);
@@ -333,7 +333,7 @@ class FileController extends Controller
         // Log successful download with watermark
         addUserAction([
             'user_id' => Auth::id(),
-            'action'  => "File {$file->name} downloaded with text watermark"
+            'action'  => "File {$file->file_name} downloaded with text watermark"
         ]);
 
         // Return watermarked file
