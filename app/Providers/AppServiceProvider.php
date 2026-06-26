@@ -3,6 +3,8 @@
 namespace App\Providers;
 
 use App\Services\FileStorageService;
+use App\Services\Pdf\PdfWatermarkService;
+use App\Services\WatermarkService;
 use Illuminate\Support\ServiceProvider;
 use Opcodes\LogViewer\Facades\LogViewer;
 
@@ -16,6 +18,9 @@ class AppServiceProvider extends ServiceProvider
      $this->app->singleton(FileStorageService::class, function ($app) {
         return new FileStorageService();
     });
+
+    $this->app->singleton(PdfWatermarkService::class);
+    $this->app->singleton(WatermarkService::class);
     }
 
     /**

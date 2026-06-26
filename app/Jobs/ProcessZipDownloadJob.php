@@ -5,12 +5,11 @@ namespace App\Jobs;
 use App\Models\Setting;
 use App\Models\User;
 use App\Models\ZipDownload;
+use App\Services\WatermarkService;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Queue\Queueable;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Storage;
-use Intervention\Image\ImageManager;
-use Intervention\Image\Drivers\Gd\Driver;
 use ZipArchive;
 
 class ProcessZipDownloadJob implements ShouldQueue
@@ -255,18 +254,17 @@ class ProcessZipDownloadJob implements ShouldQueue
 
     private function watermarkFileIfNeeded(string $path, string $fileName, string $companyId, int $userId): string
     {
-        $setting = Setting::where('company_id', $companyId)->first();
-        if (! $setting || ! $setting->enable_watermark) {
-            return $path;
-        }
+        $watermarkService = app(WatermarkService::class);
 
+        $setting = Setting::where('company_id', $companyId)->first();
         $user = User::find($userId);
-        if ($user && ($user->is_master_admin() || $user->is_super_admin())) {
+
+        if (! $watermarkService->shouldApply($setting, $user)) {
             return $path;
         }
 
         $ext = strtolower(pathinfo($fileName, PATHINFO_EXTENSION));
-        if (! in_array($ext, ['png', 'jpg', 'jpeg'], true)) {
+        if (! in_array($ext, ['png', 'jpg', 'jpeg', 'pdf'], true)) {
             return $path;
         }
 
@@ -275,37 +273,14 @@ class ProcessZipDownloadJob implements ShouldQueue
             return $path;
         }
 
-        $text = ($user?->email ?? 'unknown@domain.com') . ' | ' . now()->format('Y-m-d H:i');
+        $text = $watermarkService->buildWatermarkText($user);
+        $outPath = $watermarkService->applyToFile($path, $fileName, $text);
 
-        try {
-            $manager = new ImageManager(new Driver());
-            $image = $manager->read($path);
-
-            $w = $image->width();
-            $h = $image->height();
-            $fontSize = min($w, $h) / 3;
-
-            $image->text($text, $w / 2, $h / 2, function ($font) use ($fontSize) {
-                $font->size($fontSize);
-                $font->color('#CCCCCC80');
-                $font->align('center');
-                $font->valign('middle');
-                $font->angle(45);
-            });
-
-            $out = $path . '.wm.' . $ext;
-            file_put_contents(
-                $out,
-                $ext === 'png' ? $image->toPng()->toString() : $image->toJpeg(90)->toString()
-            );
-            unset($image);
-
-            return $out;
-        } catch (\Throwable $e) {
-            Log::error('Watermark failed', ['file' => $fileName, 'error' => $e->getMessage()]);
-
-            return $path;
+        if ($outPath !== $path) {
+            $this->tempFiles[] = $outPath;
         }
+
+        return $outPath;
     }
 
     private function cleanupTempFiles(): void

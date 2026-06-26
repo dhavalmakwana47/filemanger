@@ -10,21 +10,24 @@ use App\Models\RoleFilePermission;
 use App\Models\Setting;
 use App\Services\FileStorageService;
 use App\Services\FileViewer;
-use App\Services\ZipExtarctService;
 use App\Services\IndexNumberingService;
+use App\Services\WatermarkService;
+use App\Services\ZipExtarctService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Facades\Log;
-use Intervention\Image\ImageManager;
-use Intervention\Image\Drivers\Gd\Driver;
 
 class FileController extends Controller
 {
     protected $fileStorage;
     private $zipExtarctService;
-    public function __construct(FileStorageService $fileStorage, ZipExtarctService $zipExtarctService)
-    {
+
+    public function __construct(
+        FileStorageService $fileStorage,
+        ZipExtarctService $zipExtarctService,
+        private readonly WatermarkService $watermarkService,
+    ) {
         $this->fileStorage = $fileStorage;
         $this->zipExtarctService = $zipExtarctService;
     }
@@ -182,6 +185,7 @@ class FileController extends Controller
     // Method to download the file
     public function downloadFile(Request $request)
     {
+
         // 1. Find file or 404
         $file = File::findOrFail($request->id);
 
@@ -192,9 +196,10 @@ class FileController extends Controller
 
         // 3. Build storage path
         $path = "uploads/company_" . get_active_company() . "/" . $file->name;
+        $disk = $this->fileStorage->disk;
 
         // 4. Check file exists
-        if (!Storage::exists($path)) {
+        if (! Storage::disk($disk)->exists($path)) {
             abort(404, 'File not found.');
         }
 
@@ -210,114 +215,39 @@ class FileController extends Controller
         }
 
         $user = auth()->user();
-        $userEmail = $user?->email ?? 'unknown@domain.com';
-        $downloadDate = now()->format('Y-m-d H:i');
-        $textWatermark = "$userEmail | $downloadDate";
 
         // If watermark disabled or admin → direct download
-        if (!$setting->enable_watermark || $user->is_master_admin() || $user->is_super_admin()) {
+        if (! $this->watermarkService->shouldApply($setting, $user)) {
             addUserAction([
                 'user_id' => Auth::id(),
                 'action'  => "File {$file->file_name} downloaded"
             ]);
 
-            return Storage::download($path, $file->name);
+            return Storage::disk($disk)->download($path, $file->name);
         }
 
         // Load file info
-        $contents = Storage::get($path);
-        $mime     = Storage::mimeType($path);
+        $contents = Storage::disk($disk)->get($path);
+        if ($contents === null) {
+            abort(404, 'File not found.');
+        }
+
+        $mime     = Storage::disk($disk)->mimeType($path);
         $ext      = strtolower(pathinfo($file->name, PATHINFO_EXTENSION));
+        $textWatermark = $this->watermarkService->buildWatermarkText($user);
 
         try {
-            // === IMAGES: PNG, JPG, JPEG ===
-            if (in_array($ext, ['png', 'jpg', 'jpeg'])) {
-                $manager = new ImageManager(new Driver());
-                $image   = $manager->read($contents);
+            $watermarked = $this->watermarkService->applyToContent($contents, $file->name, $textWatermark);
 
-                // Cross diagonal watermarks with bigger text
-                $width = $image->width();
-                $height = $image->height();
-                $fontSize = min($width, $height) / 3; // Much bigger font size
-
-                // First diagonal (top-left to bottom-right)
-                $image->text($textWatermark, $width / 2, $height / 2, function ($font) use ($fontSize) {
-                    $font->size($fontSize);
-                    $font->color('#CCCCCC80'); // More visible
-                    $font->align('center');
-                    $font->valign('middle');
-                    $font->angle(45);
-                });
-
-                // Second diagonal (top-right to bottom-left)
-                $image->text($textWatermark, $width / 2, $height / 2, function ($font) use ($fontSize) {
-                    $font->size($fontSize);
-                    $font->color('#CCCCCC80'); // More visible
-                    $font->align('center');
-                    $font->valign('middle');
-                    $font->angle(-45);
-                });
-
-                $contents = $ext === 'png'
-                    ? $image->toPng()->toString()
-                    : $image->toJpeg(90)->toString();
-
-                $mime = $ext === 'png' ? 'image/png' : 'image/jpeg';
-            } elseif ($ext === 'pdf') {
-                // Create new PDF instance
-                $pdf = new \setasign\Fpdi\Fpdi();
-
-                // Set auto page break to false
-                $pdf->SetAutoPageBreak(false);
-
-                // Get the number of pages in the source PDF
-                $pageCount = $pdf->setSourceFile(
-                    \setasign\Fpdi\PdfParser\StreamReader::createByString($contents)
-                );
-
-                // Process each page
-                for ($i = 1; $i <= $pageCount; $i++) {
-                    // Import the page
-                    $templateId = $pdf->importPage($i);
-                    $size = $pdf->getTemplateSize($templateId);
-
-                    // Only proceed if we have valid page dimensions
-                    if ($size['width'] > 0 && $size['height'] > 0) {
-                        // Add a page with the same dimensions and orientation as the original
-                        $pdf->AddPage(
-                            $size['orientation'] === 'L' ? 'L' : 'P',
-                            [$size['width'], $size['height']]
-                        );
-
-                        // Use the imported page
-                        $pdf->useTemplate($templateId, 0, 0, $size['width'], $size['height'], true);
-
-                        // Set font
-                        $pdf->SetFont('Helvetica', '', 20);
-                        $pdf->SetTextColor(150, 150, 150);
-
-                        // Calculate diagonal from bottom-left to top-right
-                        $diagonal = sqrt($size['width'] * $size['width'] + $size['height'] * $size['height']);
-                        $angle = atan2($size['height'], $size['width']);
-
-                        // Get text width to calculate proper starting position
-                        $textWidth = $pdf->GetStringWidth($textWatermark);
-                        $margin = 10; // Small margin from corner
-
-                        // Position at bottom-left corner with margin and rotate towards top-right
-                        $pdf->_out(sprintf('q %.5F %.5F %.5F %.5F %.2F %.2F cm', cos($angle), sin($angle), -sin($angle), cos($angle), $margin, $margin));
-                        $pdf->SetXY(0, -6);
-                        $pdf->Cell($diagonal - ($margin * 2), 12, $textWatermark, 0, 0, 'L');
-                        $pdf->_out('Q');
-                    }
-                }
-
-                // Get the watermarked PDF as string
-                $contents = $pdf->Output('S');
-                $mime = 'application/pdf';
+            if ($watermarked !== $contents) {
+                $contents = $watermarked;
+                $mime = match ($ext) {
+                    'png' => 'image/png',
+                    'jpg', 'jpeg' => 'image/jpeg',
+                    'pdf' => 'application/pdf',
+                    default => $mime,
+                };
             }
-
-            // For all other file types (docx, xlsx, etc.) → no watermark possible → download original
         } catch (\Exception $e) {
             \Log::error('Watermark application failed: ' . $e->getMessage());
 
@@ -327,10 +257,8 @@ class FileController extends Controller
                 'action'  => "File {$file->file_name} downloaded (watermark failed)"
             ]);
 
-            return Storage::download($path, $file->name);
+            return Storage::disk($disk)->download($path, $file->name);
         }
-
-        // Log successful download with watermark
         addUserAction([
             'user_id' => Auth::id(),
             'action'  => "File {$file->file_name} downloaded with text watermark"

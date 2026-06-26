@@ -12,6 +12,7 @@ use App\Models\RoleFolderPermission;
 use App\Services\FileStorageService;
 use App\Services\FolderService;
 use App\Services\IndexNumberingService;
+use App\Services\WatermarkService;
 use Illuminate\Http\Request;
 use Illuminate\Routing\Controllers\HasMiddleware;
 use Illuminate\Routing\Controllers\Middleware;
@@ -25,8 +26,6 @@ use Dompdf\Dompdf;
 use Dompdf\Options;
 use Illuminate\Support\HtmlString;
 use App\Models\Setting;
-use Intervention\Image\ImageManager;
-use Intervention\Image\Drivers\Gd\Driver;
 
 class FolderController extends Controller implements HasMiddleware
 {
@@ -45,8 +44,11 @@ class FolderController extends Controller implements HasMiddleware
         ];
     }
 
-    public function __construct(FileStorageService $fileStorage, FolderService $folderService)
-    {
+    public function __construct(
+        FileStorageService $fileStorage,
+        FolderService $folderService,
+        private readonly WatermarkService $watermarkService,
+    ) {
         $this->fileStorage = $fileStorage;
         $this->folderService = $folderService;
     }
@@ -1481,91 +1483,15 @@ class FolderController extends Controller implements HasMiddleware
 
     private function applyWatermarkToContent($content, $fileName, $company_id)
     {
-        // Get watermark settings
         $setting = Setting::where('company_id', $company_id)->first();
-        if (!$setting || !$setting->enable_watermark) {
-            return $content; // No watermark needed
-        }
-
         $user = auth()->user();
-        if ($user->is_master_admin() || $user->is_super_admin()) {
-            return $content; // No watermark for admins
+
+        if (! $this->watermarkService->shouldApply($setting, $user)) {
+            return $content;
         }
 
-        $userEmail = $user?->email ?? 'unknown@domain.com';
-        $downloadDate = now()->format('Y-m-d H:i');
-        $textWatermark = "$userEmail | $downloadDate";
-        $ext = strtolower(pathinfo($fileName, PATHINFO_EXTENSION));
+        $textWatermark = $this->watermarkService->buildWatermarkText($user);
 
-        try {
-            // Apply watermark to images
-            if (in_array($ext, ['png', 'jpg', 'jpeg'])) {
-                $manager = new ImageManager(new Driver());
-                $image = $manager->read($content);
-
-                $width = $image->width();
-                $height = $image->height();
-                $fontSize = min($width, $height) / 3;
-
-                // Cross diagonal watermarks
-                $image->text($textWatermark, $width / 2, $height / 2, function ($font) use ($fontSize) {
-                    $font->size($fontSize);
-                    $font->color('#CCCCCC80');
-                    $font->align('center');
-                    $font->valign('middle');
-                    $font->angle(45);
-                });
-
-                $image->text($textWatermark, $width / 2, $height / 2, function ($font) use ($fontSize) {
-                    $font->size($fontSize);
-                    $font->color('#CCCCCC80');
-                    $font->align('center');
-                    $font->valign('middle');
-                    $font->angle(-45);
-                });
-
-                return $ext === 'png' ? $image->toPng()->toString() : $image->toJpeg(90)->toString();
-            }
-            // Apply watermark to PDFs
-            elseif ($ext === 'pdf') {
-                $pdf = new \setasign\Fpdi\Fpdi();
-                $pdf->SetAutoPageBreak(false);
-
-                $pageCount = $pdf->setSourceFile(
-                    \setasign\Fpdi\PdfParser\StreamReader::createByString($content)
-                );
-
-                for ($i = 1; $i <= $pageCount; $i++) {
-                    $templateId = $pdf->importPage($i);
-                    $size = $pdf->getTemplateSize($templateId);
-
-                    if ($size['width'] > 0 && $size['height'] > 0) {
-                        $pdf->AddPage(
-                            $size['orientation'] === 'L' ? 'L' : 'P',
-                            [$size['width'], $size['height']]
-                        );
-
-                        $pdf->useTemplate($templateId, 0, 0, $size['width'], $size['height'], true);
-                        $pdf->SetFont('Helvetica', '', 24);
-                        $pdf->SetTextColor(150, 150, 150);
-
-                        $diagonal = sqrt($size['width'] * $size['width'] + $size['height'] * $size['height']);
-                        $angle = atan2($size['height'], $size['width']);
-
-                        $pdf->_out(sprintf('q %.5F %.5F %.5F %.5F %.2F %.2F cm', cos($angle), sin($angle), -sin($angle), cos($angle), 0, $size['height']));
-                        $pdf->SetXY(0, -8);
-                        $pdf->Cell($diagonal, 16, $textWatermark, 0, 0, 'C');
-                        $pdf->_out('Q');
-                    }
-                }
-
-                return $pdf->Output('S');
-            }
-        } catch (\Exception $e) {
-            \Log::error('Watermark application failed in zip: ' . $e->getMessage());
-            // Return original content if watermark fails
-        }
-
-        return $content; // Return original for other file types or on error
+        return $this->watermarkService->applyToContent($content, $fileName, $textWatermark);
     }
 }
