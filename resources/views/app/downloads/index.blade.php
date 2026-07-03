@@ -45,6 +45,19 @@
             ];
         @endphp
 
+        <div class="card mb-3">
+            <div class="card-header fw-semibold">Download Status Information</div>
+            <div class="card-body">
+                <p class="mb-2">Please check the current status of your ZIP/File download below:</p>
+                <ul class="list-unstyled mb-2">
+                    <li class="mb-1"><span class="badge bg-secondary me-2">Pending</span> Your download request has been received and the process has been started.</li>
+                    <li class="mb-1"><span class="badge bg-warning text-dark me-2">Processing</span> The ZIP/File generation process is currently in progress. Please wait until the process is completed.</li>
+                    <li class="mb-1"><span class="badge bg-success me-2">Completed</span> Your ZIP/File is ready for download. Click the Download button to successfully download the file.</li>
+                </ul>
+                <p class="mb-0 text-muted"><strong>Note:</strong> Once the status is marked as <strong>Completed</strong>, you can download the ZIP/File successfully by clicking on the download option.</p>
+            </div>
+        </div>
+
         <div class="downloads-table-wrap">
             <x-data-table id="downloads-table" :columns="$columns" :extraOptions="['title' => 'Downloads List']" />
         </div>

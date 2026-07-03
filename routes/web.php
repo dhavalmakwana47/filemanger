@@ -106,6 +106,7 @@ Route::middleware(['auth', 'restrict_ip_by_company'])->group(function () {
 
     //company role
     Route::resource('companyrole', CompanyRoleController::class);
+    Route::get('companyrole/{companyrole}/copy', [CompanyRoleController::class, 'copy'])->name('companyrole.copy');
     Route::get('companyrole-users-assign/{id}', [CompanyRoleController::class, 'userAssign'])->name('companyrole.usersassign');
     Route::get('companyrole-getalluserids/{id}', [CompanyRoleController::class, 'getAllUserIds'])->name('companyrole.getalluserids');
     Route::post('companyrole-users-assign', [CompanyRoleController::class, 'userAssignStore'])->name('companyrole.usersassignstore');

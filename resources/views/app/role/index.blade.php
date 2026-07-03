@@ -87,6 +87,18 @@
                 }
             @endphp
 
+            <div class="card mb-3">
+                <div class="card-header fw-semibold">Permission Details</div>
+                <div class="card-body">
+                    <p class="mb-2">User access is controlled through folder and file permissions.</p>
+                    <ul class="list-unstyled mb-2">
+                        <li class="mb-1"><strong>View:</strong> User can only view the assigned files/folders.</li>
+                        <li class="mb-1"><strong>Download:</strong> User can view and download the assigned files/folders.</li>
+                    </ul>
+                    <p class="mb-0 text-muted">Access will be available only as per the permission set by the Admin.</p>
+                </div>
+            </div>
+
             <p class="text-muted mb-2">Total Roles: <strong>{{ $totalRoles }}</strong></p>
             <div class="role-table-wrap">
                 <x-data-table id="companyrole-table" :columns="$columns" :extraOptions="['title' => 'Role List']" />

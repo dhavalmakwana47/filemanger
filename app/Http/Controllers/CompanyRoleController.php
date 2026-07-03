@@ -38,7 +38,7 @@ class CompanyRoleController extends Controller implements HasMiddleware
     {
         return [
             new Middleware('permission_check:Company Role,view', only: ['index', 'show']),
-            new Middleware('permission_check:Company Role,create', only: ['create', 'store']),
+            new Middleware('permission_check:Company Role,create', only: ['create', 'store', 'copy']),
             new Middleware('permission_check:Company Role,update', only: ['edit', 'update']),
             new Middleware('permission_check:Company Role,delete', only: ['destroy']),
         ];
@@ -65,6 +65,11 @@ class CompanyRoleController extends Controller implements HasMiddleware
                 })
                 ->addColumn('action', function ($role) use ($currentUser) {
                     $actionButtons = '';
+
+                    if ($currentUser->hasPermission('Company Role', 'create')) {
+                        $copyUrl = route('companyrole.copy', $role->id);
+                        $actionButtons .= '<a href="' . $copyUrl . '" class="btn btn-sm btn-info">Copy</a> ';
+                    }
 
                     if ($currentUser->hasPermission('Company Role', 'update')) {
                         $editUrl = route('companyrole.edit', $role->id);
@@ -231,6 +236,32 @@ class CompanyRoleController extends Controller implements HasMiddleware
 
         $companyrole->delete();
         return redirect()->route('companyrole.index')->with('success', 'Role deleted successfully.');
+    }
+
+    public function copy(CompanyRole $companyrole)
+    {
+        $newRole = CompanyRole::create([
+            'role_name' => $companyrole->role_name . '-Copy',
+            'company_id' => $companyrole->company_id,
+        ]);
+
+        $permissions = CompanyRolePermission::where('company_role_id', $companyrole->id)->pluck('permission_id');
+
+        if ($permissions->isNotEmpty()) {
+            CompanyRolePermission::insert(
+                $permissions->map(fn($pid) => [
+                    'company_role_id' => $newRole->id,
+                    'permission_id'   => $pid,
+                ])->toArray()
+            );
+        }
+
+        addUserAction([
+            'user_id' => Auth::id(),
+            'action'  => "Role {$companyrole->role_name} copied as {$newRole->role_name}"
+        ]);
+
+        return redirect()->route('companyrole.edit', $newRole->id)->with('success', 'Role copied successfully. You can now edit it.');
     }
 
     public function userAssign($id)
