@@ -268,7 +268,7 @@ class ProcessZipDownloadJob implements ShouldQueue
             return $path;
         }
 
-        $maxBytes = (int) env('ZIP_DOWNLOAD_MAX_WATERMARK_BYTES', 15 * 1024 * 1024);
+        $maxBytes = (int) env('ZIP_DOWNLOAD_MAX_WATERMARK_BYTES', 1 * 1024 * 1024 * 1024);
         if (filesize($path) > $maxBytes) {
             return $path;
         }

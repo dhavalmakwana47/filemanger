@@ -129,6 +129,18 @@ class PdfWatermarkService
         $pdf->SetFont('Helvetica', 'B', $fontSize);
         $pdf->SetTextColor($red, $green, $blue);
 
+        // Max text width = longest axis that fits inside page at the given angle
+        // Use the smaller of: width/|cos(angle)| and height/|sin(angle)|, with 80% margin
+        $rad = deg2rad($angle);
+        $cosA = abs(cos($rad)) ?: 0.001;
+        $sinA = abs(sin($rad)) ?: 0.001;
+        $maxWidth = min($pageWidth / $cosA, $pageHeight / $sinA) * 0.80;
+
+        while ($fontSize > 6 && $pdf->GetStringWidth($text) > $maxWidth) {
+            $fontSize--;
+            $pdf->SetFont('Helvetica', 'B', $fontSize);
+        }
+
         $centerX = $pageWidth / 2;
         $centerY = $pageHeight / 2;
         $textWidth = $pdf->GetStringWidth($text);
