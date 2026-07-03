@@ -41,17 +41,19 @@ class TwoFactorController extends Controller
             $otp->delete();
             $request->session()->forget('2fa_user_id');
 
-            // Now run your original post-login logic
-            if (!session()->has('active_company')) {
-                $firstCompanyId = $user->companies()->first()?->id;
-                if ($firstCompanyId) {
-                    session(['active_company' => $firstCompanyId]);
-                }
-                addUserAction([
-                    'user_id' => $user->id,
-                    'action' => "User {$user->name} logged in"
-                ]);
-                $request->session()->forget('nda_agreement');
+            addUserAction([
+                'user_id' => $user->id,
+                'action'  => "User {$user->name} logged in",
+            ]);
+            $request->session()->forget('nda_agreement');
+
+            $companies = $user->companies()->get();
+            if ($companies->count() > 1) {
+                return redirect()->route('select-company.show');
+            }
+
+            if ($companies->count() === 1) {
+                session(['active_company' => $companies->first()->id]);
             }
 
             return redirect()->intended(route('dashboard'));

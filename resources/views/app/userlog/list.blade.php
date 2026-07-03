@@ -185,6 +185,9 @@
                                     </form>
                                 </div>
                             </div>
+                            <!-- Export status toast -->
+                            <div id="exportToast" class="alert mt-2 d-none" role="alert"></div>
+                            </div>
                         </div>
                         <div class="card-body">
                             <div class="table-responsive user-logs-table-wrap">
@@ -339,21 +342,50 @@
 
             // Handle export button click
             $('#exportButton').on('click', function() {
-                // Get current filter values
-                $('#export_user_id').val($('#user-id').val());
-                $('#export_from_date').val($('#from_date').val());
-                $('#export_to_date').val($('#to_date').val());
-                $('#export_type').val($('input[name="export_type"]:checked').val());
+                const format = $('input[name="export_type"]:checked').val();
+                const $btn   = $(this);
+                const $toast = $('#exportToast');
 
-                // Submit the form
-                $('#exportForm').submit();
+                $btn.prop('disabled', true).html('<i class="fas fa-spinner fa-spin"></i> Queuing...');
+                $toast.removeClass('d-none alert-info alert-success alert-danger')
+                      .addClass('alert-info').text('Export queued, preparing your file...');
+
+                $.ajax({
+                    url: '{{ route('userlog.download') }}',
+                    method: 'POST',
+                    data: {
+                        _token: '{{ csrf_token() }}',
+                        export_type: format,
+                        user_id:    $('#user-id').val(),
+                        from_date:  $('#from_date').val(),
+                        to_date:    $('#to_date').val(),
+                    },
+                    success: function(res) {
+                        pollExportStatus(res.export_id, $btn, $toast);
+                    },
+                    error: function() {
+                        $btn.prop('disabled', false).html('<i class="fas fa-download"></i> Export');
+                        $toast.removeClass('alert-info').addClass('alert-danger').text('Failed to queue export. Please try again.');
+                    }
+                });
             });
 
-            // Update export button text based on selection
-            $('input[name="export_type"]').change(function() {
-                const type = $(this).val().toUpperCase();
-                $('#exportButton').html(`<i class="fas fa-download"></i> Export as ${type}`);
-            });
+            function pollExportStatus(exportId, $btn, $toast) {
+                const interval = setInterval(function() {
+                    $.get('{{ url('userlog/export') }}/' + exportId + '/status', function(res) {
+                        if (res.status === 'completed') {
+                            clearInterval(interval);
+                            $btn.prop('disabled', false).html('<i class="fas fa-download"></i> Export');
+                            $toast.removeClass('alert-info').addClass('alert-success')
+                                  .html('Export ready! <a href="' + res.download_url + '" class="alert-link">Click here to download</a>');
+                        } else if (res.status === 'failed') {
+                            clearInterval(interval);
+                            $btn.prop('disabled', false).html('<i class="fas fa-download"></i> Export');
+                            $toast.removeClass('alert-info').addClass('alert-danger').text('Export failed. Please try again.');
+                        }
+                    });
+                }, 3000);
+            }
         });
     </script>
 @endpush

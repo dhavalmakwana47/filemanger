@@ -2,15 +2,14 @@
 
 namespace App\Http\Controllers;
 
-use App\Exports\UsersLogExport;
-use App\Models\Claim;
+use App\Jobs\ExportUserLogsJob;
+use App\Models\LogExport;
 use App\Models\User;
 use App\Models\UserLog;
 use Carbon\Carbon;
 use Illuminate\Http\Request;
-use Maatwebsite\Excel\Facades\Excel;
+use Illuminate\Support\Facades\Storage;
 use Yajra\DataTables\DataTables;
-use Barryvdh\DomPDF\Facade\Pdf;
 
 class UserLogController extends Controller
 {
@@ -91,113 +90,64 @@ class UserLogController extends Controller
 
     public function userlog_download(Request $request)
     {
-        $user = auth()->user();
-        $format = $request->get('export_type', 'xlsx');
+        $user    = auth()->user();
+        $format  = $request->get('export_type', 'xlsx');
+        $isAdmin = $user->is_master_admin() || $user->is_super_admin();
 
-        $fileNameBase = 'user_logs_' . now()->format('Y-m-d_H-i-s');
-
-        // Log the user action
-        addUserAction([
+        $export = LogExport::create([
             'user_id' => $user->id,
-            'action' => "User '{$user->name}' exported logs in " . strtoupper($format) . " format"
+            'format'  => $format,
+            'status'  => 'pending',
         ]);
 
-        // Handle PDF separately
-        if ($format === 'pdf') {
-            return $this->exportPdf($request, $fileNameBase);
-        }
-
-        // Default: Excel (XLSX)
-        $fileName = $fileNameBase . '.xlsx';
-
-        return Excel::download(
-            new UsersLogExport($request),
-            $fileName,
-            \Maatwebsite\Excel\Excel::XLSX,
-            [
-                'Content-Type' => 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
-                'Content-Disposition' => 'attachment; filename="' . $fileName . '"',
-            ]
+        ExportUserLogsJob::dispatch(
+            $export->id,
+            $user->id,
+            get_active_company(),
+            $format,
+            $isAdmin,
+            $request->only(['from_date', 'to_date', 'user_id', 'claim_id']),
         );
+
+        addUserAction([
+            'user_id' => $user->id,
+            'action'  => "User '{$user->name}' queued log export in " . strtoupper($format),
+        ]);
+
+        return response()->json(['export_id' => $export->id]);
     }
 
-    private function exportPdf(Request $request, $fileNameBase)
+    public function exportStatus(int $id)
     {
-        $user = auth()->user();
-        $companyId = get_active_company();
+        $export = LogExport::where('id', $id)
+            ->where('user_id', auth()->id())
+            ->firstOrFail();
 
-        // Build the same query as in UsersLogExport
-        $query = UserLog::query()
-            ->with(['user', 'company', 'company.admin_user']);
-
-        // Apply all filters (same as in export class)
-        if ($request->filled('from_date')) {
-            $query->whereDate('created_at', '>=', $request->from_date);
-        }
-        if ($request->filled('to_date')) {
-            $query->whereDate('created_at', '<=', $request->to_date);
+        if ($export->status !== 'completed') {
+            return response()->json(['status' => $export->status]);
         }
 
-        if ($request->filled('claim_id')) {
-            $query->where('claim_id', $request->claim_id);
-        }
+        return response()->json([
+            'status'       => 'completed',
+            'download_url' => route('userlog.export.download', $export->id),
+        ]);
+    }
 
-        // User filter for admins
-        if (($user->is_master_admin() || $user->is_super_admin()) && $request->filled('user_id')) {
-            $query->where('user_id', $request->user_id);
-        }
+    public function exportDownload(int $id)
+    {
+        $export = LogExport::where('id', $id)
+            ->where('user_id', auth()->id())
+            ->where('status', 'completed')
+            ->firstOrFail();
 
-        // Company scope
-        if ($user->is_master_admin() || $user->is_super_admin()) {
-            $query->where('company_id', $companyId);
-        } else {
-            $query->where('company_id', $companyId)->where('user_id', $user->id);
-        }
+        $path = storage_path('app/' . $export->file_path);
 
-        // Extra user filter logic
-        if ($request->filled('user_id')) {
-            $reqUser = User::find($request->user_id);
-            if ($reqUser && $reqUser->type != 0) {
-                $query->where('user_id', $request->user_id);
-            }
-        }
+        $mime = $export->format === 'pdf' ? 'application/pdf'
+            : 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet';
 
-        $logs = $query->orderBy('id', 'desc')->get();
+        $fileName = 'user_logs_' . now()->format('Y-m-d_H-i-s') . '.' . $export->format;
 
-        // Format data for blade (same as map() was doing)
-        $data = $logs->map(function ($log) {
-            return [
-                'date_time' => $log->created_at?->format('d-M-Y h:i A') ?? '',
-                'user_name' => $log->user?->name ?? '',
-                'action'    => $log->action ?? '',
-                'ip'        => $log->ipaddress ?? '',
-                'company'   => $log->company?->name ?? '',
-                'admin'     => $log->company?->admin_user?->name ?? '',
-            ];
-        });
-
-        $corporate_debtor = $logs->first()->company?->name ?? '';
-        $personName = $logs->first()->user?->name ?? '';
-
-        return Pdf::loadView('exports.user-logs-pdf', [
-            'logs'            => $data,
-            'exported_by'     => auth()->user()->name,
-            'exported_at'     => now()->format('d M Y, h:i A'),
-            'corporate_debtor' => $corporate_debtor,
-            'personName'      => $personName,
-        ])
-            ->setPaper('a4', 'landscape')
-            ->setOptions([
-                'defaultFont'       => 'DejaVu Sans',
-                'isRemoteEnabled'   => true,
-                'isHtml5ParserEnabled' => true,
-                'isPhpEnabled'      => false,
-                'dpi'               => 72,
-                'margin_top'        => 10,
-                'margin_right'      => 10,
-                'margin_bottom'     => 15,
-                'margin_left'       => 10,
-            ])
-            ->download($fileNameBase . '.pdf');
+        return response()->download($path, $fileName, ['Content-Type' => $mime])
+            ->deleteFileAfterSend(true);
     }
 }

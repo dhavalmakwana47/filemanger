@@ -1,5 +1,6 @@
 <?php
 
+use App\Http\Controllers\SelectCompanyController;
 use App\Http\Controllers\Auth\AuthenticatedSessionController;
 use App\Http\Controllers\BookmarkController;
 use App\Http\Controllers\CompanyController;
@@ -47,6 +48,9 @@ Route::get('/access-denied', function () {
 
 
 Route::middleware(['auth', 'restrict_ip_by_company'])->group(function () {
+
+    Route::get('/select-company', [SelectCompanyController::class, 'show'])->name('select-company.show');
+    Route::post('/select-company', [SelectCompanyController::class, 'store'])->name('select-company.store');
 
     Route::get('/sync-permissions',function(){
          $permissions = Permission::all();
@@ -137,6 +141,8 @@ Route::middleware(['auth', 'restrict_ip_by_company'])->group(function () {
     //logs
     Route::get('userlog', [UserLogController::class, "index"])->name('userlog.index');
     Route::post('userlog/download', [UserLogController::class, "userlog_download"])->name('userlog.download');
+    Route::get('userlog/export/{id}/status', [UserLogController::class, 'exportStatus'])->name('userlog.export.status');
+    Route::get('userlog/export/{id}/download', [UserLogController::class, 'exportDownload'])->name('userlog.export.download');
     Route::post('userlog/getusers', [UserLogController::class, "getusers"])->name('userlog.users');
 
     //settings
