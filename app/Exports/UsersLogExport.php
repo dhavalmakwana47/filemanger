@@ -4,39 +4,71 @@ namespace App\Exports;
 
 use App\Models\UserLog;
 use Maatwebsite\Excel\Concerns\Exportable;
-use Maatwebsite\Excel\Concerns\FromQuery;
-use Maatwebsite\Excel\Concerns\WithChunkReading;
+use Maatwebsite\Excel\Concerns\FromCollection;
 use Maatwebsite\Excel\Concerns\WithColumnWidths;
 use Maatwebsite\Excel\Concerns\WithHeadings;
-use Maatwebsite\Excel\Concerns\WithMapping;
 use Maatwebsite\Excel\Concerns\WithStyles;
 use PhpOffice\PhpSpreadsheet\Style\Fill;
 use PhpOffice\PhpSpreadsheet\Worksheet\Worksheet;
 
-class UsersLogExport implements FromQuery, WithHeadings, WithMapping, WithStyles, WithColumnWidths, WithChunkReading
+class UsersLogExport implements FromCollection, WithHeadings, WithStyles, WithColumnWidths
 {
     use Exportable;
 
     public function __construct(
-        private readonly int     $companyId,
-        private readonly int     $userId,
-        private readonly bool    $isAdmin,
-        private readonly array   $filters,
+        private readonly int   $companyId,
+        private readonly int   $userId,
+        private readonly bool  $isAdmin,
+        private readonly array $filters,
     ) {}
 
-    public function chunkSize(): int
+    public function collection()
     {
-        return 500;
+        return $this->buildQuery()->cursor()->map(function ($log) {
+            return [
+                $log->created_at?->format('d-M-Y h:i A') ?? '',
+                $log->user_name    ?? '',
+                $log->action       ?? '',
+                $log->ipaddress    ?? '',
+                $log->company_name ?? '',
+            ];
+        });
     }
 
-    public function query()
+    public function headings(): array
     {
+        return ['Date & Time', 'User Name', 'Action', 'IP Address', 'Company'];
+    }
+
+    public function columnWidths(): array
+    {
+        return ['A' => 18, 'B' => 22, 'C' => 60, 'D' => 18, 'E' => 30];
+    }
+
+    public function styles(Worksheet $sheet): array
+    {
+        // Only style the header row — no wrapText on all columns (very expensive on large sheets)
+        return [
+            1 => [
+                'font' => ['bold' => true],
+                'fill' => ['fillType' => Fill::FILL_SOLID, 'startColor' => ['argb' => 'FFD9D9D9']],
+            ],
+        ];
+    }
+
+    private function buildQuery()
+    {
+        // JOIN instead of eager loading — avoids creating relation model objects per row
         $query = UserLog::query()
-            ->select('user_logs.id', 'user_logs.created_at', 'user_logs.action', 'user_logs.ipaddress', 'user_logs.user_id', 'user_logs.company_id')
-            ->with([
-                'user:id,name',
-                'company:id,name',
-            ])
+            ->select(
+                'user_logs.created_at',
+                'user_logs.action',
+                'user_logs.ipaddress',
+                'users.name as user_name',
+                'companies.name as company_name',
+            )
+            ->leftJoin('users',     'users.id',     '=', 'user_logs.user_id')
+            ->leftJoin('companies', 'companies.id', '=', 'user_logs.company_id')
             ->where('user_logs.company_id', $this->companyId);
 
         if (! $this->isAdmin) {
@@ -53,37 +85,5 @@ class UsersLogExport implements FromQuery, WithHeadings, WithMapping, WithStyles
         }
 
         return $query->orderByDesc('user_logs.id');
-    }
-
-    public function map($log): array
-    {
-        return [
-            $log->created_at?->format('d-M-Y h:i A') ?? '',
-            $log->user?->name ?? '',
-            $log->action ?? '',
-            $log->ipaddress ?? '',
-            $log->company?->name ?? '',
-        ];
-    }
-
-    public function headings(): array
-    {
-        return ['Date & Time', 'User Name', 'Action', 'IP Address', 'Company'];
-    }
-
-    public function columnWidths(): array
-    {
-        return ['A' => 18, 'B' => 22, 'C' => 60, 'D' => 18, 'E' => 30];
-    }
-
-    public function styles(Worksheet $sheet): array
-    {
-        return [
-            1 => [
-                'font' => ['bold' => true],
-                'fill' => ['fillType' => Fill::FILL_SOLID, 'startColor' => ['argb' => 'FFD9D9D9']],
-            ],
-            'A:E' => ['alignment' => ['wrapText' => true]],
-        ];
     }
 }

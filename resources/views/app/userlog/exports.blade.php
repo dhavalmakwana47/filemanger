@@ -103,23 +103,14 @@
     <script src="https://cdn.datatables.net/1.13.5/js/jquery.dataTables.min.js"></script>
     <script src="https://cdn.datatables.net/1.13.5/js/dataTables.bootstrap4.min.js"></script>
     <script>
-        var table;
-        var hasPending = false;
-        var autoReloadInterval = null;
-
         $(document).ready(function () {
-            table = $('#exports-table').DataTable({
+            var table = $('#exports-table').DataTable({
                 processing: true,
                 serverSide: false,
                 ajax: {
                     url: '{{ route('userlog.exports.index') }}',
-                    dataSrc: function (json) {
-                        hasPending = json.data.some(function (row) {
-                            return row.status.includes('Pending') || row.status.includes('Processing');
-                        });
-                        manageAutoReload();
-                        return json.data;
-                    }
+                    cache: true,
+                    dataSrc: 'data'
                 },
                 columns: [
                     { data: 'DT_RowIndex', orderable: false, searchable: false },
@@ -132,25 +123,6 @@
                 language: { search: '_INPUT_', searchPlaceholder: 'Search...' },
                 pageLength: 25,
             });
-
-            // Reload table after download click so the row disappears
-            $('#exports-table').on('click', '.download-btn', function () {
-                var $btn = $(this);
-                setTimeout(function () {
-                    table.ajax.reload(null, false);
-                }, 3000);
-            });
         });
-
-        function manageAutoReload() {
-            if (hasPending && !autoReloadInterval) {
-                autoReloadInterval = setInterval(function () {
-                    table.ajax.reload(null, false);
-                }, 5000);
-            } else if (!hasPending && autoReloadInterval) {
-                clearInterval(autoReloadInterval);
-                autoReloadInterval = null;
-            }
-        }
     </script>
 @endpush

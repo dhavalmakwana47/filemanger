@@ -159,7 +159,7 @@ class UserLogController extends Controller
                 ->make(true);
         }
 
-        return view('app.userlog.exports');
+        return view('app.userlog.exports', ['hasPending' => false]);
     }
 
     public function exportDelete(int $id)
@@ -168,8 +168,10 @@ class UserLogController extends Controller
             ->where('user_id', auth()->id())
             ->firstOrFail();
 
-        if ($export->file_path && Storage::exists($export->file_path)) {
-            Storage::delete($export->file_path);
+        foreach ((array) $export->file_path as $path) {
+            if ($path && Storage::exists($path)) {
+                Storage::delete($path);
+            }
         }
 
         $export->delete();
@@ -184,16 +186,41 @@ class UserLogController extends Controller
             ->where('status', 'completed')
             ->firstOrFail();
 
-        $path = storage_path('app/' . $export->file_path);
+        $files = (array) $export->file_path;
 
-        $mime = $export->format === 'pdf' ? 'application/pdf'
-            : 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet';
-
-        $fileName = 'user_logs_' . now()->format('Y-m-d_H-i-s') . '.' . $export->format;
-
+        // Delete DB record immediately so re-clicking download is blocked
         $export->delete();
 
-        return response()->download($path, $fileName, ['Content-Type' => $mime])
+        if (count($files) === 1) {
+            $path     = storage_path('app/' . $files[0]);
+            $ext      = pathinfo($files[0], PATHINFO_EXTENSION);
+            $mime     = $ext === 'pdf' ? 'application/pdf'
+                : 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet';
+
+            return response()->download($path, 'user_logs_export_' . $id . '.' . $ext, ['Content-Type' => $mime])
+                ->deleteFileAfterSend(true);
+        }
+
+        // Multiple PDFs — zip them
+        $zipPath = storage_path('app/log_exports/user_logs_export_' . $id . '.zip');
+
+        $zip = new \ZipArchive();
+        $zip->open($zipPath, \ZipArchive::CREATE | \ZipArchive::OVERWRITE);
+        foreach ($files as $filePath) {
+            $abs = storage_path('app/' . $filePath);
+            if (file_exists($abs)) {
+                $zip->addFile($abs, basename($abs));
+            }
+        }
+        $zip->close();
+
+        // Delete individual PDFs now (zip already has them)
+        foreach ($files as $filePath) {
+            @unlink(storage_path('app/' . $filePath));
+        }
+
+        // deleteFileAfterSend deletes the zip after streaming
+        return response()->download($zipPath, 'user_logs_export_' . $id . '.zip', ['Content-Type' => 'application/zip'])
             ->deleteFileAfterSend(true);
     }
 }

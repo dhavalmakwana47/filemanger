@@ -9,3 +9,4 @@ Artisan::command('inspire', function () {
 })->purpose('Display an inspiring quote')->hourly();
 Schedule::command('plans:check-expired')->dailyAt('00:10');
 Schedule::command('zip-downloads:cleanup')->dailyAt('00:30');
+Schedule::command('exports:clean')->dailyAt('01:00');
