@@ -165,24 +165,20 @@
                             <div class="d-flex justify-content-between align-items-center flex-wrap">
                                 <h4 class="card-title mb-0">User Logs</h4>
                                 <div class="export-options logs-header-actions">
-                                    <div class="btn-group btn-group-toggle mr-2" data-toggle="buttons">
-                                        <label class="btn btn-outline-secondary active">
-                                            <input type="radio" name="export_type" value="xlsx" checked> Excel
-                                        </label>
-                                        <label class="btn btn-outline-danger">
-                                            <input type="radio" name="export_type" value="pdf"> PDF
-                                        </label>
-                                    </div>
-                                    <form id="exportForm" action="{{ route('userlog.download') }}" method="POST">
-                                        @csrf
-                                        <input type="hidden" name="user_id" id="export_user_id">
-                                        <input type="hidden" name="from_date" id="export_from_date">
-                                        <input type="hidden" name="to_date" id="export_to_date">
-                                        <input type="hidden" name="export_type" id="export_type" value="xlsx">
-                                        <button type="button" id="exportButton" class="btn btn-success">
-                                            <i class="fas fa-download"></i> Export
+                                    <div class="btn-group mr-2" id="formatToggle">
+                                        <button type="button" class="btn btn-success active" data-format="xlsx">
+                                            <i class="fas fa-file-excel"></i> Excel
                                         </button>
-                                    </form>
+                                        <button type="button" class="btn btn-outline-danger" data-format="pdf">
+                                            <i class="fas fa-file-pdf"></i> PDF
+                                        </button>
+                                    </div>
+                                    <button type="button" id="exportButton" class="btn btn-primary">
+                                        <i class="fas fa-download"></i> Export
+                                    </button>
+                                    <a href="{{ route('userlog.exports.index') }}" class="btn btn-info">
+                                        <i class="fas fa-list"></i> Downloaded Logs
+                                    </a>
                                 </div>
                             </div>
                             <!-- Export status toast -->
@@ -340,15 +336,24 @@
                 }
             });
 
+            // Format toggle buttons
+            $('#formatToggle .btn').on('click', function() {
+                $('#formatToggle .btn').removeClass('btn-success btn-danger active')
+                    .addClass('btn-outline-secondary');
+                $(this).removeClass('btn-outline-secondary btn-outline-danger')
+                    .addClass($(this).data('format') === 'pdf' ? 'btn-danger' : 'btn-success')
+                    .addClass('active');
+            });
+
             // Handle export button click
             $('#exportButton').on('click', function() {
-                const format = $('input[name="export_type"]:checked').val();
+                const format = $('#formatToggle .btn.active').data('format') || 'xlsx';
                 const $btn   = $(this);
                 const $toast = $('#exportToast');
 
                 $btn.prop('disabled', true).html('<i class="fas fa-spinner fa-spin"></i> Queuing...');
                 $toast.removeClass('d-none alert-info alert-success alert-danger')
-                      .addClass('alert-info').text('Export queued, preparing your file...');
+                      .addClass('alert-info').text('Queuing export, redirecting to exports page...');
 
                 $.ajax({
                     url: '{{ route('userlog.download') }}',
@@ -361,7 +366,7 @@
                         to_date:    $('#to_date').val(),
                     },
                     success: function(res) {
-                        pollExportStatus(res.export_id, $btn, $toast);
+                        window.location.href = res.redirect_url;
                     },
                     error: function() {
                         $btn.prop('disabled', false).html('<i class="fas fa-download"></i> Export');
@@ -369,23 +374,6 @@
                     }
                 });
             });
-
-            function pollExportStatus(exportId, $btn, $toast) {
-                const interval = setInterval(function() {
-                    $.get('{{ url('userlog/export') }}/' + exportId + '/status', function(res) {
-                        if (res.status === 'completed') {
-                            clearInterval(interval);
-                            $btn.prop('disabled', false).html('<i class="fas fa-download"></i> Export');
-                            $toast.removeClass('alert-info').addClass('alert-success')
-                                  .html('Export ready! <a href="' + res.download_url + '" class="alert-link">Click here to download</a>');
-                        } else if (res.status === 'failed') {
-                            clearInterval(interval);
-                            $btn.prop('disabled', false).html('<i class="fas fa-download"></i> Export');
-                            $toast.removeClass('alert-info').addClass('alert-danger').text('Export failed. Please try again.');
-                        }
-                    });
-                }, 3000);
-            }
         });
     </script>
 @endpush

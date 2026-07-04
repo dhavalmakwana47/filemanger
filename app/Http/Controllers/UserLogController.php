@@ -114,23 +114,67 @@ class UserLogController extends Controller
             'action'  => "User '{$user->name}' queued log export in " . strtoupper($format),
         ]);
 
-        return response()->json(['export_id' => $export->id]);
+        return response()->json([
+            'export_id'    => $export->id,
+            'redirect_url' => route('userlog.exports.index'),
+        ]);
     }
 
-    public function exportStatus(int $id)
+    public function exportsList()
+    {
+        if (request()->ajax()) {
+            $exports = LogExport::where('user_id', auth()->id())->latest()->get();
+
+            return DataTables::of($exports)
+                ->addIndexColumn()
+                ->addColumn('format', function ($row) {
+                    return '<span class="badge badge-dark text-uppercase">' . $row->format . '</span>';
+                })
+                ->addColumn('status', function ($row) {
+                    $map = [
+                        'pending'    => ['badge-pending',    'fa-clock',        'Pending'],
+                        'processing' => ['badge-processing', 'fa-spinner fa-spin', 'Processing'],
+                        'completed'  => ['badge-completed',  'fa-check-circle', 'Completed'],
+                        'failed'     => ['badge-failed',     'fa-times-circle', 'Failed'],
+                    ];
+                    [$cls, $icon, $label] = $map[$row->status] ?? ['badge-failed', 'fa-times-circle', 'Failed'];
+                    return '<span class="status-badge ' . $cls . '"><i class="fas ' . $icon . '"></i> ' . $label . '</span>';
+                })
+                ->addColumn('created_at', function ($row) {
+                    return $row->created_at->timezone('Asia/Kolkata')->format('d-M-Y h:i A');
+                })
+                ->addColumn('actions', function ($row) {
+                    $html = '';
+                    if ($row->status === 'completed') {
+                        $html .= '<a href="' . route('userlog.export.download', $row->id) . '" class="btn btn-sm btn-success download-btn" data-id="' . $row->id . '"><i class="fas fa-download"></i> Download</a> ';
+                    } elseif (in_array($row->status, ['pending', 'processing'])) {
+                        $html .= '<button class="btn btn-sm btn-info" disabled><i class="fas fa-spinner fa-spin"></i> Processing...</button> ';
+                    }
+                    if (!in_array($row->status, ['pending', 'processing'])) {
+                        $html .= '<form action="' . route('userlog.exports.delete', $row->id) . '" method="POST" style="display:inline;" onsubmit="return confirm(\'Remove this export record?\')">' . csrf_field() . method_field('DELETE') . '<button type="submit" class="btn btn-sm btn-danger"><i class="fas fa-trash"></i> Delete</button></form>';
+                    }
+                    return $html;
+                })
+                ->rawColumns(['format', 'status', 'actions'])
+                ->make(true);
+        }
+
+        return view('app.userlog.exports');
+    }
+
+    public function exportDelete(int $id)
     {
         $export = LogExport::where('id', $id)
             ->where('user_id', auth()->id())
             ->firstOrFail();
 
-        if ($export->status !== 'completed') {
-            return response()->json(['status' => $export->status]);
+        if ($export->file_path && Storage::exists($export->file_path)) {
+            Storage::delete($export->file_path);
         }
 
-        return response()->json([
-            'status'       => 'completed',
-            'download_url' => route('userlog.export.download', $export->id),
-        ]);
+        $export->delete();
+
+        return redirect()->route('userlog.exports.index')->with('success', 'Export record removed.');
     }
 
     public function exportDownload(int $id)
@@ -146,6 +190,8 @@ class UserLogController extends Controller
             : 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet';
 
         $fileName = 'user_logs_' . now()->format('Y-m-d_H-i-s') . '.' . $export->format;
+
+        $export->delete();
 
         return response()->download($path, $fileName, ['Content-Type' => $mime])
             ->deleteFileAfterSend(true);

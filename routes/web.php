@@ -142,7 +142,8 @@ Route::middleware(['auth', 'restrict_ip_by_company'])->group(function () {
     //logs
     Route::get('userlog', [UserLogController::class, "index"])->name('userlog.index');
     Route::post('userlog/download', [UserLogController::class, "userlog_download"])->name('userlog.download');
-    Route::get('userlog/export/{id}/status', [UserLogController::class, 'exportStatus'])->name('userlog.export.status');
+    Route::get('userlog/exports', [UserLogController::class, 'exportsList'])->name('userlog.exports.index');
+    Route::delete('userlog/exports/{id}', [UserLogController::class, 'exportDelete'])->name('userlog.exports.delete');
     Route::get('userlog/export/{id}/download', [UserLogController::class, 'exportDownload'])->name('userlog.export.download');
     Route::post('userlog/getusers', [UserLogController::class, "getusers"])->name('userlog.users');
 

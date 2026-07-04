@@ -256,6 +256,18 @@ class CompanyRoleController extends Controller implements HasMiddleware
             );
         }
 
+        $userAssignments = CompanyUserRole::where('company_role_id', $companyrole->id)->get();
+
+        if ($userAssignments->isNotEmpty()) {
+            CompanyUserRole::insert(
+                $userAssignments->map(fn($u) => [
+                    'user_id'         => $u->user_id,
+                    'company_role_id' => $newRole->id,
+                    'company_id'      => $newRole->company_id,
+                ])->toArray()
+            );
+        }
+
         addUserAction([
             'user_id' => Auth::id(),
             'action'  => "Role {$companyrole->role_name} copied as {$newRole->role_name}"
